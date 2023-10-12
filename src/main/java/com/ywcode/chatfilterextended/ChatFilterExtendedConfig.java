@@ -62,7 +62,7 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "chatsToFilter",
 			name = "Chats to Filter",
-			description = "Chat tabs to show the CC/FC/Friends filter.<br>"+
+			description = "Chat tabs to show the custom filter.<br>"+
 			"Hold control or shift to select multiple entries.",
 			position = 6
 	)
@@ -77,9 +77,10 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "forcePrivateOn",
 			name = "Force private to on when filtering",
-			description = "When you tick this option, you force your private to 'on' when you filter private chat on CC/FC/Friends.<br>" +
-					"Remember that this means everyone can see you online in their Friends List and get your world.<br>" +
-					"This might have consequences if you do dangerous activities in the wilderness (e.g. getting scouted/sniped)!",
+			description = "When you tick this option, you force your private to 'on' when you enable the custom filter for your private chat.<br>" +
+					"Remember that this means everyone can see you online in their Friends List and get your world when the custom filter is enabled.<br>" +
+					"This might have consequences if you do dangerous activities in the wilderness (e.g. getting scouted/sniped)!<br>"+
+					"If this option is disabled, private will only be properly filtered if you set it to on and then enable the custom filter.",
 			position = 7
 	)
 	default boolean forcePrivateOn() {
