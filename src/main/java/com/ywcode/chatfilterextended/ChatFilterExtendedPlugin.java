@@ -44,7 +44,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static boolean tradeFilterEnabled;
 	// ------------- End of wall of config vars -------------
 	private static boolean shuttingDown;
-	private static int setPublicChatOnInt = 0;
+	private static int setPublicChatOnInt; //Default value for ints = 0
 	private static HashSet<String> channelStandardizedUsernames = new HashSet<String>();
 	private static HashSet<String> clanStandardizedUsernames = new HashSet<String>();
 	private static HashSet<String> guestClanStandardizedUsernames = new HashSet<String>();
@@ -289,7 +289,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		int menuEntryAddedParam1 = menuEntryAdded.getActionParam1();
 		if (shouldFilterChatType(widgetIDtoWidgetInfo(menuEntryAddedParam1)) && menuEntryAdded.getOption().contains("Show none") &&
 				(showFriendsMessages || showCCMessages || showFCMessages || showGuestCCMessages || showRaidPartyMessages)) {
-			//create MenuEntry and set it's params
+			//create MenuEntry and set its params
 			final MenuEntry chatFilterEntry = client.createMenuEntry(-1).setType(MenuAction.RUNELITE_HIGH_PRIORITY);
 			chatFilterEntry.setParam1(menuEntryAddedParam1).onClick(this::enableChatFilter);
 
@@ -317,6 +317,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			if (showRaidPartyMessages) {
 				optionBuilder.append("Raid/");
 			}
+			//todo: add code here to filter specific player if string is not empty
 			optionBuilder.deleteCharAt(optionBuilder.length() - 1); //Remove the trailing /
 			chatFilterEntry.setOption(optionBuilder.toString());
 		}
