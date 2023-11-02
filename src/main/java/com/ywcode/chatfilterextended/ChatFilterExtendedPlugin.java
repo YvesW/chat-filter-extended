@@ -1,29 +1,27 @@
 package com.ywcode.chatfilterextended;
 
-import com.google.inject.Provides;
-
-import javax.annotation.*;
-import javax.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
+import com.google.inject.*;
+import lombok.extern.slf4j.*;
 import net.runelite.api.*;
 import net.runelite.api.clan.*;
 import net.runelite.api.events.*;
 import net.runelite.api.widgets.*;
 import net.runelite.client.callback.*;
 import net.runelite.client.config.*;
-import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.eventbus.*;
 import net.runelite.client.events.*;
-import net.runelite.client.plugins.Plugin;
-import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.*;
 import net.runelite.client.util.*;
 
+import javax.annotation.*;
+import javax.inject.Inject;
 import java.util.*;
 
 @Slf4j
 @PluginDescriptor(
 		name = "Chat Filter Extended",
 		description = "Adds the ability to filter all chat messages not coming from friends/clanmates/FC members/Guest CC members/raid members.",
-		tags = {"public,chat,cc,fc,clanchat,clan,filter,friendschat,friends,raids"}
+		tags = {"public,chat,cc,fc,clanchat,clan,filter,friends chat,friends,private,trade,raids,chat filter,tob,toa,cox,spam"}
 )
 //Alternative shitty names: Custom Chat View, Chat View Extended, Chat Show Custom, Custom Chat Filter
 
@@ -36,7 +34,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static boolean showGuestCCMessages;
 	private static boolean showRaidPartyMessages;
 	private static boolean forcePrivateOn;
-	private static Set<ChatsToFilter> chatsToFilter = new HashSet<ChatsToFilter>();
+	private static Set<ChatsToFilter> chatsToFilter = new HashSet<>();
 	private static boolean publicFilterEnabled;
 	private static boolean privateFilterEnabled;
 	private static boolean channelFilterEnabled;
@@ -45,10 +43,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	// ------------- End of wall of config vars -------------
 	private static boolean shuttingDown;
 	private static int setPublicChatOnInt; //Default value for ints = 0
-	private static HashSet<String> channelStandardizedUsernames = new HashSet<String>();
-	private static HashSet<String> clanStandardizedUsernames = new HashSet<String>();
-	private static HashSet<String> guestClanStandardizedUsernames = new HashSet<String>();
-	private static HashSet<String> raidPartyStandardizedUsernames = new HashSet<String>();
+	private static final HashSet<String> channelStandardizedUsernames = new HashSet<>();
+	private static final HashSet<String> clanStandardizedUsernames = new HashSet<>();
+	private static final HashSet<String> guestClanStandardizedUsernames = new HashSet<>();
+	private static final HashSet<String> raidPartyStandardizedUsernames = new HashSet<>();
 	private static final int TOB_BOARD_ID = 50; //N50.0
 	private static final int TOP_HALF_TOB_BOARD_CHILDID = 27; //S50.27
 	private static final int BOTTOM_HALF_TOB_BOARD_CHILDID = 42; //S50.42
@@ -76,6 +74,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		setChatsToPublic(false);
 		//todo: add icon, license, readme
 		//todo: go through problems
+		//todo: set build.gradle to 'latest.release' again
 	}
 
 	@Override
@@ -86,6 +85,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//todo: method volgorde fixen
 		//todo: final tests: login, hopping, toggling on/off plugin, toggling settings on/off, opening clan panels, changing to resizable, after npc chatbox maybe, in/after cutscenes like myths guild
 		//todo: make code easier/clean-up by adding/changing methods, adding local variables etc
+		//todo: probs add config option contains thingy for public, one for private etc?
+		//todo: make whitelist toCSV. Keep in mind that you also add that to the options, but then also ctrl+F it, because you got some code that looks at it to determine if chat is filtered!
 
 		shuttingDown = true; //Probably not necessary but just to be sure it doesn't fire
 		if (client.getGameState() == GameState.LOGGED_IN) {
@@ -109,7 +110,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 					setChatsToPublic(false);
 				} else {
 					//Set friends status to non filtered and redraw chat buttons to show the current state of friends
-					executeSetChatFilterConfig(WidgetInfo.CHATBOX_TAB_PRIVATE, false);
+					executeSetChatFilterConfig(ComponentID.CHATBOX_TAB_PRIVATE, false);
 					redrawChatButtons();
 				}
 			}
@@ -284,10 +285,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			return;
 		}
 
-		//getActionParam1() seems to be getMenuEntry().getParam1() which seems to be getMenuEntry().getWidget().getId() = 10616843 (for public chat).
+		//getActionParam1() seems to be getMenuEntry().getParam1() which seems to be getMenuEntry().getWidget().getId() = 10616843 = ComponentID (for public chat).
 		//Only show MenuEntry when ShoulFilterChatType && one of the filter options is enabled
 		int menuEntryAddedParam1 = menuEntryAdded.getActionParam1();
-		if (shouldFilterChatType(widgetIDtoWidgetInfo(menuEntryAddedParam1)) && menuEntryAdded.getOption().contains("Show none") &&
+		if (shouldFilterChatType(nullIfNotChatRuneStone(menuEntryAddedParam1)) && menuEntryAdded.getOption().contains("Show none") &&
 				(showFriendsMessages || showCCMessages || showFCMessages || showGuestCCMessages || showRaidPartyMessages)) {
 			//create MenuEntry and set its params
 			final MenuEntry chatFilterEntry = client.createMenuEntry(-1).setType(MenuAction.RUNELITE_HIGH_PRIORITY);
@@ -328,10 +329,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		final String menuOption = menuOptionClicked.getMenuOption();
 		//The menu option for show friends is "<col=ffff00>Public:</col> Show friends"
 		//First check if it's a valid chatfilter option, then check that it's not the one we inserted => disable chat filtering if user clicked e.g. Public: Show friends
-		if (menuOption.contains("<col=ffff00>") && menuOption.contains("Show") && //alternatively widgetIDtoWidgetInfo(menuOptionClicked.getParam1()) != null instead of menuOption.contains("<col=ffff00>") && menuOption.contains("Show") but this is probably less demanding?
+		if (menuOption.contains("<col=ffff00>") && menuOption.contains("Show") && //alternatively nullIfNotChatRuneStone(menuOptionClicked.getParam1()) != null instead of menuOption.contains("<col=ffff00>") && menuOption.contains("Show") but this is probably less demanding?
 				!menuOption.contains("Friends") && !menuOption.contains("CC") && !menuOption.contains("FC") && !menuOption.contains("Guest") && !menuOption.contains("Raid")) { //Plugin uses Friends instead of friends (osrs game)
-			//If the specific chat is filtered, disable the filter. Technically the if could potentially be skipped.
-			if (isChatFilteredWidgetInfo(widgetIDtoWidgetInfo(menuOptionClicked.getParam1()))) {
+			//If the specific chat is filtered, disable the filter. Technically the if statement could potentially be skipped.
+			if (isChatFilteredWidgetInfo(nullIfNotChatRuneStone(menuOptionClicked.getParam1()))) {
 				setChatFilterConfig(menuOptionClicked.getMenuEntry(), false);
 			}
 		}
@@ -488,11 +489,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private void disableFilterWhenShowNone() {
 		//Disable currently active filters + rebuild chatbuttons when all show config options are disabled
 		if (!showFriendsMessages && !showCCMessages && !showFCMessages && !showGuestCCMessages && !showRaidPartyMessages) {
-			executeSetChatFilterConfig(WidgetInfo.CHATBOX_TAB_PUBLIC, false);
-			executeSetChatFilterConfig(WidgetInfo.CHATBOX_TAB_PRIVATE, false);
-			executeSetChatFilterConfig(WidgetInfo.CHATBOX_TAB_CHANNEL, false);
-			executeSetChatFilterConfig(WidgetInfo.CHATBOX_TAB_CLAN, false);
-			executeSetChatFilterConfig(WidgetInfo.CHATBOX_TAB_TRADE, false);
+			executeSetChatFilterConfig(ComponentID.CHATBOX_TAB_PUBLIC, false);
+			executeSetChatFilterConfig(ComponentID.CHATBOX_TAB_PRIVATE, false);
+			executeSetChatFilterConfig(ComponentID.CHATBOX_TAB_CHANNEL, false);
+			executeSetChatFilterConfig(ComponentID.CHATBOX_TAB_CLAN, false);
+			executeSetChatFilterConfig(ComponentID.CHATBOX_TAB_TRADE, false);
 			redrawChatButtons();
 		}
 	}
@@ -509,23 +510,23 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//Disable currently active filter + rebuild chatbuttons if the chat to filter gets disabled in config
 		boolean shouldRedraw = false;
 		if (publicFilterEnabled && !chatsToFilter.contains(ChatsToFilter.PUBLIC)) {
-			executeSetChatFilterConfig(WidgetInfo.CHATBOX_TAB_PUBLIC, false);
+			executeSetChatFilterConfig(ComponentID.CHATBOX_TAB_PUBLIC, false);
 			shouldRedraw = true;
 		}
 		if (privateFilterEnabled && !chatsToFilter.contains(ChatsToFilter.PRIVATE)) {
-			executeSetChatFilterConfig(WidgetInfo.CHATBOX_TAB_PRIVATE, false);
+			executeSetChatFilterConfig(ComponentID.CHATBOX_TAB_PRIVATE, false);
 			shouldRedraw = true;
 		}
 		if (channelFilterEnabled && !chatsToFilter.contains(ChatsToFilter.CHANNEL)) {
-			executeSetChatFilterConfig(WidgetInfo.CHATBOX_TAB_CHANNEL, false);
+			executeSetChatFilterConfig(ComponentID.CHATBOX_TAB_CHANNEL, false);
 			shouldRedraw = true;
 		}
 		if (clanFilterEnabled && !chatsToFilter.contains(ChatsToFilter.CLAN)) {
-			executeSetChatFilterConfig(WidgetInfo.CHATBOX_TAB_CLAN, false);
+			executeSetChatFilterConfig(ComponentID.CHATBOX_TAB_CLAN, false);
 			shouldRedraw = true;
 		}
 		if (tradeFilterEnabled && !chatsToFilter.contains(ChatsToFilter.TRADE)) {
-			executeSetChatFilterConfig(WidgetInfo.CHATBOX_TAB_TRADE, false);
+			executeSetChatFilterConfig(ComponentID.CHATBOX_TAB_TRADE, false);
 			shouldRedraw = true;
 		}
 		if (shouldRedraw) {
@@ -534,6 +535,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	private void setConfigFirstStart() {
+		//todo: if changing config stuff that's not in ChatFilterExtendedConfig, change this as well
 		//Config keys are still empty on first startup. Prevent them being null by setting them before other code checks the config keys.
 		if (configManager.getConfiguration("chat-filter-extended", "publicFilterEnabled") == null) {
 			configManager.setConfiguration("chat-filter-extended", "publicFilterEnabled", false);
@@ -552,52 +554,39 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 	}
 
-	private boolean shouldFilterChatType(WidgetInfo widgetInfo) {
+	private boolean shouldFilterChatType(int componentID) {
 		//Should the specific chat be filtered conform the config set <chatsToFilter>
-		if (widgetInfo == null) {
+		if (componentID == 0) {
 			return false;
 		}
-		switch (widgetInfo) {
-			case CHATBOX_TAB_PUBLIC:
+		switch (componentID) {
+			case ComponentID.CHATBOX_TAB_PUBLIC:
 				return chatsToFilter.contains(ChatsToFilter.PUBLIC);
-			case CHATBOX_TAB_PRIVATE:
+			case ComponentID.CHATBOX_TAB_PRIVATE:
 				return chatsToFilter.contains(ChatsToFilter.PRIVATE);
-			case CHATBOX_TAB_CHANNEL:
+			case ComponentID.CHATBOX_TAB_CHANNEL:
 				return chatsToFilter.contains(ChatsToFilter.CHANNEL);
-			case CHATBOX_TAB_CLAN:
+			case ComponentID.CHATBOX_TAB_CLAN:
 				return chatsToFilter.contains(ChatsToFilter.CLAN);
-			case CHATBOX_TAB_TRADE:
+			case ComponentID.CHATBOX_TAB_TRADE:
 				return chatsToFilter.contains(ChatsToFilter.TRADE);
 		}
 		return false;
 	}
 
-	@Nullable
-	private WidgetInfo widgetIDtoWidgetInfo(int widgetID) {
-		//Translate the WidgetID back to WidgetInfo
+	private int nullIfNotChatRuneStone(int componentID) {
+		//todo: widgetinfo remnant, check if this is still needed or if the set to 0 / check if it's a chatstone check can be done in another way
 		//PM When using this method, do a null check beforehand because it might return null!
-		int publicTabId = WidgetInfo.CHATBOX_TAB_PUBLIC.getId();
-		int privateTabId = WidgetInfo.CHATBOX_TAB_PRIVATE.getId();
-		int channelTabId = WidgetInfo.CHATBOX_TAB_CHANNEL.getId();
-		int clanTabId = WidgetInfo.CHATBOX_TAB_CLAN.getId();
-		int tradeTabId = WidgetInfo.CHATBOX_TAB_TRADE.getId();
-
-		if (widgetID == publicTabId) {
-			return WidgetInfo.CHATBOX_TAB_PUBLIC;
+		switch (componentID) {
+			case ComponentID.CHATBOX_TAB_PUBLIC:
+			case ComponentID.CHATBOX_TAB_PRIVATE:
+			case ComponentID.CHATBOX_TAB_CHANNEL:
+			case ComponentID.CHATBOX_TAB_CLAN:
+			case ComponentID.CHATBOX_TAB_TRADE:
+				return componentID;
+			default:
+				return 0;
 		}
-		if (widgetID == privateTabId) {
-			return WidgetInfo.CHATBOX_TAB_PRIVATE;
-		}
-		if (widgetID == channelTabId) {
-			return WidgetInfo.CHATBOX_TAB_CHANNEL;
-		}
-		if (widgetID == clanTabId) {
-			return WidgetInfo.CHATBOX_TAB_CLAN;
-		}
-		if (widgetID == tradeTabId) {
-			return WidgetInfo.CHATBOX_TAB_TRADE;
-		}
-		return null;
 	}
 
 	private void enableChatFilter(MenuEntry menuEntry) {
@@ -607,33 +596,33 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	private void setChatFilterConfig(MenuEntry menuEntry, boolean enableFilter) {
-		int menuWidgetID = menuEntry.getParam1();
-		WidgetInfo widgetInfo = widgetIDtoWidgetInfo(menuWidgetID);
-		if (widgetInfo != null) {
-			executeSetChatFilterConfig(widgetInfo, enableFilter);
+		int menuComponentID = menuEntry.getParam1();
+		int transformedComponentID = nullIfNotChatRuneStone(menuComponentID);
+		if (transformedComponentID != 0) {
+			executeSetChatFilterConfig(transformedComponentID, enableFilter);
 		}
 	}
 
-	private void executeSetChatFilterConfig(WidgetInfo widgetInfo, boolean enableFilter) {
-		//Separate function so it can be easily run by putting in the WidgetInfo instead having to enter a MenuEntry
-		switch (widgetInfo) {
-			case CHATBOX_TAB_PUBLIC:
+	private void executeSetChatFilterConfig(int componentID, boolean enableFilter) {
+		//Separate function so it can be easily run by putting in the componentID instead having to enter a MenuEntry
+		switch (componentID) {
+			case ComponentID.CHATBOX_TAB_PUBLIC:
 				publicFilterEnabled = enableFilter; //Probs not necessary since next change might trigger updateConfig() but enfin; would have to experiment with this again to confirm.
 				configManager.setConfiguration("chat-filter-extended", "publicFilterEnabled", enableFilter);
 				break;
-			case CHATBOX_TAB_PRIVATE:
+			case ComponentID.CHATBOX_TAB_PRIVATE:
 				privateFilterEnabled = enableFilter;
 				configManager.setConfiguration("chat-filter-extended", "privateFilterEnabled", enableFilter);
 				break;
-			case CHATBOX_TAB_CHANNEL:
+			case ComponentID.CHATBOX_TAB_CHANNEL:
 				channelFilterEnabled = enableFilter;
 				configManager.setConfiguration("chat-filter-extended", "channelFilterEnabled", enableFilter);
 				break;
-			case CHATBOX_TAB_CLAN:
+			case ComponentID.CHATBOX_TAB_CLAN:
 				clanFilterEnabled = enableFilter;
 				configManager.setConfiguration("chat-filter-extended", "clanFilterEnabled", enableFilter);
 				break;
-			case CHATBOX_TAB_TRADE:
+			case ComponentID.CHATBOX_TAB_TRADE:
 				tradeFilterEnabled = enableFilter;
 				configManager.setConfiguration("chat-filter-extended", "tradeFilterEnabled", enableFilter);
 				break;
@@ -672,11 +661,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			return;
 		}
 
-		Widget publicWidget = client.getWidget(WidgetInfo.CHATBOX_TAB_PUBLIC);
-		Widget privateWidget = client.getWidget(WidgetInfo.CHATBOX_TAB_PRIVATE);
-		Widget channelWidget = client.getWidget(WidgetInfo.CHATBOX_TAB_CHANNEL);
-		Widget clanWidget = client.getWidget(WidgetInfo.CHATBOX_TAB_CLAN);
-		Widget tradeWidget = client.getWidget(WidgetInfo.CHATBOX_TAB_TRADE);
+		Widget publicWidget = client.getWidget(ComponentID.CHATBOX_TAB_PUBLIC);
+		Widget privateWidget = client.getWidget(ComponentID.CHATBOX_TAB_PRIVATE);
+		Widget channelWidget = client.getWidget(ComponentID.CHATBOX_TAB_CHANNEL);
+		Widget clanWidget = client.getWidget(ComponentID.CHATBOX_TAB_CLAN);
+		Widget tradeWidget = client.getWidget(ComponentID.CHATBOX_TAB_TRADE);
 		if (publicWidget != null && publicFilterEnabled) {
 			setCustomText(publicWidget);
 		}
@@ -699,18 +688,18 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		widget.getStaticChildren()[2].setText(customTextString); //or e.g. chatWidget.getStaticChildren().length-1
 	}
 
-	private boolean isChatFilteredWidgetInfo(WidgetInfo widgetInfo) {
-		if (widgetInfo != null) {
-			switch (widgetInfo) {
-				case CHATBOX_TAB_PUBLIC:
+	private boolean isChatFilteredWidgetInfo(int componentID) {
+		if (componentID != 0) {
+			switch (componentID) {
+				case ComponentID.CHATBOX_TAB_PUBLIC:
 					return publicFilterEnabled;
-				case CHATBOX_TAB_PRIVATE:
+				case ComponentID.CHATBOX_TAB_PRIVATE:
 					return privateFilterEnabled;
-				case CHATBOX_TAB_CHANNEL:
+				case ComponentID.CHATBOX_TAB_CHANNEL:
 					return channelFilterEnabled;
-				case CHATBOX_TAB_CLAN:
+				case ComponentID.CHATBOX_TAB_CLAN:
 					return clanFilterEnabled;
-				case CHATBOX_TAB_TRADE:
+				case ComponentID.CHATBOX_TAB_TRADE:
 					return tradeFilterEnabled;
 			}
 		}
@@ -804,7 +793,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private void processToBBoard() {
 		Widget topHalfToBBoardWidget = client.getWidget(TOB_BOARD_ID, TOP_HALF_TOB_BOARD_CHILDID);
 		Widget bottomHalfToBBoardWidget = client.getWidget(TOB_BOARD_ID, BOTTOM_HALF_TOB_BOARD_CHILDID);
-		HashSet<String> raidPartyStandardizedUsernamesTemp = new HashSet<String>();
+		HashSet<String> raidPartyStandardizedUsernamesTemp = new HashSet<>();
 		if (topHalfToBBoardWidget != null && topHalfToBBoardWidget.getChildren() != null) {
 			for (int i = 0; i < topHalfToBBoardWidget.getChildren().length; i++) {
 				//Get child that has type 3 => next one has to be name
@@ -849,7 +838,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	//No party text = -<br>-<br>-<br>-<br>-
 	//Party text = Username<br>-<br>-<br>-<br>-
 	private void processToBPartyInterface() {
-		Widget tobPartyInterfaceNamesWidget = client.getWidget(WidgetID.TOB_GROUP_ID, TOB_PARTY_INTERFACE_NAMES_CHILDID); //S28.12
+		Widget tobPartyInterfaceNamesWidget = client.getWidget(InterfaceID.TOB, TOB_PARTY_INTERFACE_NAMES_CHILDID); //S28.12
 		if (tobPartyInterfaceNamesWidget != null) {
 			String toBPartyInterfaceText = tobPartyInterfaceNamesWidget.getText();
 			toBPartyInterfaceText = toBPartyInterfaceText.concat("<br>"); //Append <br> so indexOf and substring works for every item
