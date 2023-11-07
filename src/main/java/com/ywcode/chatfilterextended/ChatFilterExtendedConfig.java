@@ -1,19 +1,221 @@
 package com.ywcode.chatfilterextended;
 
-import net.runelite.client.config.Config;
-import net.runelite.client.config.ConfigGroup;
-import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.*;
 
 import java.util.*;
+import java.util.stream.*;
 
 @ConfigGroup("chat-filter-extended")
 public interface ChatFilterExtendedConfig extends Config
 {
+	@ConfigSection(
+			name = "Public",
+			description = "Public chat tab settings",
+			position = 0,
+			closedByDefault = true
+	)
+	String publicSettings = "publicSettings";
+
+	@ConfigSection(
+			name = "Private",
+			description = "Private chat tab settings",
+			position = 1,
+			closedByDefault = true
+	)
+	String privateSettings = "privateSettings";
+
+	@ConfigSection(
+			name = "Channel",
+			description = "Channel chat tab settings",
+			position = 2,
+			closedByDefault = true
+	)
+	String channelSettings = "channelSettings";
+
+	@ConfigSection(
+			name = "Clan",
+			description = "Clan chat tab settings",
+			position = 3,
+			closedByDefault = true
+	)
+	String clanSettings = "clanSettings";
+
+	@ConfigSection(
+			name = "Trade",
+			description = "Trade tab settings",
+			position = 4,
+			closedByDefault = true
+	)
+	String tradeSettings = "tradeSettings";
+
+	@ConfigItem(
+			keyName = "publicChatFilterOptions",
+			name = "Public",
+			description = "Allowed chat senders when the custom filter is active.<br>"+
+					"Hold control or shift to select multiple entries.",
+			position = 0,
+			section = publicSettings
+	)
+	default Set<ChatTabFilterOptions> publicChatFilterOptions()
+	{
+		Set<ChatTabFilterOptions> Default = new HashSet<>(EnumSet.allOf(ChatTabFilterOptions.class));
+		Default.remove(ChatTabFilterOptions.PUBLIC);
+		return Default;
+	}
+
+	@ConfigItem(
+			keyName = "publicChatFilterOptions2D",
+			name = "Public 2D",
+			description = "Allowed chat senders when the custom filter is active (2D / overhead text). Needs to also be active in the set above.<br>"+
+					"Thus enabling 'Friends' in the set above and 'Friends (2D)' in this set does not show your friends' messages in the chatbox, but it does show it above their head.<br>"+
+					"Hold control or shift to select multiple entries.",
+			position = 1,
+			section = publicSettings
+	)
+	default Set<ChatTabFilterOptions2D> publicChatFilterOptions2D()
+	{
+		return Collections.emptySet(); //Empty set since otherwise the default is only showing 2D (overhead text) instead of also chatbox text.
+	}
+
+	@ConfigItem(
+			keyName = "publicWhitelist",
+			name = "Custom whitelist",
+			description = "Enable 'Custom whitelist' in the set(s) above to also allow messages from these senders. Comma,separated,input",
+			position = 2,
+			section = publicSettings
+	)
+	default String publicWhitelist()
+	{
+		return "";
+	}
+
+
+	@ConfigItem(
+			keyName = "privateChatFilterOptions",
+			name = "Private",
+			description = "Allowed chat senders when the custom filter is active.<br>"+
+					"Hold control or shift to select multiple entries.",
+			position = 0,
+			section = privateSettings
+	)
+	default Set<ChatTabFilterOptions> privateChatFilterOptions()
+	{
+		return Collections.emptySet(); //Empty set since forcePrivateOn is disabled by default anyway
+	}
+
+	@ConfigItem(
+			keyName = "privateWhitelist",
+			name = "Custom whitelist",
+			description = "Enable 'Custom whitelist' in the set above to also allow messages from these senders. Comma,separated,input",
+			position = 1,
+			section = privateSettings
+	)
+	default String privateWhitelist()
+	{
+		return "";
+	}
+
+	@ConfigItem(
+			keyName = "forcePrivateOn",
+			name = "Force private to on when filtering",
+			description = "When you tick this option, you force your private to 'show all' when you enable the custom filter for your private chat ingame.<br>" +
+					"Remember that this means everyone can see you online in their Friends List and get your world when the custom filter is enabled.<br>" +
+					"This might have consequences if you do dangerous activities in the wilderness (e.g. getting scouted/sniped)!<br>"+
+					"If this option is disabled, private will only be properly filtered if you set it to 'show all' and then set it to 'custom'.",
+			position = 2,
+			section = privateSettings
+	)
+	default boolean forcePrivateOn() {
+		return false;
+	}
+
+	@ConfigItem(
+			keyName = "channelChatFilterOptions",
+			name = "Channel",
+			description = "Allowed chat senders when the custom filter is active.<br>"+
+					"Hold control or shift to select multiple entries.",
+			position = 0,
+			section = channelSettings
+	)
+	default Set<ChatTabFilterOptions> channelChatFilterOptions()
+	{
+		Set<ChatTabFilterOptions> Default = new HashSet<>(EnumSet.allOf(ChatTabFilterOptions.class));
+		Default.remove(ChatTabFilterOptions.PUBLIC);
+		return Default;
+	}
+
+	@ConfigItem(
+			keyName = "channelWhitelist",
+			name = "Custom whitelist",
+			description = "Enable 'Custom whitelist' in the set above to also allow messages from these senders. Comma,separated,input",
+			position = 1,
+			section = channelSettings
+	)
+	default String channelWhitelist()
+	{
+		return "";
+	}
+
+	@ConfigItem(
+			keyName = "clanChatFilterOptions",
+			name = "Clan",
+			description = "Allowed chat senders when the custom filter is active.<br>"+
+					"Hold control or shift to select multiple entries.",
+			position = 0,
+			section = clanSettings
+	)
+	default Set<ChatTabFilterOptions> clanChatFilterOptions()
+	{
+		Set<ChatTabFilterOptions> Default = new HashSet<>(EnumSet.allOf(ChatTabFilterOptions.class));
+		Default.remove(ChatTabFilterOptions.PUBLIC);
+		return Default;
+	}
+
+	@ConfigItem(
+			keyName = "clanWhitelist",
+			name = "Custom whitelist",
+			description = "Enable 'Custom whitelist' in the set above to also allow messages from these senders. Comma,separated,input",
+			position = 1,
+			section = clanSettings
+	)
+	default String clanWhitelist()
+	{
+		return "";
+	}
+
+	@ConfigItem(
+			keyName = "tradeChatFilterOptions",
+			name = "Trade",
+			description = "Allowed chat senders when the custom filter is active.<br>"+
+					"Hold control or shift to select multiple entries.",
+			position = 0,
+			section = tradeSettings
+	)
+	default Set<ChatTabFilterOptions> tradeChatFilterOptions()
+	{
+		Set<ChatTabFilterOptions> Default = new HashSet<>(EnumSet.allOf(ChatTabFilterOptions.class));
+		Default.remove(ChatTabFilterOptions.PUBLIC);
+		return Default;
+	}
+
+	@ConfigItem(
+			keyName = "tradeWhitelist",
+			name = "Custom whitelist",
+			description = "Enable 'Custom whitelist' in the set above to also allow messages from these senders. Comma,separated,input",
+			position = 1,
+			section = tradeSettings
+	)
+	default String tradeWhitelist()
+	{
+		return "";
+	}
+
+
 	@ConfigItem(
 			keyName = "showFriendsMessages",
 			name = "Show Friends when filtering",
 			description = "Show public messages from your friends when the plugin's public chat filter is enabled.",
-			position = 1
+			position = 99
 	)
 	default boolean showFriendsMessages() {
 		return true;
@@ -23,7 +225,7 @@ public interface ChatFilterExtendedConfig extends Config
 			keyName = "showCCMessages",
 			name = "Show CC when filtering",
 			description = "Show public messages from your clanmates when the plugin's public chat filter is enabled.",
-			position = 2
+			position = 99
 	)
 	default boolean showCCMessages() {
 		return true;
@@ -33,7 +235,7 @@ public interface ChatFilterExtendedConfig extends Config
 			keyName = "showFCMessages",
 			name = "Show FC when filtering",
 			description = "Show public messages from your FC members when the plugin's public chat filter is enabled.",
-			position = 3
+			position = 99
 	)
 	default boolean showFCMessages() {
 		return true;
@@ -43,7 +245,7 @@ public interface ChatFilterExtendedConfig extends Config
 			keyName = "showGuestCCMessages",
 			name = "Show Guest CC when filtering",
 			description = "Show public messages from your Guest CC members when the plugin's public chat filter is enabled.",
-			position = 4
+			position = 99
 	)
 	default boolean showGuestCCMessages() {
 		return true;
@@ -53,7 +255,7 @@ public interface ChatFilterExtendedConfig extends Config
 			keyName = "showRaidPartyMessages",
 			name = "Show Raid Party when filtering",
 			description = "Show public messages from your Raid Party members when the plugin's public chat filter is enabled.",
-			position = 5
+			position = 99
 	)
 	default boolean showRaidPartyMessages() {
 		return true;
@@ -64,7 +266,7 @@ public interface ChatFilterExtendedConfig extends Config
 			name = "Chats to Filter",
 			description = "Chat tabs to show the custom filter.<br>"+
 			"Hold control or shift to select multiple entries.",
-			position = 6
+			position = 99
 	)
 	default Set<ChatsToFilter> chatsToFilter()
 	{
@@ -72,18 +274,5 @@ public interface ChatFilterExtendedConfig extends Config
 		Default.add(ChatsToFilter.PUBLIC);
 		Default.add(ChatsToFilter.TRADE);
 		return Default;
-	}
-
-	@ConfigItem(
-			keyName = "forcePrivateOn",
-			name = "Force private to on when filtering",
-			description = "When you tick this option, you force your private to 'on' when you enable the custom filter for your private chat.<br>" +
-					"Remember that this means everyone can see you online in their Friends List and get your world when the custom filter is enabled.<br>" +
-					"This might have consequences if you do dangerous activities in the wilderness (e.g. getting scouted/sniped)!<br>"+
-					"If this option is disabled, private will only be properly filtered if you set it to on and then enable the custom filter.",
-			position = 7
-	)
-	default boolean forcePrivateOn() {
-		return false;
 	}
 }

@@ -2,7 +2,7 @@
 An example greeter plugin
 
 
-PM GIM chat support has not been tested since I don't have a GIM. It should likely behave like the CC filter.
+GIM chat support has not been tested since I don't have a GIM. It should likely behave like the CC filter.
 
 
 FC/CC/Guest CC members remembered till logout or smth (well till leaving channel so also hopping/logout for FC and guest CC, but only logout for CC?)
