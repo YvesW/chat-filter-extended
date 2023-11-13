@@ -5,7 +5,7 @@ import net.runelite.client.config.*;
 import java.util.*;
 import java.util.stream.*;
 
-@ConfigGroup("chat-filter-extended")
+@ConfigGroup("ChatFilterExtended")
 public interface ChatFilterExtendedConfig extends Config
 {
 	@ConfigSection(
@@ -259,20 +259,5 @@ public interface ChatFilterExtendedConfig extends Config
 	)
 	default boolean showRaidPartyMessages() {
 		return true;
-	}
-
-	@ConfigItem(
-			keyName = "chatsToFilter",
-			name = "Chats to Filter",
-			description = "Chat tabs to show the custom filter.<br>"+
-			"Hold control or shift to select multiple entries.",
-			position = 99
-	)
-	default Set<ChatsToFilter> chatsToFilter()
-	{
-		Set<ChatsToFilter> Default = new HashSet<ChatsToFilter>();
-		Default.add(ChatsToFilter.PUBLIC);
-		Default.add(ChatsToFilter.TRADE);
-		return Default;
 	}
 }

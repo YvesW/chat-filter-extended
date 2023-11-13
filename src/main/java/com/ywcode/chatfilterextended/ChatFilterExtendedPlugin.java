@@ -1,5 +1,7 @@
 package com.ywcode.chatfilterextended;
 
+import com.google.common.base.*;
+import com.google.common.collect.*;
 import com.google.inject.*;
 import lombok.extern.slf4j.*;
 import net.runelite.api.*;
@@ -24,11 +26,13 @@ import java.util.*;
 		tags = {"public,public 2d,chat,cc,fc,clanchat,clan,filter,friends chat,friends chat,friends,private,trade,raids,chat filter,tob,toa,cox,spam,custom"}
 )
 //Alternative (shitty) names: Custom Chat View, Chat View Extended, Chat Show Custom, Custom Chat Filter, Chat tabs extended, Chat stones extended
+//My goal was not to make one of these "abc improved" or "better abc" plugins, but the menuOptions like "Show friends" or "Show none" are just called chat filters, I think, and I can't come up with a better name. At least polar calls them that in e.g. script 152 (chat_set_filter)
+//It's just unlucky that the chat filter plugin (which is a perfectly valid name for its function) is also called chat filter, I guess.
 
 public class ChatFilterExtendedPlugin extends Plugin {
 
 	// ------------- Wall of config vars -------------
-	// Vars are quite heavily cached, so I should just use config.configKey() tbh. The List<String>s are actually converted from a normal string though.
+	// Vars are quite heavily cached so could probably just config.configKey(). However, the best practice behavior in plugins is to have a bunch of variables to store the results of the config methods, and check it in startUp/onConfigChanged. It feels redundant, but it's better than hitting the reflective calls every frame. --LlemonDuck. Additionally, the List<String>s are actually converted from a normal string though.
 	private static Set<ChatTabFilterOptions> publicChatFilterOptions;
 	private static Set<ChatTabFilterOptions2D> publicChatFilterOptions2D;
 	private static final List<String> publicWhitelist = new ArrayList<>();
@@ -56,19 +60,28 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static boolean tradeFilterEnabled; //i.e. if the user set the chat tab/stone to custom. So we can re-enable it on startup. Maybe swap this to RSProfile instead of config profile in the future?
 
 	// ------------- End of wall of config vars -------------
-	private static boolean shuttingDown;
-	private static int setPublicChatOnInt; //Default value for ints = 0
+	private static final String configGroup = "ChatFilterExtended";
+	private static boolean shuttingDown; //Default value is false
+	private static boolean setChatsToPublicFlag; //Default value is false
 	private static final HashSet<String> channelStandardizedUsernames = new HashSet<>();
 	private static final HashSet<String> clanStandardizedUsernames = new HashSet<>();
 	private static final HashSet<String> guestClanStandardizedUsernames = new HashSet<>();
 	private static final HashSet<String> raidPartyStandardizedUsernames = new HashSet<>();
-	private static final List<Integer> chatboxComponentIDs = Arrays.asList(ComponentID.CHATBOX_TAB_PUBLIC, ComponentID.CHATBOX_TAB_PRIVATE, ComponentID.CHATBOX_TAB_CHANNEL, ComponentID.CHATBOX_TAB_CLAN, ComponentID.CHATBOX_TAB_TRADE);
-	private static final List<String> filtersEnabledStringList = Arrays.asList("publicFilterEnabled", "privateFilterEnabled", "channelFilterEnabled", "clanFilterEnabled", "tradeFilterEnabled");
+	private static final List<Integer> chatboxComponentIDs = ImmutableList.of(ComponentID.CHATBOX_TAB_PUBLIC, ComponentID.CHATBOX_TAB_PRIVATE, ComponentID.CHATBOX_TAB_CHANNEL, ComponentID.CHATBOX_TAB_CLAN, ComponentID.CHATBOX_TAB_TRADE);
+	private static final List<String> filtersEnabledStringList = ImmutableList.of("publicFilterEnabled", "privateFilterEnabled", "channelFilterEnabled", "clanFilterEnabled", "tradeFilterEnabled");
 	private static final int REDRAW_CHAT_BUTTONS_SCRIPTID = 178; //[proc,redraw_chat_buttons]
+	private static final int CHAT_SET_FILTER_SCRIPTID = 152; //[clientscript,chat_set_filter]
+	private static final int TOB_PARTYDETAILS_BACK_BUTTON = 4495; //[proc,tob_partydetails_back_button]
 	private static final int TOB_BOARD_ID = 50; //N50.0
 	private static final int TOP_HALF_TOB_BOARD_CHILDID = 27; //S50.27
 	private static final int BOTTOM_HALF_TOB_BOARD_CHILDID = 42; //S50.42
 	private static final int TOB_PARTY_INTERFACE_NAMES_CHILDID = 12; //S28.12
+	private static final int FC_CHAT_FILTER_VARBIT = 928;
+	private static final int CC_CHAT_FILTER_VARBIT = 929;
+	private static final int TOB_IN_RAID_VARCSTR_PLAYER1_INDEX = 330; //330-334 is player 1-5's name when IN the raid (does not work when applying/accepting on the notice board or in the lobby). Returns an empty string if there is not e.g. a player 5. Probably updates each room.
+	private static final int TOB_IN_RAID_VARCSTR_PLAYER5_INDEX = 334;
+	private static final int TOA_IN_RAID_VARCSTR_PLAYER1_INDEX = 1099; //1099-1106 is player 1-8's name when IN the raid (does not work when applying/accepting on the obelisk or in the lobby). Returns an empty string if there is not e.g. a player 8. Probably updates each room.
+	private static final int TOA_IN_RAID_VARCSTR_PLAYER8_INDEX = 1106;
 	//Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I did not fully adhere to lol)
 	//PM Can probably replace part of the functions by incorporating the info in the Enum and then using a getter, but enfin
 
@@ -86,11 +99,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Override
 	public void startUp() {
-		shuttingDown = false;
+		shuttingDown = false; //Maybe it got procced by switching profiles, assuming plugins are all shutdown and started again?
 		setConfigFirstStart(); //todo: check if this needs more config vars added to it after config changes
 		updateConfig();
-		setChatStoneWidgetTextAll();
-		setChatsToPublic(false);
+		setChatsToPublic();
 		//todo: add readme
 		//todo: go through problems
 		//todo: Change config thing to have different filters per chat so one for public, one for private + add config setting to add only 2d text for some people but not into chatbox? So then it'd only hide the chatbox stuff from those people => only for public chat cause rest is chatbox only... Including randos? So you could e.g. be everyone 2d except friends also chatbox but clan fully filtered? Requires public to also be added to the initial options!
@@ -98,6 +110,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//todo: check and refactor the whole fucking shit + check if you can replace widget crawling with varcstrings etc
 		//todo: mss per region settings in advanced doch mss gaat dit te ver + add chat message mss wanneer je iets op custom zet (doch mss wat te spammy) maar def als je private verandert dat het on is! (En mss wrm het niet werkt als je die setting niet enabled hebt?) => echter probs te spammy wat support traffic geeft, dus probs skippen want de config setting is heel duidelijk
 		//todo: potentially add player right-click option (if a config option is enabled, maybe also option to make this only when shift is held down?) to add to a whitelist with a pop-out menu like inventory tags or MES uses?
+		//todo: get varbits here somewhere when logged in probs, if it uses varbits (or e.g. add to list when tobbing/in tob region etc)
+		//todo: maybeee make when to clear fc/cc/raid etc a selectable option under an advanced config tab
+		//TODO: at some point consider adding a pop-out menu like MES has to Show custom in which you can add or remove options from the set.
+		//TODO: at some point consider adding a pop-out menu like MES has to other players to add/remove them from the whitelist. Potentially only added when shift is held.
 	}
 
 	@Override
@@ -105,37 +121,37 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//TODO: check if something needs to be added to startup or shutdown + profilechange / rebuild chatbox? => wat als je plugin togglet in raid, in tob lobby etc etc => varbits ook setten on startup zoals slayer plugin, niet enkel onVarbitChanged!
 		//todo: potentially do some of this shit or stop filter when swapping profiles? check how other filter plugins do it
 		//todo: find a way to disable filtering mode when disabling all the show friends/show cc etc options are disabled + to change the filter mode when config is changed + change text back in that case (&filter)
-		//todo: function volgorde fixen, refactor
+		//todo: method volgorde fixen, refactor
 		//todo: final tests: login, hopping, toggling on/off plugin, toggling settings on/off, opening clan panels, changing to resizable, after npc chatbox maybe, in/after cutscenes like myths guild
 		//todo: make code easier/clean-up by adding/changing methods, adding local variables etc
-		//todo: remove chatstofilter if irrelevant
 		//todo: remove TEST and remove println
 		//todo: add comments
-		//todo: fix potential interaction with smartchatinput recolor?
+		//todo: fix potential interaction with smartchatinput recolor? removing client.getGameState() == GameState.LOADING things does not fix it...
+		//todo: test a bit what happens when putting clan and e.g. public to off, then enabling custom, then disabling the plugin => should go back to off for both? probably? and what if you then reboot the client?
 
-		shuttingDown = true; //Probably not necessary but just to be sure it doesn't fire
+		shuttingDown = true; //Might not be necessary but just to be sure it doesn't set it back to custom text since the script procs
 		if (client.getGameState() == GameState.LOGGED_IN || client.getGameState() == GameState.LOADING) {
 			clientThread.invoke(() -> {
 				//This rebuilds both the chatbox and the pmbox
 				client.runScript(ScriptID.SPLITPM_CHANGED);
-				client.runScript(178); //[proc,redraw_chat_buttons]
+				client.runScript(REDRAW_CHAT_BUTTONS_SCRIPTID); //[proc,redraw_chat_buttons]
 			});
 		}
 	}
 
 	@Subscribe
 	public void onConfigChanged(ConfigChanged configChanged) {
-		if (configChanged.getGroup().equals("chat-filter-extended")) {
+		if (configChanged.getGroup().equals(configGroup)) {
 			updateConfig();
-			disableFilterWhenSetEmptied(); //todo: check order for this, should it be at the end or is it fine here?
+			disableFilterWhenSetEmptied();
 			if (configChanged.getKey().equals("forcePrivateOn")) {
 				if (forcePrivateOn) {
 					//Set friends to on when forePrivateOn is enabled and chat is custom filtered
-					setChatsToPublic(false);
+					setChatsToPublic();
 				} else { //if (!forcePrivateOn)
-					//Set friends status to non filtered and redraw chat buttons to show the current state of friends
+					//Set friends status to non filtered and redraw chat buttons to show the current state of friends -> also sets the other chats to custom again if needed because redrawChatButtons procs a script that triggers the code setting the text of the chat buttons.
 					executeSetChatFilterConfig(ComponentID.CHATBOX_TAB_PRIVATE, false);
-					redrawChatButtons(); //todo: does it have to set the text again after this?? maybe include it in redrawChatButtons() and then remove it somewhere else
+					redrawChatButtons();
 				}
 			}
 		}
@@ -145,8 +161,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	public void onProfileChanged(ProfileChanged profileChanged) {
 		setConfigFirstStart();
 		shuttingDown = false;
-		setChatStoneWidgetTextAll();
-		setChatsToPublic(false);
+		setChatsToPublic();
 	}
 
 	private void updateConfig() {
@@ -163,37 +178,37 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		tradeChatFilterOptions = config.tradeChatFilterOptions();
 		convertCommaSeparatedConfigStringToList(config.tradeWhitelist(), tradeWhitelist);
 
-		showFriendsMessages = config.showFriendsMessages(); //todo: remove probs
+		showFriendsMessages = config.showFriendsMessages(); //todo: remove when you removed it from all the code + remove it from config and at the top of the file then
 		showCCMessages = config.showCCMessages();
 		showFCMessages = config.showFCMessages();
 		showGuestCCMessages = config.showGuestCCMessages();
 		showRaidPartyMessages = config.showRaidPartyMessages();
 		//The config values below are only set through ConfigManager and are not part of ChatFilterExtendedConfig.java
 		//PS Probs don't try to refactor this; did not go well (on plugin start) the last time I tried that...
-		publicFilterEnabled = configManager.getConfiguration("chat-filter-extended", "publicFilterEnabled", boolean.class);
-		privateFilterEnabled = configManager.getConfiguration("chat-filter-extended", "privateFilterEnabled", boolean.class);
-		channelFilterEnabled = configManager.getConfiguration("chat-filter-extended", "channelFilterEnabled", boolean.class);
-		clanFilterEnabled = configManager.getConfiguration("chat-filter-extended", "clanFilterEnabled", boolean.class);
-		tradeFilterEnabled = configManager.getConfiguration("chat-filter-extended", "tradeFilterEnabled", boolean.class);
+		publicFilterEnabled = configManager.getConfiguration(configGroup, "publicFilterEnabled", boolean.class);
+		privateFilterEnabled = configManager.getConfiguration(configGroup, "privateFilterEnabled", boolean.class);
+		channelFilterEnabled = configManager.getConfiguration(configGroup, "channelFilterEnabled", boolean.class);
+		clanFilterEnabled = configManager.getConfiguration(configGroup, "clanFilterEnabled", boolean.class);
+		tradeFilterEnabled = configManager.getConfiguration(configGroup, "tradeFilterEnabled", boolean.class);
 	}
 
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged gameStateChanged) {
-		if (gameStateChanged.getGameState() == GameState.LOGGED_IN) {
-			setPublicChatOnInt = 2;
-			setChatStoneWidgetTextAll();
-			//todo: potentially only do shit while logged in/or when red click to play screen is gone? check how other plugins filter chat
-		}
-		if (gameStateChanged.getGameState() == GameState.LOGIN_SCREEN) {
-			clanStandardizedUsernames.clear();
-			//Probably only own CC needed; rest procs event.
-			channelStandardizedUsernames.clear();
-			guestClanStandardizedUsernames.clear();
-			raidPartyStandardizedUsernames.clear();
-		}
-		//Clear raid party members while hopping because you generally don't care about them anymore after hopping to another world
-		if (gameStateChanged.getGameState() == GameState.HOPPING) {
-			raidPartyStandardizedUsernames.clear();
+		switch (gameStateChanged.getGameState()) {
+			case LOGGED_IN:
+				setChatsToPublic();
+				break;
+			case LOGIN_SCREEN:
+				clanStandardizedUsernames.clear(); //todo: bedenk nog eens wanneer je wat wil clearen...
+				//Probably only own CC needed; rest procs event.
+				channelStandardizedUsernames.clear();
+				guestClanStandardizedUsernames.clear();
+				raidPartyStandardizedUsernames.clear();
+				break;
+			case HOPPING:
+				//Clear raid party members while hopping because you generally don't care about them anymore after hopping to another world
+				raidPartyStandardizedUsernames.clear();
+				break;
 		}
 	}
 
@@ -214,12 +229,12 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Subscribe
 	public void onClanChannelChanged(ClanChannelChanged clanChannelChanged) {
-		//If left CC => clear own cc usernames HashSet
+		//If left CC => clear own cc usernames HashSet //todo: check if you want to do this instead of the private boolean isClanChatMember(String playerName) { thing because it's still a cc member, even if you leave the chat, right? => Clan thing: use both approaches so it also accounts for guests in the cc & works when pressing leave probs
 		if (client.getClanChannel(ClanID.CLAN) == null) {
 			clanStandardizedUsernames.clear();
 		} else {
 			//If joined own CC, get members and add the usernames to HashSet
-			if (!clanChannelChanged.isGuest()) {
+			if (!clanChannelChanged.isGuest() && client.getClanSettings() != null) {
 				List<ClanMember> clanMembers = client.getClanSettings().getMembers();
 				for (ClanMember clanMember : clanMembers) {
 					clanStandardizedUsernames.add(Text.standardize(clanMember.getName()));
@@ -229,7 +244,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 		//Also include GIM members in Clan Hashset, untested because no access to a GIM account
 		if (client.getClanChannel(ClanID.GROUP_IRONMAN) != null) {
-			if (clanChannelChanged.getClanId() == ClanID.GROUP_IRONMAN) {
+			if (clanChannelChanged.getClanId() == ClanID.GROUP_IRONMAN && clanChannelChanged.getClanChannel() != null) {
 				List<ClanChannelMember> gimMembers = clanChannelChanged.getClanChannel().getMembers();
 				for (ClanChannelMember gimMember : gimMembers) {
 					clanStandardizedUsernames.add(Text.standardize(gimMember.getName()));
@@ -242,7 +257,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			guestClanStandardizedUsernames.clear();
 		} else {
 			//If joined guest clan, get members and add the usernames to HashSet
-			if (clanChannelChanged.isGuest()) {
+			if (clanChannelChanged.isGuest() && client.getGuestClanSettings() != null) {
 				List<ClanMember> guestClanMembers = client.getGuestClanSettings().getMembers();
 				for (ClanMember guestClanMember : guestClanMembers) {
 					guestClanStandardizedUsernames.add(Text.standardize(guestClanMember.getName()));
@@ -255,18 +270,18 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	public void onClanMemberJoined(ClanMemberJoined clanMemberJoined) {
 		//getClanSettings.GetMembers won't include any guests; add these this way
 		//In the case of HashSet, the item isn't inserted if it's a duplicate => so no .contains check beforehand.
-		String parsedJoinedName = Text.removeTags(clanMemberJoined.getClanMember().getName());
+		String standardizedJoinedName = Text.standardize(clanMemberJoined.getClanMember().getName());
 		ClanChannel clanChannel = client.getClanChannel();
 		ClanChannel guestClanChannel = client.getGuestClanChannel();
 
 		//If username of joined clanmember is in the cc, add to HashSet
-		if (clanChannel != null && clanChannel.findMember(parsedJoinedName) != null) {
-			clanStandardizedUsernames.add(Text.standardize(parsedJoinedName));
+		if (clanChannel != null && clanChannel.findMember(standardizedJoinedName) != null) { //findMember works both with .removeTags and with .standardize
+			clanStandardizedUsernames.add(standardizedJoinedName);
 		}
 
 		//If username of joined clanmember is in the guest cc, add to HashSet
-		if (guestClanChannel != null && guestClanChannel.findMember(parsedJoinedName) != null) {
-			clanStandardizedUsernames.add(Text.standardize(parsedJoinedName));
+		if (guestClanChannel != null && guestClanChannel.findMember(standardizedJoinedName) != null) {
+			clanStandardizedUsernames.add(Text.standardize(standardizedJoinedName));
 		}
 	}
 
@@ -288,11 +303,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
 						idx2++;
 						String test2 = test.substring(idx2);
 						test = test.substring(0, test.length() - 2);
-						System.out.println("running client.runScript(152," + test + "," + test2 + ")");
+						System.out.println("running client.runScript(CHAT_SET_FILTER_SCRIPTID," + test + "," + test2 + ")");
 						client.setVarbit(928, 0);
-						client.runScript(152, Integer.parseInt(test), Integer.parseInt(test2));
+						client.runScript(CHAT_SET_FILTER_SCRIPTID, Integer.parseInt(test), Integer.parseInt(test2));
 						client.setVarbit(928, 0);
-						//client.runScript(152, 2, 0); public
+						//client.runScript(CHAT_SET_FILTER_SCRIPTID, 2, 0); public
 						//3, 0 for private
 						//4, 0 for channel
 						//5, 0 for clan
@@ -305,8 +320,14 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			processToBPartyInterface();
 		}
 		if (commandExecuted.getCommand().equals("test3")) {
-			executeSetChatFilterConfig(ComponentID.CHATBOX_TAB_PUBLIC,true);
-			//todo: fix bug that randomly sets chatboxes back to public instead of custom when clicking on them
+			System.out.println(publicFilterEnabled);
+			System.out.println(configManager.getConfiguration(configGroup, "publicFilterEnabled"));
+		}
+		if (commandExecuted.getCommand().equals("test4")) {
+			setChatsToPublic();
+		}
+		if (commandExecuted.getCommand().equals("test5")) {
+			raidPartyStandardizedUsernames.clear();
 		}
 	}
 
@@ -317,7 +338,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Subscribe(priority = -2) //After chatfilter plugin etc, probably not necessary but can't hurt
 	public void onOverheadTextChanged(OverheadTextChanged overheadTextChanged) {
-		//todo: add chat filter when public filter is enabled!
+		//todo: add chat filter when public filter is enabled! (but 2d is disabled!)
 	}
 
 	@Subscribe(priority = -2) //After chatfilter plugin etc, probably not necessary but can't hurt
@@ -359,12 +380,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 				//Replace entries with their 2D equivalent if 2D is added to the 2D set
 				//Order does not matter since I'm just replacing, so just iterate over the HashSet
-				if (menuEntryAddedParam1 == ComponentID.CHATBOX_TAB_PUBLIC) {
-					Set<ChatTabFilterOptions2D> set2D = componentIDToChatTabFilterSet2D(menuEntryAddedParam1);
-					if (set2D != null) {
-						for (ChatTabFilterOptions2D entry : set2D) {
-							option = option.replace(entry.toNon2DAbbreviationString()+"/", entry.toAbbreviationString()+"/"); //A slash is added, so it does not result in: "Public 2D: Show Public 2D/Friends/CC 2D
-						}
+				Set<ChatTabFilterOptions2D> set2D = componentIDToChatTabFilterSet2D(menuEntryAddedParam1); //Already checks if componentID = public chat
+				if (set2D != null) {
+					for (ChatTabFilterOptions2D entry : set2D) {
+						option = option.replace(entry.toNon2DAbbreviationString() + "/", entry.toAbbreviationString() + "/"); //A slash is added, so it does not result in: "Public 2D: Show Public 2D/Friends/CC 2D
 					}
 				}
 				option = option.substring(0, option.length() - 1); //Remove the trailing "/". If deleted earlier, the final option is not properly replaced by its 2D variant.
@@ -376,12 +395,22 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	@Subscribe
 	public void onMenuOptionClicked(MenuOptionClicked menuOptionClicked) {
 		final int menuOptionClickedParam1 = menuOptionClicked.getParam1();
-		final String menuOption = menuOptionClicked.getMenuOption();
+		String menuOption = menuOptionClicked.getMenuOption();
 		//The menu option for show friends is "<col=ffff00>Public:</col> Show friends"
 		//First check if it's a valid chatfilter option, then check that it's not the one we inserted => disable chat filtering if user clicked e.g. Public: Show friends
-		if (isComponentIDChatStone(menuOptionClickedParam1) && //alternatively you could use menuOption.contains("<col=ffff00>") && menuOption.contains("Show") instead of isComponentIDChatStone
-				!menuOption.contains("Friends") && !menuOption.contains("CC") && !menuOption.contains("FC") && !menuOption.contains("Guest") && !menuOption.contains("Raid")) { //Plugin uses Friends instead of friends (osrs game)
-			//todo: add the whitelist feature, Public, Public (2d) etc to that! Maybe also make it into a non editable list
+		//Since this also contains stuff like "Switch tab", "Clear history" etc which should not turn off the custom filter, we also check for "Show" and if it does not contain some text from a menu entry we added ourselves.
+		if (isComponentIDChatStone(menuOptionClickedParam1) && menuOption.contains("Show")) { //alternatively you could use menuOption.contains("<col=ffff00>") && menuOption.contains("Show") ?
+			//Remove everything before the : so it doesn't match <col=ffff00>Public:</col>
+			int idx = menuOption.indexOf(':');
+			if (idx != -1) {
+				menuOption = menuOption.substring(idx);
+			}
+			for (ChatTabFilterOptions enumValue : ChatTabFilterOptions.values()) { //All the abbreviations from ChatTabFilterOptions2D contain the non-2D abbreviation so contains still matches
+				if (menuOption.contains(enumValue.toAbbreviationString())) { //Plugin uses Friends instead of friends (osrs game)
+					//return in case it is the menu entry/option we added ourselves! We do not want to turn off the filter when clicking on our menu entry/option.
+					return;
+				}
+			}
 			//If the specific chat is filtered, disable the filter. Technically the if statement could potentially be skipped.
 			if (isChatFilteredComponentID(menuOptionClickedParam1)) {
 				setChatFilterConfig(menuOptionClicked.getMenuEntry(), false);
@@ -391,9 +420,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Subscribe
 	public void onGameTick(GameTick gameTick) {
-		if (setPublicChatOnInt > 0) {
-			setChatsToPublic(false);
-			setPublicChatOnInt--;
+		if (setChatsToPublicFlag) {
+			executeSetChatsToPublic();
+			setChatStoneWidgetTextAll(); //Also executed in setChatsToPublic() to improve the feeling (makes it feel snappier)
+			setChatsToPublicFlag = false;
 		}
 	}
 
@@ -403,7 +433,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	@Subscribe
 	public void onScriptPostFired(ScriptPostFired scriptPostFired) {
 		int scriptPostFiredId = scriptPostFired.getScriptId();
-		if (scriptPostFiredId == 178 && !shuttingDown) { //178 = [proc,redraw_chat_buttons]
+		if (scriptPostFiredId == REDRAW_CHAT_BUTTONS_SCRIPTID && !shuttingDown) { //178 = [proc,redraw_chat_buttons]
 			setChatStoneWidgetTextAll();
 		}
 		/*
@@ -416,7 +446,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 		*/
 
-		if (scriptPostFiredId == 4495) { //[proc,tob_partydetails_back_button].cs2 seems to trigger when opening party and when applying at the end, after 2317 has procced multiple times to add all the info (2317 proccs once per potential team member to add them to the board interface iirc)
+		if (scriptPostFiredId == TOB_PARTYDETAILS_BACK_BUTTON) { //[proc,tob_partydetails_back_button].cs2 seems to trigger when opening party and when applying at the end, after 2317 has procced multiple times to add all the info (2317 proccs once per potential team member to add them to the board interface iirc)
 			processToBBoard();
 		}
 	}
@@ -531,10 +561,23 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Subscribe
 	public void onVarbitChanged(VarbitChanged varbitChanged) {
-		if ((channelFilterEnabled && varbitChanged.getVarbitId() == 928 && varbitChanged.getValue() != 0) || //928 = FC value, 929 = cc value (int $chatfilter1)
-				(clanFilterEnabled && varbitChanged.getVarbitId() == 929 && varbitChanged.getValue() != 0)) {
-			setChatsToPublic(true);
+		//For some reason the channel and clan tab also have Varbits attached to them, while public, private, and trade do not.
+		int varbitId = varbitChanged.getVarbitId();
+		if ((channelFilterEnabled && varbitId == FC_CHAT_FILTER_VARBIT && varbitChanged.getValue() != 0) || //928 = FC value, 929 = cc value (int $chatfilter1). 0 = show all IIRC.
+				(clanFilterEnabled && varbitId == CC_CHAT_FILTER_VARBIT && varbitChanged.getValue() != 0)) {
+			setChatsToPublic();
 		}
+		//PM If you ever want to check if someone's in ToB or likely in ToA, check e.g. Varbit 6440 (Varbits.java)
+		/*
+		 * Theatre of Blood 1=In Party, 2=Inside/Spectator, 3=Dead Spectating
+		 */
+		//public static final int THEATRE_OF_BLOOD = 6440;
+	}
+
+	@Subscribe
+	public void onVarClientStrChanged(VarClientStrChanged varClientStrChanged) {
+		addInRaidUsernamesVarClientStr(varClientStrChanged);
+		System.out.println(raidPartyStandardizedUsernames); //todo: remove this
 	}
 
 	private void convertCommaSeparatedConfigStringToList(String configString, List<String> listToConvertTo) {
@@ -563,7 +606,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	@Nullable
-	private Set<ChatTabFilterOptions2D> componentIDToChatTabFilterSet2D(int componentID) { //TODO: remove if redundant
+	private Set<ChatTabFilterOptions2D> componentIDToChatTabFilterSet2D(int componentID) {
 		//Returns the Set<ChatTabFilterOptions2D> based on the componentID. Originally had it in an Object with also 3D/regular, but it's kind of annoying to use so screw that.
 		//Returns null when componentID != public chatstone componentID
 		if (componentID == ComponentID.CHATBOX_TAB_PUBLIC) {
@@ -584,7 +627,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	private void redrawChatButtons() {
-		if (client.getGameState() == GameState.LOGGED_IN || client.getGameState() == GameState.LOADING) {
+		if (client.getGameState() == GameState.LOGGED_IN) {
 			clientThread.invokeLater(() -> {
 				client.runScript(REDRAW_CHAT_BUTTONS_SCRIPTID); //[proc,redraw_chat_buttons]
 			});
@@ -596,7 +639,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//Called in onConfigChanged
 		boolean shouldRedraw = false;
 		//Update arrays to most recent values
-		boolean[] filtersEnabled = new boolean[]{publicFilterEnabled, privateFilterEnabled, channelFilterEnabled, clanFilterEnabled, tradeFilterEnabled};
+		boolean[] filtersEnabled = new boolean[]{publicFilterEnabled, privateFilterEnabled, channelFilterEnabled, clanFilterEnabled, tradeFilterEnabled}; //If you need to use this somewhere else, try making it private static and updating it in onConfigChanged
 		//Iterate through all chat filter enabled booleans and check if they should be active according to the config or not
 		for (int i = 0; i < filtersEnabled.length; i++) {
 			if (filtersEnabled[i] && !shouldFilterChatType(chatboxComponentIDs.get(i))) {
@@ -606,8 +649,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 		//If a chat filter has been disabled because the config set has been emptied, redraw all chat buttons, then set the Custom text again for all active ones
 		if (shouldRedraw) {
-			redrawChatButtons();
-			setChatStoneWidgetTextAll();
+			redrawChatButtons(); //setChatStoneWidgetTextAll() is not required because that already procs when REDRAW_CHAT_BUTTONS_SCRIPTID is procced
 		}
 	}
 
@@ -615,8 +657,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//todo: if changing config stuff that's not in ChatFilterExtendedConfig, change this as well
 		//Config keys that are not part of ChatFilterExtendedConfig are still empty on first startup. Prevent them being null by setting them before other code checks the config keys.
 		for (String filtersEnabledString : filtersEnabledStringList) {
-			if (configManager.getConfiguration("chat-filter-extended", filtersEnabledString) == null) {
-				configManager.setConfiguration("chat-filter-extended", filtersEnabledString, false);
+			if (configManager.getConfiguration(configGroup, filtersEnabledString) == null) {
+				configManager.setConfiguration(configGroup, filtersEnabledString, false);
 			}
 		}
 	}
@@ -627,8 +669,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	private void enableChatFilter(MenuEntry menuEntry) {
 		setChatFilterConfig(menuEntry, true);
-		setChatsToPublic(false);
-		setChatStoneWidgetTextAll();
+		setChatsToPublic();
 	}
 
 	private void setChatFilterConfig(MenuEntry menuEntry, boolean enableFilter) {
@@ -644,43 +685,53 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//Alternatively use a switch(componentID) statement like you did before. It's probably more efficient execution wise, but we got these lists anyway and this is more compact
 		for (int i = 0; i < chatboxComponentIDs.size(); i++) {
 			if (chatboxComponentIDs.get(i) == componentID) {
-				configManager.setConfiguration("chat-filter-extended", filtersEnabledStringList.get(i), enableFilter);
+				configManager.setConfiguration(configGroup, filtersEnabledStringList.get(i), enableFilter);
 			}
 		}
 	}
 
-	private void setChatsToPublic(boolean onlyVolatile) {
+	private void setChatsToPublic() {
+		//Set the flag that set chat tabs to public, so they can then be filtered by the plugin
+		//Flag is reset in onGameTick
+		setChatsToPublicFlag = true;
+		setChatStoneWidgetTextAll();
+	}
+
+	private void executeSetChatsToPublic() {
 		//Set chat tabs to public, so they can then be filtered by the plugin
-		if (client.getGameState() == GameState.LOGGED_IN || client.getGameState() == GameState.LOADING) {
-			//Public, private, trade remember between hops => they are only set when onlyVolatile is set to false.
-			//Channel and clan are probs varbit based => they are always set when this method is executed ("volatile").
-			//Channel, Clan don't remember between hopping; potentially related to varbits as described here https://discord.com/channels/301497432909414422/301497432909414422/1086022946633547867 (i.e. I suspect when hopping it reads the state from the varbits and then sets the chat filters according to those values)
-			clientThread.invokeLater(() -> {
-				if (!onlyVolatile) {
-					//todo: explain the volatile thing better + change script ids and maybe arguments to static final ints?
-					if (publicFilterEnabled) {
-						client.runScript(152, 2, 0);
-					}
-					if (privateFilterEnabled && forcePrivateOn) {
-						client.runScript(152, 3, 0);
-					}
-					if (tradeFilterEnabled) {
-						client.runScript(152, 6, 0);
-					}
-				}
-				if (channelFilterEnabled) {
-					client.runScript(152, 4, 0);
-				}
-				if (clanFilterEnabled) {
-					client.runScript(152, 5, 0);
-				}
-			});
-		}
+		//client.getGameState check not needed because this is only ran in onGameTick
+
+		//Public, private, trade remember between hops => they are only set when onlyVolatile is set to false.
+		//Channel and clan are probs varbit based => they are always set when this method is executed ("volatile").
+		//Channel, Clan don't remember between hopping; potentially related to varbits as described here https://discord.com/channels/301497432909414422/301497432909414422/1086022946633547867 (i.e. I suspect when hopping it reads the state from the varbits and then sets the chat filters according to those values)
+		clientThread.invokeLater(() -> {
+			//Could potentially put this nicely in an enum at some point. Should probably also document what other arguments do then. 1 might be game but it's not listed in script 184 proc,chat_set_filter. Regarding 2nd argument it's just always +1 to get the next MenuOption and if you enter a value that's too high, it goes to show all/on (for some chat tabs?)
+			if (publicFilterEnabled) {
+				client.runScript(CHAT_SET_FILTER_SCRIPTID, 2, 0);
+				//2 = public tab, 0 = show all
+			}
+			if (privateFilterEnabled && forcePrivateOn) {
+				client.runScript(CHAT_SET_FILTER_SCRIPTID, 3, 0);
+				//3 = private tab, 0 = show all
+			}
+			if (channelFilterEnabled) {
+				client.runScript(CHAT_SET_FILTER_SCRIPTID, 4, 0);
+				//4 = chat channel tab, 0 = show all
+			}
+			if (clanFilterEnabled) {
+				client.runScript(CHAT_SET_FILTER_SCRIPTID, 5, 0);
+				//5 = clan tab, 0 = show all
+			}
+			if (tradeFilterEnabled) {
+				client.runScript(CHAT_SET_FILTER_SCRIPTID, 6, 0);
+				//6 = trade tab, 0 = show all
+			}
+		});
 	}
 
 	private void setChatStoneWidgetTextAll() {
 		//Sets the WidgetText for enabled chats to Custom
-		if (client.getGameState() != GameState.LOGGED_IN && client.getGameState() != GameState.LOADING) {
+		if (client.getGameState() != GameState.LOGGED_IN) {
 			return;
 		}
 		for (int componentID : chatboxComponentIDs) {
@@ -698,7 +749,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	private void setCustomText(Widget widget) {
 		final String customTextString = "<br><col=ffff00>Custom</col>";
-		widget.getStaticChildren()[2].setText(customTextString); //or e.g. chatWidget.getStaticChildren().length-1
+		widget.getStaticChildren()[2].setText(customTextString); //or e.g. chatWidget.getStaticChildren().length-1 but that change more often idk
 	}
 
 	private boolean isChatFilteredComponentID(int componentID) {
@@ -718,44 +769,19 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	private boolean shouldFilterMessage(ChatMessageType chatMessageType, String playerName) {
-		if (isChatFilteredChatMessageType(chatMessageType)) {
-			return shouldFilterMessagePlayerName(playerName);
+		//Should the message be filtered, based on ChatMessageType and the sender's name
+		if (!isChatTabCustomFilterActiveChatMessageType(chatMessageType)) {
+			return false;
 		}
-		return false;
-	}
+		//From hereon, the ChatMessageType has the filter active
 
-	private boolean isChatFilteredChatMessageType(ChatMessageType chatMessageType) {
-		if (chatMessageType != null) {
-			switch (chatMessageType) {
-				//AUTOTYPER	is filtered on public = on anyway
-				case PUBLICCHAT:
-				case MODCHAT:
-					return publicFilterEnabled;
-				case PRIVATECHAT:
-				case MODPRIVATECHAT:
-					return privateFilterEnabled;
-				case FRIENDSCHAT:
-					return channelFilterEnabled;
-				case CLAN_CHAT:
-				case CLAN_GIM_CHAT:
-				case CLAN_GUEST_CHAT:
-						return clanFilterEnabled;
-				case TRADEREQ:
-					return tradeFilterEnabled;
-			}
-		}
-		return false;
-	}
-
-	private boolean shouldFilterMessagePlayerName(String playerName) { //todo: rework this to be specific per chatMessageType or ComponentID
-		playerName = Text.removeTags(playerName);
+		playerName = Text.standardize(playerName); //Very likely works considering other methods work with a standardized name. Can't test this though since my name doesn't have e.g. a space.
 		if (playerName.equals(client.getLocalPlayer().getName())) {
 			return false;
 		}
-		if (showFriendsMessages && client.isFriended(playerName, false)) {
+		if (showFriendsMessages && client.isFriended(playerName, false)) { //todo: completely rework this stuff probs + zie google calendar!!
 			return false;
 		}
-		playerName = Text.standardize(playerName);
 		if (showFCMessages && channelStandardizedUsernames.contains(playerName)) {
 			return false;
 		}
@@ -767,11 +793,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 		if (showRaidPartyMessages && raidPartyStandardizedUsernames.contains(playerName)) {
 			return false;
-		}
+		} //todo: add custom whitelist
 		return true;
-	}
-
-	/* Alternatively use
+		/* Alternatively use
 		private boolean isFriendsChatMember(String playerName) {
 			FriendsChatManager friendsChatManager = client.getFriendsChatManager();
 			return friendsChatManager != null && friendsChatManager.findByName(playerName) != null;
@@ -791,6 +815,41 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 		However, I'd like the usernames to persist until the user logs out or leaves the chat, since sometimes people briefly leave the FC/CC/guest CC and still type etc
 		 */
+	}
+
+	private boolean isChatTabCustomFilterActiveChatMessageType(ChatMessageType chatMessageType) {
+		//Returns true if the chat tab is set to Show: custom, based on the ChatMessageType
+		if (chatMessageType != null) {
+			switch (chatMessageType) {
+				//AUTOTYPER	is filtered on public = on anyway
+				case PUBLICCHAT:
+				case MODCHAT:
+					return publicFilterEnabled;
+				case PRIVATECHAT:
+				case MODPRIVATECHAT:
+					return privateFilterEnabled;
+				case FRIENDSCHAT:
+					return channelFilterEnabled;
+				case CLAN_CHAT:
+				case CLAN_GIM_CHAT:
+				case CLAN_GUEST_CHAT:
+					return clanFilterEnabled;
+				case TRADEREQ:
+					//TRADE and TRADE_SENT are not received when someone tries to trade you, only TRADEREQ
+					return tradeFilterEnabled;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * checkk hoe playerindicator plugins friends/fc/team? (probs team cape)/clan people/others doet
+	 * check what script 2509, 2296 do since tob hp bar plugin uses that
+	 * check dat gedoe met scriptids en de twee widgets (board en erbuiten) in tob met alle variaties testen!
+	 * parse toa board en test alle variaties!
+	 * cox... in raid, in raid lobby voor start raid (onderin), in de bank lobby area, cox notice board als iemand dat ooit gebruikt...
+	 * rest van de plugin: gebruik isclanchatmember (wat als op leave cc, wat als leave cc en dan client herstarten?, wat als guest cc? wat als iemand jouw cc joint als guest), is friendschatmember potentieel aanvullend aan bestaande oplossingen, denk na over wanneer lists gecleared moeten worden
+	 */
 
 	//private static final int TOB_BOARD_ID = 50; //N50.0
 	//private static final int TOP_HALF_TOB_BOARD_CHILDID = 27; //S50.27
@@ -810,7 +869,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				//Get child that has type 3 => next one has to be name
 				if (topHalfToBBoardWidget.getChild(i).getType() == 3) {
 					//Index of the one that has name is type 3 index + 1
-					int indexName = topHalfToBBoardWidget.getChild(i).getIndex() +1;
+					int indexName = topHalfToBBoardWidget.getChild(i).getIndex() + 1;
 					if (topHalfToBBoardWidget.getChild(indexName).getType() == 4) {
 						//If right type (4), get the text and standardize it
 						String StandardizedRaidUsername = Text.standardize(topHalfToBBoardWidget.getChild(indexName).getText());
@@ -826,7 +885,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				//Get child that has type 3 => next one has to be name
 				if (bottomHalfToBBoardWidget.getChild(i).getType() == 3) {
 					//Index of the one that has name is type 3 index + 1
-					int indexName = bottomHalfToBBoardWidget.getChild(i).getIndex() +1;
+					int indexName = bottomHalfToBBoardWidget.getChild(i).getIndex() + 1;
 					if (bottomHalfToBBoardWidget.getChild(indexName).getType() == 4) {
 						//If right type (4), get the text and sanitize it
 						String StandardizedRaidUsername = Text.standardize(bottomHalfToBBoardWidget.getChild(indexName).getText());
@@ -841,8 +900,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		if (raidPartyStandardizedUsernamesTemp.contains(Text.standardize(client.getLocalPlayer().getName()))) {
 			raidPartyStandardizedUsernames.addAll(raidPartyStandardizedUsernamesTemp);
 		}
-		System.out.println("raidPartyStandardizedUsernamesTemp (Board) = "+ raidPartyStandardizedUsernamesTemp); //TEST
-		System.out.println("raidPartyStandardizedUsernames (Board) = "+raidPartyStandardizedUsernames); //TEST
+		System.out.println("raidPartyStandardizedUsernamesTemp (Board) = " + raidPartyStandardizedUsernamesTemp); //TEST
+		System.out.println("raidPartyStandardizedUsernames (Board) = " + raidPartyStandardizedUsernames); //TEST
 	}
 
 	//private static final int TOB_PARTY_INTERFACE_NAMES_CHILDID = 12; //S28.12
@@ -862,12 +921,27 @@ public class ChatFilterExtendedPlugin extends Plugin {
 						//Since the user has to be in this party (can't view other parties like this), add to the real HashSet instead of a temp one
 						raidPartyStandardizedUsernames.add(StandardizedUsername);
 					}
-					start = idx+4; //+4 so substring starts after the first <br>
+					start = idx + 4; //+4 so substring starts after the first <br>
 					toBPartyInterfaceText = toBPartyInterfaceText.substring(start, toBPartyInterfaceText.length()); //get substring to remove first user and first <br>
 				}
 			}
 		}
-		System.out.println("raidPartyStandardizedUsernames (Party Interface top left) = "+raidPartyStandardizedUsernames); //TEST
+		System.out.println("raidPartyStandardizedUsernames (Party Interface top left) = " + raidPartyStandardizedUsernames); //TEST
+	}
+
+	private void addInRaidUsernamesVarClientStr(VarClientStrChanged varClientStrChanged) {
+		//Add the standardized names of TOB and TOA raiders to a hashset.
+		//Hashset can't contain dupes and the add method already checks if it contains it or not.
+		int varCStrIndex = varClientStrChanged.getIndex();
+		//If tob or toa VarCStrIndex
+		if ((varCStrIndex >= TOB_IN_RAID_VARCSTR_PLAYER1_INDEX && varCStrIndex <= TOB_IN_RAID_VARCSTR_PLAYER5_INDEX)
+				|| (varCStrIndex >= TOA_IN_RAID_VARCSTR_PLAYER1_INDEX && varCStrIndex <= TOA_IN_RAID_VARCSTR_PLAYER8_INDEX)) {
+			String varCStrValue = client.getVarcStrValue(varClientStrChanged.getIndex());
+			//isNullOrEmpty check because they get refreshed in probably every room and can potentially add empty strings to the hashset.
+			if (!Strings.isNullOrEmpty(varCStrValue)) {
+				raidPartyStandardizedUsernames.add(Text.standardize(varCStrValue));
+			}
+		}
 	}
 
 	//todo: make filter code probs (hangt tevens met list etc samen) => voor friends zie chatfilter plugin iig! + test dit ingame
@@ -952,3 +1026,39 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		menuOptionClicked.getMenuEntry().getTarget() =
 		menuOptionClicked.getMenuEntry().getIdentifier() = 7
 		*/
+
+/*SmartChatInput problematic interaction error:
+2023-11-09 06:13:06 CET [Client] WARN  n.runelite.client.eventbus.EventBus - Uncaught exception in event subscriber
+java.lang.NullPointerException: Cannot invoke "String.contains(java.lang.CharSequence)" because "name" is null
+	at com.smartchatinputcolor.SmartChatInputColorPlugin.deriveChatChannel(SmartChatInputColorPlugin.java:129)
+	at com.smartchatinputcolor.SmartChatInputColorPlugin.recolorChatTypedText(SmartChatInputColorPlugin.java:98)
+	at com.smartchatinputcolor.SmartChatInputColorPlugin.onScriptPostFired(SmartChatInputColorPlugin.java:262)
+	at net.runelite.client.eventbus.EventBus$Subscriber.invoke(EventBus.java:70)
+	at net.runelite.client.eventbus.EventBus.post(EventBus.java:223)
+	at net.runelite.client.callback.Hooks.post(Hooks.java:194)
+	at client.xf(client.java:4992)
+	at cm.ar(cm.java:16152)
+	at mo.ah(mn.java:5782)
+	at client.yh(client.java)
+	at client.ol(client.java:46062)
+	at client.runScript(client.java:7425)
+	at com.ywcode.chatfilterextended.ChatFilterExtendedPlugin.lambda$setChatsToPublic$3(ChatFilterExtendedPlugin.java:678)
+	at net.runelite.client.callback.ClientThread.lambda$invokeLater$1(ClientThread.java:80)
+	at net.runelite.client.callback.ClientThread.invokeList(ClientThread.java:119)
+	at net.runelite.client.callback.ClientThread.invoke(ClientThread.java:101)
+	at net.runelite.client.callback.Hooks.tick(Hooks.java:218)
+	at client.km(client.java:34819)
+	at client.bj(client.java)
+	at bm.an(bm.java:394)
+	at bm.ib(bm.java)
+	at bm.run(bm.java:52825)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+
+	Fixed by just setting a flag and running onGameTick. It was causing the SCIC code to be executed earlier than it normally is, so player.getName was null
+ */
+
+/*
+getName() = <img=41>major�leach
+Text.removeTags = major�leach
+Text.standardize = major leach
+ */
