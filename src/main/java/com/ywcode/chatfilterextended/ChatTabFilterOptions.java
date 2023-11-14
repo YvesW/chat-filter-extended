@@ -9,8 +9,9 @@ public enum ChatTabFilterOptions {
     FRIENDS("Friends", "Friends"),
     FC("Friends chat", "FC"),
     CC("Clan", "CC"),
-    GUEST_CC("Guest Clan", "Guest"),
+    GUEST_CC("Guest clan", "Guest"),
     RAID("Raid party", "Raid"),
+    PARTY("RuneLite party", "Party"),
     WHITELIST ("Custom whitelist", "Whitelist");
 
     private final String option;

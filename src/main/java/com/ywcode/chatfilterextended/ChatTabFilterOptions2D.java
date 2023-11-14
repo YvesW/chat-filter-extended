@@ -9,8 +9,9 @@ public enum ChatTabFilterOptions2D {
     FRIENDS("Friends 2D", "Friends 2D"),
     FC("Friends chat 2D", "FC 2D"),
     CC("Clan 2D", "CC 2D"),
-    GUEST_CC("Guest Clan 2D", "Guest 2D"),
-    RAID("Raid Party 2D", "Raid 2D"),
+    GUEST_CC("Guest clan 2D", "Guest 2D"),
+    RAID("Raid party 2D", "Raid 2D"),
+    PARTY("RuneLite party 2D", "Party 2D"),
     WHITELIST ("Custom whitelist 2D", "Whitelist 2D");
 
     private final String option;
