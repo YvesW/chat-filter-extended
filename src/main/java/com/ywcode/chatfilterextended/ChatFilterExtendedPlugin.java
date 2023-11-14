@@ -12,6 +12,8 @@ import net.runelite.client.callback.*;
 import net.runelite.client.config.*;
 import net.runelite.client.eventbus.*;
 import net.runelite.client.events.*;
+import net.runelite.client.party.*;
+import net.runelite.client.party.events.*;
 import net.runelite.client.plugins.*;
 import net.runelite.client.util.*;
 
@@ -22,8 +24,8 @@ import java.util.*;
 @Slf4j
 @PluginDescriptor(
 		name = "Chat Filter Extended",
-		description = "Extends the functionality of the chat tabs/stones to filter chat messages not from friends/clan members/FC members/Guest CC members/raid members.",
-		tags = {"public,public 2d,chat,cc,fc,clanchat,clan,filter,friends chat,friends chat,friends,private,trade,raids,chat filter,tob,toa,cox,spam,custom"}
+		description = "Extends the functionality of the chat tabs/stones to filter chat messages not from friends/clan members/FC members/Guest CC members/raid members/party members.",
+		tags = {"chat,chat filter,public,public 2d,friends,friends 2d,fc,fc 2d,cc,cc 2d,guest,guest 2d,raid,raid 2d,party,party 2d,whitelist,whitelist 2d,custom,clanchat,clan,filter,friends chat,private,trade,raids,tob,toa,cox,spam,show"}
 )
 //Alternative (shitty) names: Custom Chat View, Chat View Extended, Chat Show Custom, Custom Chat Filter, Chat tabs extended, Chat stones extended
 //My goal was not to make one of these "abc improved" or "better abc" plugins, but the menuOptions like "Show friends" or "Show none" are just called chat filters, I think, and I can't come up with a better name. At least polar calls them that in e.g. script 152 (chat_set_filter)
@@ -84,7 +86,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static final int TOA_IN_RAID_VARCSTR_PLAYER1_INDEX = 1099; //1099-1106 is player 1-8's name when IN the raid (does not work when applying/accepting on the obelisk or in the lobby). Returns an empty string if there is not e.g. a player 8. Probably updates each room.
 	private static final int TOA_IN_RAID_VARCSTR_PLAYER8_INDEX = 1106;
 	//Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I did not fully adhere to lol)
-	//PM Can probably replace part of the functions by incorporating the info in the Enum and then using a getter, but enfin
+	//PM Can probably replace part of the methods by incorporating the info in the Enum and then using a getter, but enfin
 
 	@Inject
 	private Client client;
@@ -98,6 +100,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	@Inject
 	private ConfigManager configManager;
 
+	@Inject
+	private PartyService partyService;
+
 	@Override
 	public void startUp() {
 		shuttingDown = false; //Maybe it got procced by switching profiles, assuming plugins are all shutdown and started again?
@@ -105,6 +110,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		updateConfig();
 		setChatsToPublic();
 		addAllInRaidUsernamesVarClientStr(); //Will also add a raid group to the hashset if you are not inside ToB/ToA anymore. This is fine and can be useful in certain situations, e.g. getting a scythe, teleporting to the GE to get the split and then turning on the plugin at the GE. You can still see your raid buddies' messages then.
+		addPartyMemberStandardizedUsernames(); //In case the plugin is started while already in a party.
 		//todo: add readme
 		//todo: go through problems
 		//todo: Change config thing to have different filters per chat so one for public, one for private + add config setting to add only 2d text for some people but not into chatbox? So then it'd only hide the chatbox stuff from those people => only for public chat cause rest is chatbox only... Including randos? So you could e.g. be everyone 2d except friends also chatbox but clan fully filtered? Requires public to also be added to the initial options!
@@ -585,6 +591,19 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		System.out.println(raidPartyStandardizedUsernames); //todo: remove this
 	}
 
+	@Subscribe(priority = -2) //Run after any other core party code (PartyPlugin)
+	public void onPartyChanged(PartyChanged partyChanged) {
+		addPartyMemberStandardizedUsernames();
+	}
+
+	@Subscribe(priority = -2) //Run after any other core party code (PartyService & PartyPlugin)
+	public void onUserJoin(UserJoin userJoin) {
+		//Specifically opted to use this approach instead of partyService.isInParty() && partyService.getMemberByDisplayName(player.getName()) != null
+		//Usernames will persist till hopping/logout, even if the local player or a partyMember leaves the party
+		//Get userJoin member id => get partyMember => get displayname => standardize => add.
+		runelitePartyStandardizedUsernames.add(Text.standardize(partyService.getMemberById(userJoin.getMemberId()).getDisplayName()));
+	}
+
 	private void convertCommaSeparatedConfigStringToList(String configString, List<String> listToConvertTo) {
 		//Convert a CSV config string to a list
 		listToConvertTo.clear();
@@ -685,7 +704,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	private void executeSetChatFilterConfig(int componentID, boolean enableFilter) {
-		//Separate function, so it can be easily run by putting in the componentID instead having to enter a MenuEntry
+		//Separate method, so it can be easily run by putting in the componentID instead having to enter a MenuEntry
 		//publicFilterEnabled = enableFilter is not necessary since ConfigManager does trigger updateConfig() if the config value actually gets changed from false to true or vice versa
 		//Alternatively use a switch(componentID) statement like you did before. It's probably more efficient execution wise, but we got these lists anyway and this is more compact
 		for (int i = 0; i < chatboxComponentIDs.size(); i++) {
@@ -781,7 +800,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//From hereon, the ChatMessageType has the filter active
 
 		playerName = Text.standardize(playerName); //Very likely works considering other methods work with a standardized name. Can't test this though since my name doesn't have e.g. a space.
-		if (playerName.equals(client.getLocalPlayer().getName())) {
+		if (playerName.equals(Text.standardize(client.getLocalPlayer().getName()))) {
 			return false;
 		}
 		if (showFriendsMessages && client.isFriended(playerName, false)) { //todo: completely rework this stuff probs + zie google calendar!!
@@ -798,7 +817,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 		if (showRaidPartyMessages && raidPartyStandardizedUsernames.contains(playerName)) {
 			return false;
-		} //todo: add custom whitelist
+		} //todo: add custom whitelist && rl party & public & alle 2d gedoe
 		return true;
 		/* Alternatively use
 		private boolean isFriendsChatMember(String playerName) {
@@ -848,7 +867,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	/**
-	 * add party optie?
 	 * Check wat onvarcstr changed doet als je tob entert, dan cleart. Hopt en/of uitlogt, dan inlogt. Hashset onterecht filled?
 	 * checkk hoe playerindicator plugins friends/fc/team? (probs team cape)/clan people/others doet
 	 * check what script 2509, 2296 do since tob hp bar plugin uses that
@@ -958,6 +976,17 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			//isNullOrEmpty check because they get refreshed in probably every room and can potentially add empty strings to the hashset.
 			if (!Strings.isNullOrEmpty(varCStrValue)) {
 				raidPartyStandardizedUsernames.add(Text.standardize(varCStrValue));
+			}
+		}
+	}
+
+	private void addPartyMemberStandardizedUsernames() {
+		//Opted to use this so party members would remain until hopping.
+		//Alternatively just use partyService.isInParty() && partyService.getMemberByDisplayName(player.getName()) != null in the shouldFilter code if you only want it to be when they are in the party.
+		if (partyService.isInParty()) {
+			List<PartyMember> partyMembers = partyService.getMembers();
+			for (PartyMember partyMember : partyMembers) {
+				runelitePartyStandardizedUsernames.add(Text.standardize(partyMember.getDisplayName()));
 			}
 		}
 	}
