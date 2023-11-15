@@ -9,7 +9,7 @@ FC/CC/Guest CC members remembered till logout or smth (well till leaving channel
 Raid remembered till x y z for reasons such as splitting, also takes into account applying at tob/toa, at cox it checks x and y such as zone or like fc is then the same
 Maybe add some of this stuff to an advanced config?
 Party: cleared on hop and logout probs.
-Tob:
+Tob: when applying to a team/when someone applies to your team, when in lobby, when in raid => reset when hopping/logging out? also when e.g. entering toa lobby?
 Toa:
 Cox:
 FC:

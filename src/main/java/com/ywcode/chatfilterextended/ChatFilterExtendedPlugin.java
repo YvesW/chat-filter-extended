@@ -74,11 +74,17 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static final List<String> filtersEnabledStringList = ImmutableList.of("publicFilterEnabled", "privateFilterEnabled", "channelFilterEnabled", "clanFilterEnabled", "tradeFilterEnabled");
 	private static final int REDRAW_CHAT_BUTTONS_SCRIPTID = 178; //[proc,redraw_chat_buttons]
 	private static final int CHAT_SET_FILTER_SCRIPTID = 152; //[clientscript,chat_set_filter]
-	private static final int TOB_PARTYDETAILS_BACK_BUTTON = 4495; //[proc,tob_partydetails_back_button]
+	private static final int TOB_PARTYDETAILS_BACK_BUTTON_SCRIPTID = 4495; //[proc,tob_partydetails_back_button]
 	private static final int TOB_BOARD_ID = 50; //N50.0
 	private static final int TOP_HALF_TOB_BOARD_CHILDID = 27; //S50.27
 	private static final int BOTTOM_HALF_TOB_BOARD_CHILDID = 42; //S50.42
+	private static final int TOB_HUD_DRAW_SCRIPTID = 2297; //proc,tob_hud_draw Does proc every tick outside though and also (less frequently) in the raid.
 	private static final int TOB_PARTY_INTERFACE_NAMES_CHILDID = 12; //S28.12
+	private static String previousRaidPartyInterfaceText; //null by default
+	private static final int TOA_BOARD_ID = 774; //S774.32
+	private static final int MEMBERS_TOA_BOARD_CHILDID = 32; //S774.32
+	private static final int APPLICANTS_TOA_BOARD_CHILDID = 48; //S774.48
+	private static final int TOA_PARTY_INTERFACE_NAMES_CHILDID = 5; //S773.5
 	private static final int FC_CHAT_FILTER_VARBIT = 928; //These get read in e.g. [proc,chat_get_filter] (185)
 	private static final int CC_CHAT_FILTER_VARBIT = 929; //These get read in e.g. [proc,chat_get_filter] (185)
 	private static final int TOB_IN_RAID_VARCSTR_PLAYER1_INDEX = 330; //330-334 is player 1-5's name when IN the raid (does not work when applying/accepting on the notice board or in the lobby). Returns an empty string if there is not e.g. a player 5. Probably updates each room.
@@ -171,6 +177,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		setConfigFirstStart();
 		shuttingDown = false;
 		setChatsToPublic();
+		redrawChatButtons();
 	}
 
 	private void updateConfig() {
@@ -212,12 +219,12 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				//Probably only own CC needed; rest procs event.
 				channelStandardizedUsernames.clear();
 				guestClanStandardizedUsernames.clear();
-				raidPartyStandardizedUsernames.clear();
+				clearRaidPartyHashset(); //Also clear the string so the plugin will process the party interface if needed
 				runelitePartyStandardizedUsernames.clear();
 				break;
 			case HOPPING:
 				//Clear raid party members while hopping because you generally don't care about them anymore after hopping to another world
-				raidPartyStandardizedUsernames.clear();
+				clearRaidPartyHashset(); //Also clear the string so the plugin will process the party interface if needed
 				runelitePartyStandardizedUsernames.clear();
 				break;
 		}
@@ -296,7 +303,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 	}
 
-	//TODO: raids members + board/applicants (zie hieronder)
 	//todo: when to clear shit, e.g. raids when hopping/logged out or when visiting other raid/when leaving fc when at cox, use int to determine what activeraid is so you can clear raid usernames and set int to other thingy when entering zone of other raid
 	//todo: raid: based on varbit or chunk at cox probs (copy fc if member is in same world or maybe the raid interface if that works in the raid itself, check core cox plugin) (also chunk at tob/toa probs for setting int cause of lobby location or justb do that via widghet idk), tob applicants but also when you apply, widget top left when in lobby and when in raid, toa same as tob. check tob healthbar plugin probs
 
@@ -338,7 +344,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			setChatsToPublic();
 		}
 		if (commandExecuted.getCommand().equals("test5")) {
-			raidPartyStandardizedUsernames.clear();
+			clearRaidPartyHashset();
 		}
 	}
 
@@ -444,8 +450,21 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	@Subscribe
 	public void onScriptPostFired(ScriptPostFired scriptPostFired) {
 		int scriptPostFiredId = scriptPostFired.getScriptId();
-		if (scriptPostFiredId == REDRAW_CHAT_BUTTONS_SCRIPTID && !shuttingDown) { //178 = [proc,redraw_chat_buttons]
-			setChatStoneWidgetTextAll();
+		switch (scriptPostFired.getScriptId()) {
+			case REDRAW_CHAT_BUTTONS_SCRIPTID:
+				//178 = [proc,redraw_chat_buttons]
+				if (!shuttingDown) {
+					setChatStoneWidgetTextAll();
+				}
+				break;
+			case TOB_PARTYDETAILS_BACK_BUTTON_SCRIPTID:
+				//[proc,tob_partydetails_back_button].cs2 seems to trigger when opening party and when applying at the end, after 2317 has procced multiple times to add all the info (2317 proccs once per potential team member to add them to the board interface iirc)
+				processToBBoard();
+				break;
+			case TOB_HUD_DRAW_SCRIPTID:
+				//Procs once per tick, also procs inside of ToB. However, then S28.5 TOB_PARTY_INTERFACE and S28.12 (client.getWidget(InterfaceID.TOB, TOB_PARTY_INTERFACE_NAMES_CHILDID)) are hidden
+				processToBPartyInterface();
+				break;
 		}
 		/*
 		//TEST
@@ -456,119 +475,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//System.out.println(scriptPostFired.getScriptId());
 		}
 		*/
-
-		if (scriptPostFiredId == TOB_PARTYDETAILS_BACK_BUTTON) { //[proc,tob_partydetails_back_button].cs2 seems to trigger when opening party and when applying at the end, after 2317 has procced multiple times to add all the info (2317 proccs once per potential team member to add them to the board interface iirc)
-			processToBBoard();
-		}
 	}
-	//TODO: find out what scriptID you wanna use to proc processToBPartyInterface() and test it out
-	//TODO: get tob members in raid and add them (idk what script or something does something here, check tob health bar plugin; maybe uses varcs just like toa? check geheur commit here: https://github.com/runelite/runelite/pull/13765/files)
 	//TODO: set int or something to 1 when in/at tob, 2 toa, 3 cox (worldpoint for at probs and then varbits for in raid? check cox plugin, tob plugins, toa plugin for varbits. check discord plugin for wordlpoints/regions (although banks are probs missing))
 	//todo: reset tob raid list e.g. when entering cox/toa zone, when hopping (already does iirc), on logout (already does iirc), other conditions? clear on disband (probs not though, geeft evt chat message but idk)
 	//TODO: test what happens when applying and accepted, test what happens when someone else applies and you accept them, test what happens when someone applies and someone else accepts them and you have screen open/closed, test what happens when someone applies and you are not party leader but open board after applying (not accepted yet), test what happens when someone applies and you are not party leader but have board open while he applies (not accepted yet), test what happens in raid?
-	/* scriptIds tob board as reference:
-	Standard refresh:
-	2316
-	2317
-	2317
-	2317
-	2317
-	2317
-	4495
-
-	apply:
-	2316
-	2317
-	2317
-	2317
-	2317
-	2317
-	2321
-	2335
-	2335
-	2335
-	2335
-	2335
-	2335
-	2335
-	2335
-	2335
-	2335
-	2333
-	4495
-
-
-	open party:
-	2316
-	2317
-	2317
-	2317
-	2317
-	2317
-	4495
-
-
-	open tob board no party:
-	2339
-	2337
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2340
-	2342
-	2342
-	2342
-	2342
-	2342
-	2342
-	2341
-	2340
-	2339
-	2338
-	 */
-
-	//todo: add toa; for ingame can probs use these varcs https://discord.com/channels/301497432909414422/419891709883973642/1088984732764749946
-	// apparently also added in https://discord.com/channels/301497432909414422/968623039120035850/1089273683454984393 to toa plugin so take a look!
 
 	@Subscribe
 	public void onVarbitChanged(VarbitChanged varbitChanged) {
@@ -588,7 +498,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	@Subscribe
 	public void onVarClientStrChanged(VarClientStrChanged varClientStrChanged) {
 		addInRaidUsernamesVarClientStr(varClientStrChanged.getIndex()); //Already tests if this is the correct index or not
-		System.out.println(raidPartyStandardizedUsernames); //todo: remove this
 	}
 
 	@Subscribe(priority = -2) //Run after any other core party code (PartyPlugin)
@@ -685,6 +594,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				configManager.setConfiguration(configGroup, filtersEnabledString, false);
 			}
 		}
+	}
+
+	private void clearRaidPartyHashset() {
+		previousRaidPartyInterfaceText = "";
+		raidPartyStandardizedUsernames.clear();
 	}
 
 	private boolean isComponentIDChatStone(int componentID) {
@@ -867,11 +781,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	/**
-	 * Check wat onvarcstr changed doet als je tob entert, dan cleart. Hopt en/of uitlogt, dan inlogt. Hashset onterecht filled?
-	 * checkk hoe playerindicator plugins friends/fc/team? (probs team cape)/clan people/others doet
-	 * check what script 2509, 2296 do since tob hp bar plugin uses that
-	 * check dat gedoe met scriptids en de twee widgets (board en erbuiten) in tob met alle variaties testen!
-	 * parse toa board en test alle variaties!
+	 * zoek scriptids voor toa board en toa party interface en check of die niet ook per ongeluk in de raid proccen lol
 	 * cox... in raid, in raid lobby voor start raid (onderin), in de bank lobby area, cox notice board als iemand dat ooit gebruikt...
 	 * rest van de plugin: gebruik isclanchatmember (wat als op leave cc, wat als leave cc en dan client herstarten?, wat als guest cc? wat als iemand jouw cc joint als guest), is friendschatmember potentieel aanvullend aan bestaande oplossingen, denk na over wanneer lists gecleared moeten worden
 	 * aanvullend aan bestaande oplossingen, denk na over wanneer lists gecleared moeten worden
@@ -882,77 +792,88 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	//private static final int BOTTOM_HALF_TOB_BOARD_CHILDID = 42; //S50.42
 	//Top part of the ToB board names are dynamic children of 50.27, e.g. D50.27[0], D50.27[1], D50.27[2] etc.
 	//[0], [11], [22] etc is the whole line; these are useless for info but always type 3.
-	//[1], [12], [23] etc are the usernames. These are type 4.
+	//[1], [12], [23] etc are the usernames. These are type 4. (The levels etc. are also type 4; thus it's type 3 followed by a lot of type 4s of which the first is a username)
 	//Bottom part of the ToB board names are dynamic children of 50.42, e.g. D50.42[0], D50.42[1], [2], [4], [6], [8], [10], [12], [14], [16], [18], [20], [21], [22], [24]
 	//[0] and [20] are the whole lines again, type 3.
 	//[1] and [21] are the usernames, type 4.
 	private void processToBBoard() {
 		Widget topHalfToBBoardWidget = client.getWidget(TOB_BOARD_ID, TOP_HALF_TOB_BOARD_CHILDID);
 		Widget bottomHalfToBBoardWidget = client.getWidget(TOB_BOARD_ID, BOTTOM_HALF_TOB_BOARD_CHILDID);
+		processBoard(topHalfToBBoardWidget, bottomHalfToBBoardWidget);
+	}
+	//todo: maybe add clear button to clear raid members and/or other lists? idk. Maybe it should be a config setting to show this menuentry
+
+	private void processBoard(Widget topOrMembersPart, Widget bottomOrApplicantsPart) {
+		//Since processing the ToB and ToA boards works the same, this method works for both.
+		//Please refer to processToBBoard and processToABoard for more info.
 		HashSet<String> raidPartyStandardizedUsernamesTemp = new HashSet<>();
-		if (topHalfToBBoardWidget != null && topHalfToBBoardWidget.getChildren() != null) {
-			for (int i = 0; i < topHalfToBBoardWidget.getChildren().length; i++) {
-				//Get child that has type 3 => next one has to be name
-				if (topHalfToBBoardWidget.getChild(i).getType() == 3) {
+		if (topOrMembersPart != null && topOrMembersPart.getDynamicChildren() != null) {
+			for (int i = 0; i < topOrMembersPart.getDynamicChildren().length; i++) {
+				//Get child that has type 3 => next one has to be the username
+				if (topOrMembersPart.getChild(i).getType() == 3) {
 					//Index of the one that has name is type 3 index + 1
-					int indexName = topHalfToBBoardWidget.getChild(i).getIndex() + 1;
-					if (topHalfToBBoardWidget.getChild(indexName).getType() == 4) {
+					Widget nameWidget = topOrMembersPart.getChild(i + 1);
+					if (nameWidget.getType() == 4) {
 						//If right type (4), get the text and standardize it
-						String StandardizedRaidUsername = Text.standardize(topHalfToBBoardWidget.getChild(indexName).getText());
-						if (!StandardizedRaidUsername.equals("-") && !StandardizedRaidUsername.equals(" -") && !StandardizedRaidUsername.equals("- ") && !StandardizedRaidUsername.equals(" - ")) { //Skip empty entries and add to temporary HashSet to remember
-							raidPartyStandardizedUsernamesTemp.add(StandardizedRaidUsername);
+						String standardizedRaidUsername = Text.standardize(nameWidget.getText()); //Also removes the leading and trailing spaces from -
+						if (!standardizedRaidUsername.equals("-")) { //Skip empty entries and add to temporary HashSet to remember
+							raidPartyStandardizedUsernamesTemp.add(standardizedRaidUsername);
 						}
 					}
 				}
 			}
 		}
-		if (bottomHalfToBBoardWidget != null && bottomHalfToBBoardWidget.getChildren() != null) {
-			for (int i = 0; i < bottomHalfToBBoardWidget.getChildren().length; i++) {
-				//Get child that has type 3 => next one has to be name
-				if (bottomHalfToBBoardWidget.getChild(i).getType() == 3) {
+		if (bottomOrApplicantsPart != null && bottomOrApplicantsPart.getDynamicChildren() != null) {
+			for (int i = 0; i < bottomOrApplicantsPart.getDynamicChildren().length; i++) {
+				//Get child that has type 3 => next one has to be username
+				if (bottomOrApplicantsPart.getChild(i).getType() == 3) {
 					//Index of the one that has name is type 3 index + 1
-					int indexName = bottomHalfToBBoardWidget.getChild(i).getIndex() + 1;
-					if (bottomHalfToBBoardWidget.getChild(indexName).getType() == 4) {
-						//If right type (4), get the text and sanitize it
-						String StandardizedRaidUsername = Text.standardize(bottomHalfToBBoardWidget.getChild(indexName).getText());
-						if (!StandardizedRaidUsername.equals("-") && !StandardizedRaidUsername.equals(" -") && !StandardizedRaidUsername.equals("- ") && !StandardizedRaidUsername.equals(" - ")) {
-							raidPartyStandardizedUsernamesTemp.add(StandardizedRaidUsername);
-						}
+					Widget nameWidget = bottomOrApplicantsPart.getChild(i + 1);
+					if (nameWidget.getType() == 4) {
+						//If right type (4), get the text and standardize it, then add it to the temp hashset
+						//Skipping empty entries ("-") is not required since they are not added to the bottom half of the board (those dynamic children just don't exist).
+						raidPartyStandardizedUsernamesTemp.add(Text.standardize(nameWidget.getText()));
 					}
 				}
 			}
 		}
-		//If it's the user's party/the user applied, add to temporary HashSet to the real HashSet
+		//If it's the user's party/the user applied, add the temporary HashSet to the real HashSet
 		if (raidPartyStandardizedUsernamesTemp.contains(Text.standardize(client.getLocalPlayer().getName()))) {
 			raidPartyStandardizedUsernames.addAll(raidPartyStandardizedUsernamesTemp);
 		}
-		System.out.println("raidPartyStandardizedUsernamesTemp (Board) = " + raidPartyStandardizedUsernamesTemp); //TEST
-		System.out.println("raidPartyStandardizedUsernames (Board) = " + raidPartyStandardizedUsernames); //TEST
+		System.out.println(raidPartyStandardizedUsernamesTemp); //todo: remove this and the println below
+		System.out.println(raidPartyStandardizedUsernames);
 	}
 
 	//private static final int TOB_PARTY_INTERFACE_NAMES_CHILDID = 12; //S28.12
 	//No party text = -<br>-<br>-<br>-<br>-
-	//Party text = Username<br>-<br>-<br>-<br>-
+	//Party text = Username<br>Username2<br>-<br>-<br>-
 	private void processToBPartyInterface() {
 		Widget tobPartyInterfaceNamesWidget = client.getWidget(InterfaceID.TOB, TOB_PARTY_INTERFACE_NAMES_CHILDID); //S28.12
-		if (tobPartyInterfaceNamesWidget != null) {
-			String toBPartyInterfaceText = tobPartyInterfaceNamesWidget.getText();
-			toBPartyInterfaceText = toBPartyInterfaceText.concat("<br>"); //Append <br> so indexOf and substring works for every item
-			int start;
-			for (int i = 0; i < 5; i++) {
-				int idx = toBPartyInterfaceText.indexOf("<br>");
-				if (idx != -1) {
-					String StandardizedUsername = Text.standardize(toBPartyInterfaceText.substring(0, idx));
-					if (!StandardizedUsername.equals("-")) {
-						//Since the user has to be in this party (can't view other parties like this), add to the real HashSet instead of a temp one
-						raidPartyStandardizedUsernames.add(StandardizedUsername);
+		processRaidPartyInterface(tobPartyInterfaceNamesWidget);
+	}
+
+	private void processRaidPartyInterface(Widget partyInterfaceNamesWidget) {
+		if (partyInterfaceNamesWidget != null && !partyInterfaceNamesWidget.isHidden()) { //Widget is hidden among others inside ToB while the script will still proc inside ToB.
+			String raidPartyInterfaceText = partyInterfaceNamesWidget.getText();
+			//Only process the widget if the text has changed compared to the previous processing
+			if (!raidPartyInterfaceText.equals(previousRaidPartyInterfaceText)) {
+				previousRaidPartyInterfaceText = raidPartyInterfaceText;
+				raidPartyInterfaceText = raidPartyInterfaceText.concat("<br>"); //Append <br> so indexOf and substring works for every item
+				for (int i = 0; i < 8; i++) {
+					int idx = raidPartyInterfaceText.indexOf("<br>");
+					if (idx != -1) {
+						String standardizedUsername = Text.standardize(raidPartyInterfaceText.substring(0, idx));
+						//Prevent empty strings or strings equalling "-" being added to the hashset.
+						if (!Strings.isNullOrEmpty(standardizedUsername) && !standardizedUsername.equals("-")) {
+							//Since the user has to be in this party (can't view other parties like this), add to the real HashSet instead of a temp one
+							raidPartyStandardizedUsernames.add(standardizedUsername);
+						}
+						raidPartyInterfaceText = raidPartyInterfaceText.substring(idx + 4); //get substring to remove first user and first <br> (idx+4 so resulting substring starts after the first <br>)
 					}
-					start = idx + 4; //+4 so substring starts after the first <br>
-					toBPartyInterfaceText = toBPartyInterfaceText.substring(start, toBPartyInterfaceText.length()); //get substring to remove first user and first <br>
 				}
 			}
 		}
-		System.out.println("raidPartyStandardizedUsernames (Party Interface top left) = " + raidPartyStandardizedUsernames); //TEST
 	}
 
 	private void addAllInRaidUsernamesVarClientStr() {
@@ -980,6 +901,32 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 	}
 
+	//private static final int TOA_BOARD_ID = 774; //S774.32
+	//private static final int MEMBERS_TOA_BOARD_CHILDID = 32; //S774.32
+	//private static final int APPLICANTS_TOA_BOARD_CHILDID = 48; //S774.48
+	//Member tab of the ToA board names are dynamic children of S774.32, e.g. D774.32[0], D774.32[1], D774.32[2] etc.
+	//[0], [13], [26], [39] etc is the whole line; these are useless for info but always type 3.
+	//[1], [14], [27], [40] etc are the usernames. These are type 4. (The levels etc. are also type 4; thus it's type 3 followed by a lot of type 4s of which the first is a username)
+	//Applicants tab of the ToA board names are dynamic children of S774.48, e.g. D774.48[0], D774.48[1], [2], [4], [6], [8], [10], [12], [14], [16], [18], [20], [21], [22], [24] etc
+	//[0] and [20] are the whole lines again, type 3.
+	//[1] and [21] are the usernames, type 4.
+	private void processToABoard() {
+		//When you are on a different tab than Members (Applicants, Invocations, Summary), the widget is hidden but not null! Thus, even while on a different tab, you can get the current members. Those are needed to determine if it is your party.
+		Widget membersToABoardWidget = client.getWidget(TOA_BOARD_ID, MEMBERS_TOA_BOARD_CHILDID);
+		Widget applicantsToABoardWidget = client.getWidget(TOA_BOARD_ID, APPLICANTS_TOA_BOARD_CHILDID);
+		processBoard(membersToABoardWidget, applicantsToABoardWidget);
+		//todo: tob + toa check if widgetids, scriptids al ergens in runelite bestaan of niet
+		//todo: find scriptids for this shit + party interface thingy, because rn it never runs
+	}
+
+	//private static final int TOA_PARTY_INTERFACE_NAMES_CHILDID = 5; //S773.5
+	//No party text = -<br>-<br>-<br>-<br>-<br>-<br>-<br>-
+	//Party text = Username<br>Username2<br>-<br>-<br>-<br>-<br>-<br>-
+	private void processToAPartyInterface() {
+		Widget toaPartyInterfaceNamesWidget = client.getWidget(InterfaceID.TOA_PARTY, TOA_PARTY_INTERFACE_NAMES_CHILDID); //S773.5
+		processRaidPartyInterface(toaPartyInterfaceNamesWidget);
+	}
+
 	private void addPartyMemberStandardizedUsernames() {
 		//Opted to use this so party members would remain until hopping.
 		//Alternatively just use partyService.isInParty() && partyService.getMemberByDisplayName(player.getName()) != null in the shouldFilter code if you only want it to be when they are in the party.
@@ -992,7 +939,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	//todo: make filter code probs (hangt tevens met list etc samen) => voor friends zie chatfilter plugin iig! + test dit ingame
-	//todo: Add own displayname + ook wanneer onacchashchanged en die niet null is. Check of tob widget shit ook varplayer kan zijn + denk aan cox gedoe zoals de interface bij fc of mensen die in je raid zijn of zo + separate config options voor chatbox vs overhead + rebuild chatbox enzo als config options aangepast zijn + rebuild als mensen aan de lijst zijn toegevoegd (zijn oude messages van voor de add to list dan ook zichtbaar?)
+	//todo: Add own displayname + ook wanneer onacchashchanged en die niet null is. +denk aan cox gedoe zoals de interface bij fc of mensen die in je raid zijn of zo + separate config options voor chatbox vs overhead + rebuild chatbox enzo als config options aangepast zijn + rebuild als mensen aan de lijst zijn toegevoegd (zijn oude messages van voor de add to list dan ook zichtbaar?)
 
 	@Provides
 	ChatFilterExtendedConfig provideConfig(ConfigManager configManager) {
@@ -1103,6 +1050,107 @@ java.lang.NullPointerException: Cannot invoke "String.contains(java.lang.CharSeq
 
 	Fixed by just setting a flag and running onGameTick. It was causing the SCIC code to be executed earlier than it normally is, so player.getName was null
  */
+
+/* (very old) scriptIds tob board as reference:
+	Standard refresh:
+	2316
+	2317
+	2317
+	2317
+	2317
+	2317
+	4495
+
+	apply:
+	2316
+	2317
+	2317
+	2317
+	2317
+	2317
+	2321
+	2335
+	2335
+	2335
+	2335
+	2335
+	2335
+	2335
+	2335
+	2335
+	2335
+	2333
+	4495
+
+
+	open party:
+	2316
+	2317
+	2317
+	2317
+	2317
+	2317
+	4495
+
+
+	open tob board no party:
+	2339
+	2337
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2340
+	2342
+	2342
+	2342
+	2342
+	2342
+	2342
+	2341
+	2340
+	2339
+	2338
+	 */
 
 /*
 getName() = <img=41>major�leach
