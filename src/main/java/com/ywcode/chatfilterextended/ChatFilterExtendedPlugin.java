@@ -6,6 +6,7 @@ import com.google.inject.*;
 import lombok.extern.slf4j.*;
 import net.runelite.api.*;
 import net.runelite.api.clan.*;
+import net.runelite.api.coords.*;
 import net.runelite.api.events.*;
 import net.runelite.api.widgets.*;
 import net.runelite.client.callback.*;
@@ -72,9 +73,13 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static final HashSet<String> runelitePartyStandardizedUsernames = new HashSet<>(); //TODO: add code to handle this
 	private static final List<Integer> chatboxComponentIDs = ImmutableList.of(ComponentID.CHATBOX_TAB_PUBLIC, ComponentID.CHATBOX_TAB_PRIVATE, ComponentID.CHATBOX_TAB_CHANNEL, ComponentID.CHATBOX_TAB_CLAN, ComponentID.CHATBOX_TAB_TRADE);
 	private static final List<String> filtersEnabledStringList = ImmutableList.of("publicFilterEnabled", "privateFilterEnabled", "channelFilterEnabled", "clanFilterEnabled", "tradeFilterEnabled");
+	private static int regionId;
+	private static final int TOA_LOBBY_REGION_ID = 13454;
+	private static final int COX_BANK_REGION_ID = 4919;
 	private static final int REDRAW_CHAT_BUTTONS_SCRIPTID = 178; //[proc,redraw_chat_buttons]
 	private static final int CHAT_SET_FILTER_SCRIPTID = 152; //[clientscript,chat_set_filter]
 	private static final int TOB_PARTYDETAILS_BACK_BUTTON_SCRIPTID = 4495; //[proc,tob_partydetails_back_button]
+	private static final int TOA_PARTYDETAILS_BACK_BUTTON_SCRIPTID = 6765; //[proc,toa_partydetails_back_button]
 	private static final int TOB_BOARD_ID = 50; //N50.0
 	private static final int TOP_HALF_TOB_BOARD_CHILDID = 27; //S50.27
 	private static final int BOTTOM_HALF_TOB_BOARD_CHILDID = 42; //S50.42
@@ -143,6 +148,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//todo: add comments
 		//todo: fix potential interaction with smartchatinput recolor? removing client.getGameState() == GameState.LOADING things does not fix it...
 		//todo: test a bit what happens when putting clan and e.g. public to off, then enabling custom, then disabling the plugin => should go back to off for both? probably? and what if you then reboot the client?
+		//todo: check if cox widgetids, scriptids al ergens in runelite bestaan of niet
+
 
 		shuttingDown = true; //Might not be necessary but just to be sure it doesn't set it back to custom text since the script procs
 		if (client.getGameState() == GameState.LOGGED_IN || client.getGameState() == GameState.LOADING) {
@@ -437,10 +444,20 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Subscribe
 	public void onGameTick(GameTick gameTick) {
+		regionId = WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()).getRegionID();
 		if (setChatsToPublicFlag) {
 			executeSetChatsToPublic();
 			setChatStoneWidgetTextAll(); //Also executed in setChatsToPublic() to improve the feeling (makes it feel snappier)
 			setChatsToPublicFlag = false;
+		}
+		switch (regionId) {
+			case TOA_LOBBY_REGION_ID:
+				//Couldn't find any ScriptID/Varbit/Varp/VarCString that updated when the text from the toa party interface updates (besides script 6612 and 6613 / varbit 14345 changing the No party/Party/Step inside now! header when first joining a party). Let's check if the widget is not null and not hidden every game tick when inside the toa lobby aka region id 13454.
+				processToAPartyInterface();
+				break;
+			case COX_BANK_REGION_ID:
+				//todo: add code
+				break;
 		}
 	}
 
@@ -465,6 +482,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				//Procs once per tick, also procs inside of ToB. However, then S28.5 TOB_PARTY_INTERFACE and S28.12 (client.getWidget(InterfaceID.TOB, TOB_PARTY_INTERFACE_NAMES_CHILDID)) are hidden
 				processToBPartyInterface();
 				break;
+			case TOA_PARTYDETAILS_BACK_BUTTON_SCRIPTID:
+				//First 6615 [clientscript,toa_partydetails_init] is ran to probably initialize it. Then 6722 [clientscript,toa_partydetails_addmember] runs 8 times to add one member each. Then 6761 [proc,toa_partydetails_sortbutton_draw] runs 10 times. Finally, 6765 [proc,toa_partydetails_back_button], 6756 [proc,toa_partydetails_summary], and 6770 [proc,toa_invocations_side_panel_update] proc once. All in the same gamecycle.
+				processToABoard();
 		}
 		/*
 		//TEST
@@ -781,7 +801,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	/**
-	 * zoek scriptids voor toa board en toa party interface en check of die niet ook per ongeluk in de raid proccen lol
 	 * cox... in raid, in raid lobby voor start raid (onderin), in de bank lobby area, cox notice board als iemand dat ooit gebruikt...
 	 * rest van de plugin: gebruik isclanchatmember (wat als op leave cc, wat als leave cc en dan client herstarten?, wat als guest cc? wat als iemand jouw cc joint als guest), is friendschatmember potentieel aanvullend aan bestaande oplossingen, denk na over wanneer lists gecleared moeten worden
 	 * aanvullend aan bestaande oplossingen, denk na over wanneer lists gecleared moeten worden
@@ -801,7 +820,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		Widget bottomHalfToBBoardWidget = client.getWidget(TOB_BOARD_ID, BOTTOM_HALF_TOB_BOARD_CHILDID);
 		processBoard(topHalfToBBoardWidget, bottomHalfToBBoardWidget);
 	}
-	//todo: maybe add clear button to clear raid members and/or other lists? idk. Maybe it should be a config setting to show this menuentry
+	//todo: maybe add clear button to clear raid members and/or other lists? idk. Maybe it should be a config setting to show this menuentry. Mss optie: always, shift+right click, never
 
 	private void processBoard(Widget topOrMembersPart, Widget bottomOrApplicantsPart) {
 		//Since processing the ToB and ToA boards works the same, this method works for both.
@@ -841,8 +860,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		if (raidPartyStandardizedUsernamesTemp.contains(Text.standardize(client.getLocalPlayer().getName()))) {
 			raidPartyStandardizedUsernames.addAll(raidPartyStandardizedUsernamesTemp);
 		}
-		System.out.println(raidPartyStandardizedUsernamesTemp); //todo: remove this and the println below
-		System.out.println(raidPartyStandardizedUsernames);
 	}
 
 	//private static final int TOB_PARTY_INTERFACE_NAMES_CHILDID = 12; //S28.12
@@ -916,7 +933,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		Widget applicantsToABoardWidget = client.getWidget(TOA_BOARD_ID, APPLICANTS_TOA_BOARD_CHILDID);
 		processBoard(membersToABoardWidget, applicantsToABoardWidget);
 		//todo: tob + toa check if widgetids, scriptids al ergens in runelite bestaan of niet
-		//todo: find scriptids for this shit + party interface thingy, because rn it never runs
 	}
 
 	//private static final int TOA_PARTY_INTERFACE_NAMES_CHILDID = 5; //S773.5
