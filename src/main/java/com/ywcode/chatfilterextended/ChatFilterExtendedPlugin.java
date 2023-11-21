@@ -73,7 +73,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static final HashSet<String> runelitePartyStandardizedUsernames = new HashSet<>(); //TODO: add code to handle this
 	private static final List<Integer> chatboxComponentIDs = ImmutableList.of(ComponentID.CHATBOX_TAB_PUBLIC, ComponentID.CHATBOX_TAB_PRIVATE, ComponentID.CHATBOX_TAB_CHANNEL, ComponentID.CHATBOX_TAB_CLAN, ComponentID.CHATBOX_TAB_TRADE);
 	private static final List<String> filtersEnabledStringList = ImmutableList.of("publicFilterEnabled", "privateFilterEnabled", "channelFilterEnabled", "clanFilterEnabled", "tradeFilterEnabled");
-	private static int regionId;
+	private static boolean inCoXRaidOrLobby; //Default value is false
+	private static int getRLPartyMembersFlag; //Default is 0
 	private static final int TOA_LOBBY_REGION_ID = 13454;
 	private static final int COX_BANK_REGION_ID = 4919;
 	private static final int REDRAW_CHAT_BUTTONS_SCRIPTID = 178; //[proc,redraw_chat_buttons]
@@ -96,6 +97,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static final int TOB_IN_RAID_VARCSTR_PLAYER5_INDEX = 334;
 	private static final int TOA_IN_RAID_VARCSTR_PLAYER1_INDEX = 1099; //1099-1106 is player 1-8's name when IN the raid (does not work when applying/accepting on the obelisk or in the lobby). Returns an empty string if there is not e.g. a player 8. Probably updates each room.
 	private static final int TOA_IN_RAID_VARCSTR_PLAYER8_INDEX = 1106;
+	private static final HashSet<Long> partyMemberIds = new HashSet<>();
+	private static int getRLPartyUserJoinedMembersFlag; //Default is 0
 	//Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I did not fully adhere to lol)
 	//PM Can probably replace part of the methods by incorporating the info in the Enum and then using a getter, but enfin
 
@@ -121,7 +124,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		updateConfig();
 		setChatsToPublic();
 		addAllInRaidUsernamesVarClientStr(); //Will also add a raid group to the hashset if you are not inside ToB/ToA anymore. This is fine and can be useful in certain situations, e.g. getting a scythe, teleporting to the GE to get the split and then turning on the plugin at the GE. You can still see your raid buddies' messages then.
-		addPartyMemberStandardizedUsernames(); //In case the plugin is started while already in a party.
+		setAddPartyMemberStandardizedUsernamesFlag(); //In case the plugin is started while already in a party.
+		getCoXVarbit(); //Get varbit in case the plugin is started while logged in.
+		getCoXPlayers(); //Get CoX players because it does not trigger onPlayerSpawned while inside a raid.
+
 		//todo: add readme
 		//todo: go through problems
 		//todo: Change config thing to have different filters per chat so one for public, one for private + add config setting to add only 2d text for some people but not into chatbox? So then it'd only hide the chatbox stuff from those people => only for public chat cause rest is chatbox only... Including randos? So you could e.g. be everyone 2d except friends also chatbox but clan fully filtered? Requires public to also be added to the initial options!
@@ -341,14 +347,15 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			});
 		}
 		if (commandExecuted.getCommand().equals("test2")) {
-			processToBPartyInterface();
+			System.out.println(partyService.getMembers());
 		}
 		if (commandExecuted.getCommand().equals("test3")) {
 			System.out.println(publicFilterEnabled);
 			System.out.println(configManager.getConfiguration(configGroup, "publicFilterEnabled"));
 		}
 		if (commandExecuted.getCommand().equals("test4")) {
-			setChatsToPublic();
+			System.out.println(runelitePartyStandardizedUsernames);
+			runelitePartyStandardizedUsernames.clear();
 		}
 		if (commandExecuted.getCommand().equals("test5")) {
 			clearRaidPartyHashset();
@@ -444,20 +451,31 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Subscribe
 	public void onGameTick(GameTick gameTick) {
-		regionId = WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()).getRegionID();
 		if (setChatsToPublicFlag) {
 			executeSetChatsToPublic();
 			setChatStoneWidgetTextAll(); //Also executed in setChatsToPublic() to improve the feeling (makes it feel snappier)
 			setChatsToPublicFlag = false;
 		}
+
+		int regionId = WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()).getRegionID();
 		switch (regionId) {
 			case TOA_LOBBY_REGION_ID:
 				//Couldn't find any ScriptID/Varbit/Varp/VarCString that updated when the text from the toa party interface updates (besides script 6612 and 6613 / varbit 14345 changing the No party/Party/Step inside now! header when first joining a party). Let's check if the widget is not null and not hidden every game tick when inside the toa lobby aka region id 13454.
 				processToAPartyInterface();
 				break;
 			case COX_BANK_REGION_ID:
-				//todo: add code
+				getCoXBankPlayers();
 				break;
+		}
+
+		if (getRLPartyMembersFlag > 0) { //Flag so party getMembers is not empty
+			getRLPartyMembersFlag--; //Method can set int to 0 so -- first
+			addPartyMemberStandardizedUsernames();
+		}
+
+		if (getRLPartyUserJoinedMembersFlag > 0) {
+			getRLPartyUserJoinedMembersFlag--;
+			addUserJoinedPartyStandardizedUsernames();
 		}
 	}
 
@@ -508,6 +526,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				(clanFilterEnabled && varbitId == CC_CHAT_FILTER_VARBIT && varbitChanged.getValue() != 0)) {
 			setChatsToPublic();
 		}
+		if (varbitId == Varbits.IN_RAID) {
+			inCoXRaidOrLobby = varbitChanged.getValue() > 0; //Convert the int to boolean. 0 = false, 1 = true.
+		}
 		//PM If you ever want to check if someone's in ToB or likely in ToA, check e.g. Varbit 6440 (Varbits.java)
 		/*
 		 * Theatre of Blood 1=In Party, 2=Inside/Spectator, 3=Dead Spectating
@@ -522,21 +543,54 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Subscribe(priority = -2) //Run after any other core party code (PartyPlugin)
 	public void onPartyChanged(PartyChanged partyChanged) {
-		addPartyMemberStandardizedUsernames();
+		setAddPartyMemberStandardizedUsernamesFlag();
 	}
 
 	@Subscribe(priority = -2) //Run after any other core party code (PartyService & PartyPlugin)
 	public void onUserJoin(UserJoin userJoin) {
+		//Also runs for every person in the party when joining!
 		//Specifically opted to use this approach instead of partyService.isInParty() && partyService.getMemberByDisplayName(player.getName()) != null
 		//Usernames will persist till hopping/logout, even if the local player or a partyMember leaves the party
-		//Get userJoin member id => get partyMember => get displayname => standardize => add.
-		runelitePartyStandardizedUsernames.add(Text.standardize(partyService.getMemberById(userJoin.getMemberId()).getDisplayName()));
+		long memberId = userJoin.getMemberId();
+		String standardizedUsername = Text.standardize(partyService.getMemberById(memberId).getDisplayName());
+		if (!Strings.isNullOrEmpty(standardizedUsername)) {
+			runelitePartyStandardizedUsernames.add(standardizedUsername);
+		} else { //In case the party service can't get the display name yet, add to memberId to hashset and retry for 5 gameticks.
+			partyMemberIds.add(memberId);
+			setAddUserJoinedPartyStandardizedUsernamesFlag();
+		}
+	}
+
+	@Subscribe
+	public void onPlayerSpawned(PlayerSpawned playerSpawned) {
+		//Processing the widget inside cox does not work because the data is not transferred if the interface is not opened... Additionally, there is no widget when outside the raid and there is no interesting scriptId that runs while the player is outside.
+		//Varbits.IN_RAID gets updated to 1 when joining the CoX underground lobby! When leaving the underground lobby, it gets set back to 0. Thus, if it's 1, the player is in the underground lobby or doing a CoX raid. isInFC check is not required because people have to be in the raiding party when this varbit is 1 (CoX is instanced).
+		if (inCoXRaidOrLobby) { //If Varbits.IN_RAID > 0
+			raidPartyStandardizedUsernames.add(Text.standardize(playerSpawned.getPlayer().getName())); //Standardize playername that joined cox lobby / cox raid and add to hashset.
+		}
 	}
 
 	private void convertCommaSeparatedConfigStringToList(String configString, List<String> listToConvertTo) {
 		//Convert a CSV config string to a list
 		listToConvertTo.clear();
 		listToConvertTo.addAll(Text.fromCSV(Text.standardize(configString)));
+	}
+
+	private void getCoXVarbit() {
+		if (client.getGameState() == GameState.LOGGED_IN) {
+			inCoXRaidOrLobby = client.getVarbitValue(Varbits.IN_RAID) > 0; //Convert the int to boolean. 0 = false, 1 = true.
+		}
+	}
+
+	private void getCoXPlayers() {
+		//Get all players when inside CoX lobby or CoX raid and add them to the hashset after standardizing the name
+		//Useful when starting the plugin inside CoX or when clearing the raid party inside CoX (doesn't proc PlayerSpawned)
+		if (inCoXRaidOrLobby && client.getGameState() == GameState.LOGGED_IN) { //If Varbits.IN_RAID > 0
+			List<Player> playersCoX = client.getPlayers();
+			for (Player player: playersCoX) {
+				raidPartyStandardizedUsernames.add(Text.standardize(player.getName()));
+			}
+		}
 	}
 
 	@Nullable
@@ -619,6 +673,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private void clearRaidPartyHashset() {
 		previousRaidPartyInterfaceText = "";
 		raidPartyStandardizedUsernames.clear();
+		getCoXPlayers(); //Get CoX players because it does not trigger onPlayerSpawned while inside a raid.
+		//todo: add something to get the players with varcs etc since you'll add that reset button at some point
 	}
 
 	private boolean isComponentIDChatStone(int componentID) {
@@ -943,14 +999,74 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		processRaidPartyInterface(toaPartyInterfaceNamesWidget);
 	}
 
+	/*
+	Varp IN_RAID_PARTY: The ID of the party. This Var is only set in the raid bank area and the raid lobby.
+	This gets set to -1 when the raid starts and when leaving the raid bank area.
+	This is first set when the first player of the friends chat forms a party on the recruiting board, and it changes again when the first person actually enters the raid.
+	-1: Not in a party or in the middle of an ongoing raid.
+	Anything else: This means that your friends chat has a raid party being formed and has not started yet.
+	Does get changed from e.g. -1 to a value if a user walks up the stairs to the cox bank area, or teleports in or out (tele out = set to -1 again).
+	 */
+	private void getCoXBankPlayers() {
+		//Procs every gametick while in the cox bank regionId. Check varp so it only procs in the bank area.
+		//Cox bank people can technically not be in the FC yet when spawning or run up the CoX stairs with you so execute every gametick instead of onplayerspawned
+		if (client.getVarpValue(VarPlayer.IN_RAID_PARTY) > -1) {
+			List<Player> players = client.getPlayers();
+			FriendsChatManager friendsChatManager = client.getFriendsChatManager();
+			if (friendsChatManager != null) {
+				for (Player player : players) {
+					String standardizedUsername = Text.standardize(player.getName());
+					if (friendsChatManager.findByName(standardizedUsername) != null && !Strings.isNullOrEmpty(standardizedUsername)) {
+						raidPartyStandardizedUsernames.add(standardizedUsername);
+					}
+				}
+			}
+		}
+	}
+
+	private void setAddPartyMemberStandardizedUsernamesFlag() {
+		//partyService.getMembers() is empty when immediately running this after joining a party. Set a flag to retry 5 gameticks or till the list is not empty.
+		getRLPartyMembersFlag = 5;
+		System.out.println(runelitePartyStandardizedUsernames);
+		addPartyMemberStandardizedUsernames();
+	}
+
 	private void addPartyMemberStandardizedUsernames() {
 		//Opted to use this so party members would remain until hopping.
 		//Alternatively just use partyService.isInParty() && partyService.getMemberByDisplayName(player.getName()) != null in the shouldFilter code if you only want it to be when they are in the party.
 		if (partyService.isInParty()) {
 			List<PartyMember> partyMembers = partyService.getMembers();
-			for (PartyMember partyMember : partyMembers) {
-				runelitePartyStandardizedUsernames.add(Text.standardize(partyMember.getDisplayName()));
+			if (partyMembers != null && !partyMembers.isEmpty()) {
+				getRLPartyMembersFlag = 0;
+				for (PartyMember partyMember : partyMembers) {
+					String standardizedUsername = Text.standardize(partyMember.getDisplayName());
+					if (!Strings.isNullOrEmpty(standardizedUsername)) {
+						runelitePartyStandardizedUsernames.add(standardizedUsername);
+					}
+				}
+				System.out.println(runelitePartyStandardizedUsernames);
 			}
+		}
+	}
+
+	private void setAddUserJoinedPartyStandardizedUsernamesFlag() {
+		//getDisplayName is sometimes not yet available onUserJoined, while the memberId is. So set a flag to retry.
+		getRLPartyUserJoinedMembersFlag = 5;
+		addUserJoinedPartyStandardizedUsernames();
+	}
+
+	private void addUserJoinedPartyStandardizedUsernames() {
+		//If username could not be determined onUserJoin, the memberIds were added to a hashset.
+		//Go through the hashset, add the standardized usernames to the hashset.
+		for (long memberId : partyMemberIds) {
+			String standardizedUsername = Text.standardize(partyService.getMemberById(memberId).getDisplayName());
+			if (!Strings.isNullOrEmpty(standardizedUsername)) {
+				runelitePartyStandardizedUsernames.add(standardizedUsername);
+			}
+		}
+		System.out.println(runelitePartyStandardizedUsernames);
+		if (getRLPartyUserJoinedMembersFlag == 0) { //Clear the hashset again when flag = 0. Set void sets flag back to 5 in case a user joins while the flag is timing down.
+			partyMemberIds.clear();
 		}
 	}
 
