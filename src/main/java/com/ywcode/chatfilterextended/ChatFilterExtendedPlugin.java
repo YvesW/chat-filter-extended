@@ -238,7 +238,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			case HOPPING:
 				//Clear raid party members while hopping because you generally don't care about them anymore after hopping to another world
 				clearRaidPartyHashset(); //Also clear the string so the plugin will process the party interface if needed
-				runelitePartyStandardizedUsernames.clear();
 				break;
 		}
 	}
@@ -464,6 +463,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				processToAPartyInterface();
 				break;
 			case COX_BANK_REGION_ID:
+				//There is no interface/widget/varc I could find. Also, nothing I could find that runs when a user gets added to the party here.
 				getCoXBankPlayers();
 				break;
 		}
@@ -473,8 +473,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			addPartyMemberStandardizedUsernames();
 		}
 
-		if (getRLPartyUserJoinedMembersFlag > 0) {
-			getRLPartyUserJoinedMembersFlag--;
+		if (getRLPartyUserJoinedMembersFlag > 0) { //Flag because memberJoined displayname is not immediately available.
+			getRLPartyUserJoinedMembersFlag--; //Method can set int to 0 so -- first
 			addUserJoinedPartyStandardizedUsernames();
 		}
 	}
@@ -548,7 +548,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Subscribe(priority = -2) //Run after any other core party code (PartyService & PartyPlugin)
 	public void onUserJoin(UserJoin userJoin) {
-		//Also runs for every person in the party when joining!
+		//Also runs for every person in the party when joining, so can potentially skip the PartyChanged code.
 		//Specifically opted to use this approach instead of partyService.isInParty() && partyService.getMemberByDisplayName(player.getName()) != null
 		//Usernames will persist till hopping/logout, even if the local player or a partyMember leaves the party
 		long memberId = userJoin.getMemberId();
@@ -857,7 +857,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	/**
-	 * cox... in raid, in raid lobby voor start raid (onderin), in de bank lobby area, cox notice board als iemand dat ooit gebruikt...
 	 * rest van de plugin: gebruik isclanchatmember (wat als op leave cc, wat als leave cc en dan client herstarten?, wat als guest cc? wat als iemand jouw cc joint als guest), is friendschatmember potentieel aanvullend aan bestaande oplossingen, denk na over wanneer lists gecleared moeten worden
 	 * aanvullend aan bestaande oplossingen, denk na over wanneer lists gecleared moeten worden
 	 */
@@ -1058,11 +1057,19 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private void addUserJoinedPartyStandardizedUsernames() {
 		//If username could not be determined onUserJoin, the memberIds were added to a hashset.
 		//Go through the hashset, add the standardized usernames to the hashset.
+		boolean allMembersProcessed = true;
 		for (long memberId : partyMemberIds) {
 			String standardizedUsername = Text.standardize(partyService.getMemberById(memberId).getDisplayName());
 			if (!Strings.isNullOrEmpty(standardizedUsername)) {
 				runelitePartyStandardizedUsernames.add(standardizedUsername);
+			} else {
+				//If a member is not processed correctly, set the boolean to false
+				allMembersProcessed = false;
 			}
+		}
+		//If no member has been processed too early (if the boolean has not been set to false), set flag to 0
+		if (allMembersProcessed) {
+			getRLPartyUserJoinedMembersFlag = 0;
 		}
 		System.out.println(runelitePartyStandardizedUsernames);
 		if (getRLPartyUserJoinedMembersFlag == 0) { //Clear the hashset again when flag = 0. Set void sets flag back to 5 in case a user joins while the flag is timing down.
