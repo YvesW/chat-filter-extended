@@ -35,19 +35,19 @@ import java.util.*;
 public class ChatFilterExtendedPlugin extends Plugin {
 
 	// ------------- Wall of config vars -------------
-	// Vars are quite heavily cached so could probably just config.configKey(). However, the best practice behavior in plugins is to have a bunch of variables to store the results of the config methods, and check it in startUp/onConfigChanged. It feels redundant, but it's better than hitting the reflective calls every frame. --LlemonDuck. Additionally, the List<String>s are actually converted from a normal string though.
-	private static Set<ChatTabFilterOptions> publicChatFilterOptions;
-	private static Set<ChatTabFilterOptions2D> publicChatFilterOptions2D;
-	private static final List<String> publicWhitelist = new ArrayList<>();
-	private static Set<ChatTabFilterOptions> privateChatFilterOptions;
-	private static final List<String> privateWhitelist = new ArrayList<>();
+	// Vars are quite heavily cached so could probably just config.configKey(). However, the best practice behavior in plugins is to have a bunch of variables to store the results of the config methods, and check it in startUp/onConfigChanged. It feels redundant, but it's better than hitting the reflective calls every frame. --LlemonDuck. Additionally, the whitelist strings are actually getting processed.
+	private static Set<ChatTabFilterOptions> publicChatFilterOptions = new HashSet<>();
+	private static Set<ChatTabFilterOptions2D> publicChatFilterOptions2D = new HashSet<>();
+	private static final HashSet<String> publicWhitelist = new HashSet<>();
+	private static Set<ChatTabFilterOptions> privateChatFilterOptions = new HashSet<>();
+	private static final HashSet<String> privateWhitelist = new HashSet<>();
 	private static boolean forcePrivateOn;
-	private static Set<ChatTabFilterOptions> channelChatFilterOptions;
-	private static final List<String> channelWhitelist = new ArrayList<>();
-	private static Set<ChatTabFilterOptions> clanChatFilterOptions;
-	private static final List<String> clanWhitelist = new ArrayList<>();
-	private static Set<ChatTabFilterOptions> tradeChatFilterOptions;
-	private static final List<String> tradeWhitelist = new ArrayList<>();
+	private static Set<ChatTabFilterOptions> channelChatFilterOptions = new HashSet<>();
+	private static final HashSet<String> channelWhitelist = new HashSet<>();
+	private static Set<ChatTabFilterOptions> clanChatFilterOptions = new HashSet<>();
+	private static final HashSet<String> clanWhitelist = new HashSet<>();
+	private static Set<ChatTabFilterOptions> tradeChatFilterOptions = new HashSet<>();
+	private static final HashSet<String> tradeWhitelist = new HashSet<>();
 
 	private static boolean showFriendsMessages; //todo: probs remove these later on
 	private static boolean showCCMessages;
@@ -77,6 +77,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static int getRLPartyMembersFlag; //Default is 0
 	private static final int TOA_LOBBY_REGION_ID = 13454;
 	private static final int COX_BANK_REGION_ID = 4919;
+	private static final int TOA_IN_RAID_VARPID = 2926; //Changes to e.g. 1001 when entering ToA, then when leaving it does: 1001 -> 1000 -> 1200 -> 0.
 	private static final int REDRAW_CHAT_BUTTONS_SCRIPTID = 178; //[proc,redraw_chat_buttons]
 	private static final int CHAT_SET_FILTER_SCRIPTID = 152; //[clientscript,chat_set_filter]
 	private static final int TOB_PARTYDETAILS_BACK_BUTTON_SCRIPTID = 4495; //[proc,tob_partydetails_back_button]
@@ -123,10 +124,12 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		setConfigFirstStart(); //todo: check if this needs more config vars added to it after config changes
 		updateConfig();
 		setChatsToPublic();
-		addAllInRaidUsernamesVarClientStr(); //Will also add a raid group to the hashset if you are not inside ToB/ToA anymore. This is fine and can be useful in certain situations, e.g. getting a scythe, teleporting to the GE to get the split and then turning on the plugin at the GE. You can still see your raid buddies' messages then.
+		addAllInRaidUsernamesVarClientStr(); //Will also add a raid group to the hashset if you are not inside ToB/ToA anymore. This is fine and can be useful in certain situations, e.g. getting a scythe, teleporting to the GE to get the split and then turning on the plugin at the GE. You can still see your raid buddies' messages then. If this is undesired, replace with getToBPlayers() and getToAPlayers()
 		setAddPartyMemberStandardizedUsernamesFlag(); //In case the plugin is started while already in a party.
-		getCoXVarbit(); //Get varbit in case the plugin is started while logged in.
-		getCoXPlayers(); //Get CoX players because it does not trigger onPlayerSpawned while inside a raid.
+		clientThread.invokeLater(this::getCoXVarbit); //Get varbit in case the plugin is started while logged in.
+		clientThread.invokeLater(this::getCoXPlayers); //Get CoX players because it does not trigger onPlayerSpawned while inside a raid if the players have already spawned before the plugin is turned on.
+		clientThread.invokeLater(this::processToBBoard); //User might technically enable plugin and exit the ToB board before the refresh scriptid procs.
+		clientThread.invokeLater(this::processToABoard); //User might technically enable plugin and exit the ToA board before the refresh scriptid procs.
 
 		//todo: add readme
 		//todo: go through problems
@@ -137,7 +140,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//todo: potentially add player right-click option (if a config option is enabled, maybe also option to make this only when shift is held down?) to add to a whitelist with a pop-out menu like inventory tags or MES uses?
 		//todo: get varbits here somewhere when logged in probs, if it uses varbits (or e.g. add to list when tobbing/in tob region etc)
 		//todo: maybeee make when to clear fc/cc/raid etc a selectable option under an advanced config tab
+		//todo: denk aan chat highlight gedoe ignoren als filtered dat niet een rando het proct terwijl zijn chat eigenlijk filtered is
+		//todo: mss optie om in bepaalde regionids automatisch op custom te zetten mr idk
 		//todo: denk over alle hashsets na en wanneer je bijv. al in een raid party bent, of wanneer je al in een clan bent / wanneer er al guests in je cc zijn etc. Get all that info here like addAllInRaidUsernamesVarClientStr()
+		//todo: alles wat niet ongametick of op een script draait dat ELKE GAMETICK PROCT onstartup doen (denk ook aan clan members, fc members hashset etc etc! die vallen buiten raids en moet je dus nog doen!) en tevens wanneer je raidsparty cleared via bijv rightclick menu of bijv via van tob nr cox tpen DUS OOK DE VARC SHIT PROBS ALS DAT NULL IS BUITEN TOB EN TOA!!
 		//TODO: at some point consider adding a pop-out menu like MES has to Show custom in which you can add or remove options from the set.
 		//TODO: at some point consider adding a pop-out menu like MES has to other players to add/remove them from the whitelist. Potentially only added when shift is held.
 	}
@@ -196,16 +202,16 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private void updateConfig() {
 		publicChatFilterOptions = config.publicChatFilterOptions();
 		publicChatFilterOptions2D = config.publicChatFilterOptions2D();
-		convertCommaSeparatedConfigStringToList(config.publicWhitelist(), publicWhitelist);
+		convertCommaSeparatedConfigStringToSet(config.publicWhitelist(), publicWhitelist);
 		privateChatFilterOptions = config.privateChatFilterOptions();
-		convertCommaSeparatedConfigStringToList(config.privateWhitelist(), privateWhitelist);
+		convertCommaSeparatedConfigStringToSet(config.privateWhitelist(), privateWhitelist);
 		forcePrivateOn = config.forcePrivateOn();
 		channelChatFilterOptions = config.channelChatFilterOptions();
-		convertCommaSeparatedConfigStringToList(config.channelWhitelist(), channelWhitelist);
+		convertCommaSeparatedConfigStringToSet(config.channelWhitelist(), channelWhitelist);
 		clanChatFilterOptions = config.clanChatFilterOptions();
-		convertCommaSeparatedConfigStringToList(config.clanWhitelist(), clanWhitelist);
+		convertCommaSeparatedConfigStringToSet(config.clanWhitelist(), clanWhitelist);
 		tradeChatFilterOptions = config.tradeChatFilterOptions();
-		convertCommaSeparatedConfigStringToList(config.tradeWhitelist(), tradeWhitelist);
+		convertCommaSeparatedConfigStringToSet(config.tradeWhitelist(), tradeWhitelist);
 
 		showFriendsMessages = config.showFriendsMessages(); //todo: remove when you removed it from all the code + remove it from config and at the top of the file then
 		showCCMessages = config.showCCMessages();
@@ -226,6 +232,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		switch (gameStateChanged.getGameState()) {
 			case LOGGED_IN:
 				setChatsToPublic();
+				setAddPartyMemberStandardizedUsernamesFlag(); //Will also proc after loading gamestate, but this will ensure that the party hashset is also correctly populated after fully logging out but remaining in the party.
 				break;
 			case LOGIN_SCREEN:
 				clanStandardizedUsernames.clear(); //todo: bedenk nog eens wanneer je wat wil clearen...
@@ -236,7 +243,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				runelitePartyStandardizedUsernames.clear();
 				break;
 			case HOPPING:
-				//Clear raid party members while hopping because you generally don't care about them anymore after hopping to another world
+				//Clear raid & RL party members while hopping because you generally don't care about them anymore after hopping to another world
+				runelitePartyStandardizedUsernames.clear();
 				clearRaidPartyHashset(); //Also clear the string so the plugin will process the party interface if needed
 				break;
 		}
@@ -346,7 +354,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			});
 		}
 		if (commandExecuted.getCommand().equals("test2")) {
-			System.out.println(partyService.getMembers());
+			System.out.println("TOA_IN_RAID_VARCSTR_PLAYER1_INDEX "+ client.getVarcStrValue(TOA_IN_RAID_VARCSTR_PLAYER1_INDEX));
+			System.out.println("TOA_IN_RAID_VARCSTR_PLAYER8_INDEX "+ client.getVarcStrValue(TOA_IN_RAID_VARCSTR_PLAYER1_INDEX+1));
+			System.out.println("TOA_IN_RAID_VARCSTR_PLAYER8_INDEX "+ client.getVarcStrValue(TOA_IN_RAID_VARCSTR_PLAYER8_INDEX));
+			System.out.println(client.getVarbitValue(14345));
 		}
 		if (commandExecuted.getCommand().equals("test3")) {
 			System.out.println(publicFilterEnabled);
@@ -354,7 +365,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 		if (commandExecuted.getCommand().equals("test4")) {
 			System.out.println(runelitePartyStandardizedUsernames);
-			runelitePartyStandardizedUsernames.clear();
+			//raidPartyStandardizedUsernames.clear();
 		}
 		if (commandExecuted.getCommand().equals("test5")) {
 			clearRaidPartyHashset();
@@ -503,6 +514,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			case TOA_PARTYDETAILS_BACK_BUTTON_SCRIPTID:
 				//First 6615 [clientscript,toa_partydetails_init] is ran to probably initialize it. Then 6722 [clientscript,toa_partydetails_addmember] runs 8 times to add one member each. Then 6761 [proc,toa_partydetails_sortbutton_draw] runs 10 times. Finally, 6765 [proc,toa_partydetails_back_button], 6756 [proc,toa_partydetails_summary], and 6770 [proc,toa_invocations_side_panel_update] proc once. All in the same gamecycle.
 				processToABoard();
+				break;
 		}
 		/*
 		//TEST
@@ -528,12 +540,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 		if (varbitId == Varbits.IN_RAID) {
 			inCoXRaidOrLobby = varbitChanged.getValue() > 0; //Convert the int to boolean. 0 = false, 1 = true.
+			if (inCoXRaidOrLobby) {
+				getCoXPlayers(); //playerSpawned procs before the varbit is set when joining a CoX lobby, so gotta also run this once when the varbit changes.
+			}
 		}
-		//PM If you ever want to check if someone's in ToB or likely in ToA, check e.g. Varbit 6440 (Varbits.java)
-		/*
-		 * Theatre of Blood 1=In Party, 2=Inside/Spectator, 3=Dead Spectating
-		 */
-		//public static final int THEATRE_OF_BLOOD = 6440;
 	}
 
 	@Subscribe
@@ -565,15 +575,17 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	public void onPlayerSpawned(PlayerSpawned playerSpawned) {
 		//Processing the widget inside cox does not work because the data is not transferred if the interface is not opened... Additionally, there is no widget when outside the raid and there is no interesting scriptId that runs while the player is outside.
 		//Varbits.IN_RAID gets updated to 1 when joining the CoX underground lobby! When leaving the underground lobby, it gets set back to 0. Thus, if it's 1, the player is in the underground lobby or doing a CoX raid. isInFC check is not required because people have to be in the raiding party when this varbit is 1 (CoX is instanced).
+		//Varbit gets set after PlayerSpawned fired, so getCoXPlayers is also ran when the varbit changes.
 		if (inCoXRaidOrLobby) { //If Varbits.IN_RAID > 0
 			raidPartyStandardizedUsernames.add(Text.standardize(playerSpawned.getPlayer().getName())); //Standardize playername that joined cox lobby / cox raid and add to hashset.
 		}
 	}
 
-	private void convertCommaSeparatedConfigStringToList(String configString, List<String> listToConvertTo) {
+	private void convertCommaSeparatedConfigStringToSet(String configString, HashSet<String> setToConvertTo) {
+		//todo: test if changing this to a hashset has any implications
 		//Convert a CSV config string to a list
-		listToConvertTo.clear();
-		listToConvertTo.addAll(Text.fromCSV(Text.standardize(configString)));
+		setToConvertTo.clear();
+		setToConvertTo.addAll(Text.fromCSV(Text.standardize(configString)));
 	}
 
 	private void getCoXVarbit() {
@@ -589,6 +601,32 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			List<Player> playersCoX = client.getPlayers();
 			for (Player player: playersCoX) {
 				raidPartyStandardizedUsernames.add(Text.standardize(player.getName()));
+			}
+		}
+	}
+
+	//Varbits.THEATRE_OF_BLOOD (6440): Theatre of Blood 1=In Party, 2=Inside/Spectator, 3=Dead Spectating
+	private void getToBPlayers() {
+		//Adds the ToB players to the Raid hashset. Useful when resetting the list and updating it again so the old ToA players don't join.
+		//The varcs do not get cleared if the player leaves, so check if the player is inside tob first.
+		//However, when joining a new raid, the varcStrings get updated. E.g. first do a raid with 4 people, then a duo tob => upon entering, player 3 and 4 strings will be emptied.
+		if (client.getVarbitValue(Varbits.THEATRE_OF_BLOOD) > 1) {
+			for (int i = 0; i < 5; i++) {
+				addInRaidUsernamesVarClientStr(TOB_IN_RAID_VARCSTR_PLAYER1_INDEX + i);
+			}
+		}
+	}
+
+	//TOA_IN_RAID_VARPID Very likely the in raid ToA varp. Can't find anything about it in CS2 scripts and Cook has not updated chisel's varbs to see it.
+	//It changes to e.g. 1001 when entering ToA, then when leaving it does: 1001 -> 1000 -> 1200 -> 0.
+	//Could not find any other good alternatives. 3603 does change from -1 to random value that keeps changing when entering the raid and entering rooms, but it already changes from -1 to some random value while in the ToA lobby (after joining a party).
+	private void getToAPlayers() {
+		//Adds the ToA players to the Raid hashset. Useful when resetting the list and updating it again so the old ToB players don't join.
+		//The varcs do not get cleared if the player leaves, so check if the player is inside ToA first.
+		//However, when joining a new raid, the varcStrings get updated. E.g. first do a raid with 4 people, then a duo ToA => upon entering, player 3 and 4 strings will be emptied.
+		if (client.getVarpValue(TOA_IN_RAID_VARPID) > 0) {
+			for (int i = 0; i < 8; i++) {
+				addInRaidUsernamesVarClientStr(TOA_IN_RAID_VARCSTR_PLAYER1_INDEX + i);
 			}
 		}
 	}
@@ -673,7 +711,14 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private void clearRaidPartyHashset() {
 		previousRaidPartyInterfaceText = "";
 		raidPartyStandardizedUsernames.clear();
+		//Rebuild the raid party hashset by adding the current people to it. Events that run every gametick (either via onGameTick or e.g. via a script that runs every gametick, are excluded here since they'll run anyway).
+		//Thus, CoX bank is excluded, ToB/ToA lobby party interface is excluded.
 		getCoXPlayers(); //Get CoX players because it does not trigger onPlayerSpawned while inside a raid.
+		processToBBoard(); //Person might close the interface before the script procs.
+		processToABoard(); //Person might close the interface before the script procs.
+		getToBPlayers(); //Checks if player is inside ToB to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToB or old ToA players
+		getToAPlayers(); //Checks if player is inside ToA to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToA or old ToB players
+
 		//todo: add something to get the players with varcs etc since you'll add that reset button at some point
 	}
 
@@ -789,6 +834,22 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 		//From hereon, the ChatMessageType has the filter active
 
+		//Set = todo: get the hashset here based on the ChatMessage type
+		//and then you should make commands to return all these hashsets:
+		/*
+		private static Set<ChatTabFilterOptions> publicChatFilterOptions = new HashSet<>();
+		private static Set<ChatTabFilterOptions2D> publicChatFilterOptions2D = new HashSet<>();
+		private static final HashSet<String> publicWhitelist = new HashSet<>();
+		private static Set<ChatTabFilterOptions> privateChatFilterOptions = new HashSet<>();
+		private static final HashSet<String> privateWhitelist = new HashSet<>();
+		private static Set<ChatTabFilterOptions> channelChatFilterOptions = new HashSet<>();
+		private static final HashSet<String> channelWhitelist = new HashSet<>();
+		private static Set<ChatTabFilterOptions> clanChatFilterOptions = new HashSet<>();
+		private static final HashSet<String> clanWhitelist = new HashSet<>();
+		private static Set<ChatTabFilterOptions> tradeChatFilterOptions = new HashSet<>();
+		private static final HashSet<String> tradeWhitelist = new HashSet<>();
+		 */
+
 		playerName = Text.standardize(playerName); //Very likely works considering other methods work with a standardized name. Can't test this though since my name doesn't have e.g. a space.
 		if (playerName.equals(Text.standardize(client.getLocalPlayer().getName()))) {
 			return false;
@@ -875,7 +936,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		Widget bottomHalfToBBoardWidget = client.getWidget(TOB_BOARD_ID, BOTTOM_HALF_TOB_BOARD_CHILDID);
 		processBoard(topHalfToBBoardWidget, bottomHalfToBBoardWidget);
 	}
-	//todo: maybe add clear button to clear raid members and/or other lists? idk. Maybe it should be a config setting to show this menuentry. Mss optie: always, shift+right click, never
+	//todo: maybe add clear button to clear raid members and/or other lists? idk. Maybe it should be a config setting to show this menuentry. Mss optie: always, shift+right click, never => default shift+right-click
+	//todo: maybe add option to also clear clan, fc etc and some other hashsets but set those to default never => think about it first if this could give problems though... Probably would since it'd miss the current people that joined as guest in the cc/guest cc/current fc members etc
 
 	private void processBoard(Widget topOrMembersPart, Widget bottomOrApplicantsPart) {
 		//Since processing the ToB and ToA boards works the same, this method works for both.
@@ -912,7 +974,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			}
 		}
 		//If it's the user's party/the user applied, add the temporary HashSet to the real HashSet
-		if (raidPartyStandardizedUsernamesTemp.contains(Text.standardize(client.getLocalPlayer().getName()))) {
+		if (client.getLocalPlayer() != null && raidPartyStandardizedUsernamesTemp.contains(Text.standardize(client.getLocalPlayer().getName()))) {
 			raidPartyStandardizedUsernames.addAll(raidPartyStandardizedUsernamesTemp);
 		}
 	}
@@ -965,10 +1027,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//If tob or toa VarCStrIndex
 		if ((varCStrIndex >= TOB_IN_RAID_VARCSTR_PLAYER1_INDEX && varCStrIndex <= TOB_IN_RAID_VARCSTR_PLAYER5_INDEX)
 				|| (varCStrIndex >= TOA_IN_RAID_VARCSTR_PLAYER1_INDEX && varCStrIndex <= TOA_IN_RAID_VARCSTR_PLAYER8_INDEX)) {
-			String varCStrValue = client.getVarcStrValue(varCStrIndex);
+			String varCStrValueStandardized = Text.standardize(client.getVarcStrValue(varCStrIndex));
 			//isNullOrEmpty check because they get refreshed in probably every room and can potentially add empty strings to the hashset.
-			if (!Strings.isNullOrEmpty(varCStrValue)) {
-				raidPartyStandardizedUsernames.add(Text.standardize(varCStrValue));
+			if (!Strings.isNullOrEmpty(varCStrValueStandardized)) {
+				raidPartyStandardizedUsernames.add(varCStrValueStandardized);
 			}
 		}
 	}
@@ -1026,7 +1088,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private void setAddPartyMemberStandardizedUsernamesFlag() {
 		//partyService.getMembers() is empty when immediately running this after joining a party. Set a flag to retry 5 gameticks or till the list is not empty.
 		getRLPartyMembersFlag = 5;
-		System.out.println(runelitePartyStandardizedUsernames);
 		addPartyMemberStandardizedUsernames();
 	}
 
