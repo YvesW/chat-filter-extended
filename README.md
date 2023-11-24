@@ -21,7 +21,7 @@ Public?: everything that is not part of the above categories probs
 
 Also everything 2d for public (overhead)
 
-Clears when it clears because it's jarring if a lot of messages suddenly disappear when you quickly hop worlds, or briefly leave your cc/fc.
+Clears when it clears because it's jarring if a lot of messages suddenly disappear when you quickly hop worlds, or briefly leave your cc/fc (default advanced settings have been chosen with this in mind)
 
 Thanks to Annotated for helping me collect Vars/ScriptIds and for extensively helping me test the plugin!
 

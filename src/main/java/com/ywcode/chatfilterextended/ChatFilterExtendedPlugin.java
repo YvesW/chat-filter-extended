@@ -48,6 +48,12 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static final HashSet<String> clanWhitelist = new HashSet<>();
 	private static Set<ChatTabFilterOptions> tradeChatFilterOptions = new HashSet<>();
 	private static final HashSet<String> tradeWhitelist = new HashSet<>();
+	private static boolean clearChannelSetHop;
+	private static boolean clearClanSetHop;
+	private static boolean clearGuestClanSetHop;
+	private static boolean clearRaidPartySetHop;
+	private static boolean clearRLPartySetHop;
+	private static boolean clearChannelSetLeave;
 
 	private static boolean showFriendsMessages; //todo: probs remove these later on
 	private static boolean showCCMessages;
@@ -212,6 +218,12 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		convertCommaSeparatedConfigStringToSet(config.clanWhitelist(), clanWhitelist);
 		tradeChatFilterOptions = config.tradeChatFilterOptions();
 		convertCommaSeparatedConfigStringToSet(config.tradeWhitelist(), tradeWhitelist);
+		clearChannelSetHop = config.clearChannelSetHop();
+		clearClanSetHop = config.clearClanSetHop();
+		clearGuestClanSetHop = config.clearGuestClanSetHop();
+		clearRaidPartySetHop = config.clearRaidPartySetHop();
+		clearRLPartySetHop = config.clearRLPartySetHop();
+		clearChannelSetLeave = config.clearChannelSetLeave();
 
 		showFriendsMessages = config.showFriendsMessages(); //todo: remove when you removed it from all the code + remove it from config and at the top of the file then
 		showCCMessages = config.showCCMessages();
@@ -235,8 +247,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				setAddPartyMemberStandardizedUsernamesFlag(); //Will also proc after loading gamestate, but this will ensure that the party hashset is also correctly populated after fully logging out but remaining in the party.
 				break;
 			case LOGIN_SCREEN:
-				clanStandardizedUsernames.clear(); //todo: bedenk nog eens wanneer je wat wil clearen...
-				//Probably only own CC needed; rest procs event.
+				clanStandardizedUsernames.clear();
 				channelStandardizedUsernames.clear();
 				guestClanStandardizedUsernames.clear();
 				clearRaidPartyHashset(); //Also clear the string so the plugin will process the party interface if needed
@@ -244,8 +255,22 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				break;
 			case HOPPING:
 				//Clear raid & RL party members while hopping because you generally don't care about them anymore after hopping to another world
-				runelitePartyStandardizedUsernames.clear();
-				clearRaidPartyHashset(); //Also clear the string so the plugin will process the party interface if needed
+				if (clearRaidPartySetHop) {
+					clearRaidPartyHashset(); //Also clear the string so the plugin will process the party interface if needed
+				}
+				if (clearRLPartySetHop) {
+					runelitePartyStandardizedUsernames.clear();
+				}
+				if (clearChannelSetHop) {
+					channelStandardizedUsernames.clear();
+				}
+				if (clearClanSetHop) {
+					clanStandardizedUsernames.clear();
+				}
+				if (clearGuestClanSetHop) {
+					guestClanStandardizedUsernames.clear();
+				}
+				//todo: test if things like cc, channel, guestclan clear on hop would be problematic. Otherwise probs remove.
 				break;
 		}
 	}
@@ -254,6 +279,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	public void onFriendsChatChanged(FriendsChatChanged friendsChatChanged) {
 		//Remove FC usernames when leaving the FC; also procs when hopping/logging out
 		if (!friendsChatChanged.isJoined()) {
+			//todo: check if this works properly and if it does, make it an advanced option
 			channelStandardizedUsernames.clear();
 		}
 	}
@@ -268,7 +294,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	@Subscribe
 	public void onClanChannelChanged(ClanChannelChanged clanChannelChanged) {
 		//If left CC => clear own cc usernames HashSet //todo: check if you want to do this instead of the private boolean isClanChatMember(String playerName) { thing because it's still a cc member, even if you leave the chat, right? => Clan thing: use both approaches so it also accounts for guests in the cc & works when pressing leave probs
-		if (client.getClanChannel(ClanID.CLAN) == null) {
+		if (client.getClanChannel(ClanID.CLAN) == null) { //todo: make this an advanced config option, default probs false
 			clanStandardizedUsernames.clear();
 		} else {
 			//If joined own CC, get members and add the usernames to HashSet
@@ -291,7 +317,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 
 		//If left guest CC => clear guest cc usernames HashSet
-		if (client.getGuestClanChannel() == null) {
+		if (client.getGuestClanChannel() == null) { //todo: make this an advanced config option, default probs false
 			guestClanStandardizedUsernames.clear();
 		} else {
 			//If joined guest clan, get members and add the usernames to HashSet
@@ -583,7 +609,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	private void convertCommaSeparatedConfigStringToSet(String configString, HashSet<String> setToConvertTo) {
 		//todo: test if changing this to a hashset has any implications
-		//Convert a CSV config string to a list
+		//Convert a CSV config string to a set
 		setToConvertTo.clear();
 		setToConvertTo.addAll(Text.fromCSV(Text.standardize(configString)));
 	}

@@ -48,6 +48,14 @@ public interface ChatFilterExtendedConfig extends Config
 	)
 	String tradeSettings = "tradeSettings";
 
+	@ConfigSection(
+			name = "Advanced",
+			description = "Advanced settings. Don't change if you do not understand what you are doing.",
+			position = 5,
+			closedByDefault = true
+	)
+	String advancedSettings = "advancedSettings";
+
 	@ConfigItem(
 			keyName = "publicChatFilterOptions",
 			name = "Public",
@@ -210,6 +218,78 @@ public interface ChatFilterExtendedConfig extends Config
 		return "";
 	}
 
+	@ConfigItem(
+			keyName = "clearChannelSetHop",
+			name = "Clear FC on hop",
+			description = "Clear the list of the FC members when hopping. The list will always be cleared when fully logging out.",
+			position = 0,
+			section = advancedSettings
+	)
+	default boolean clearChannelSetHop()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+			keyName = "clearClanSetHop",
+			name = "Clear CC on hop",
+			description = "Clear the list of the CC members when hopping. The list will always be cleared when fully logging out.<br>"
+					+ "Keep in mind that this list also contains the GIM players, so if you are having trouble with those, make sure this setting is disabled.",
+			position = 1,
+			section = advancedSettings
+	)
+	default boolean clearClanSetHop()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+			keyName = "clearGuestClanSetHop",
+			name = "Clear Guest CC on hop",
+			description = "Clear the list of the Guest CC members when hopping. These are the members of the guest CC, not the guests in your CC. The list will always be cleared when fully logging out.",
+			position = 2,
+			section = advancedSettings
+	)
+	default boolean clearGuestClanSetHop()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+			keyName = "clearRaidPartySetHop",
+			name = "Clear Raid on hop",
+			description = "Clear the list of the Raid party members when hopping. The list will always be cleared when fully logging out.",
+			position = 3,
+			section = advancedSettings
+	)
+	default boolean clearRaidPartySetHop()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "clearRLPartySetHop",
+			name = "Clear Party on hop",
+			description = "Clear the list of the RuneLite Party members when hopping. The list will always be cleared when fully logging out.",
+			position = 4,
+			section = advancedSettings
+	)
+	default boolean clearRLPartySetHop()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "clearChannelSetLeave",
+			name = "Clear FC when leaving",
+			description = "Clear the list of the FC members when leaving the friends chat (FC).",
+			position = 5,
+			section = advancedSettings
+	)
+	default boolean clearChannelSetLeave()
+	{
+		return false;
+	}
 
 	@ConfigItem(
 			keyName = "showFriendsMessages",
