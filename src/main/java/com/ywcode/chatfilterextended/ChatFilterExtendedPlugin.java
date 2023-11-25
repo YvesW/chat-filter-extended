@@ -913,7 +913,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//Public = everyone that did not fit in the earlier groups: not friend, not FC/CC/Guest CC/Raid party/RL party member and not on the appropriate whitelist
 		//Thus, public = the randoms
 		//It's not the local player, so don't have to check for that.
-		//todo: also add something to account for the 2DOnly stuff since this code is probs perfect for overheads... Copy (part of) this code into separate thing so it can be called for both overhead and this (overhead can put in a chatmessagetype.public or smth
+		//todo: see google calendar. Completely rethink this stuff for overheads and non-overheads. for also add something to account for the 2DOnly stuff since this code is probs perfect for overheads... Copy (part of) this code into separate thing so it can be called for both overhead and this (overhead can put in a chatmessagetype.public or smth
 		return !chatTabHashSet.contains(ChatTabFilterOptions.PUBLIC)
 				|| client.isFriended(playerName, false)
 				|| channelStandardizedUsernames.contains(playerName)
