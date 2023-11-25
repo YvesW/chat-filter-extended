@@ -927,31 +927,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		 */
 	}
 
-	private boolean isChatTabCustomFilterActiveChatMessageType(ChatMessageType chatMessageType) { //todo: remove probs
-		//Returns true if the chat tab is set to Show: custom, based on the ChatMessageType
-		if (chatMessageType != null) {
-			switch (chatMessageType) {
-				//AUTOTYPER	is not shown/is filtered on public = on anyway
-				case PUBLICCHAT:
-				case MODCHAT:
-					return publicFilterEnabled;
-				case PRIVATECHAT:
-				case MODPRIVATECHAT:
-					return privateFilterEnabled;
-				case FRIENDSCHAT:
-					return channelFilterEnabled;
-				case CLAN_CHAT:
-				case CLAN_GIM_CHAT:
-				case CLAN_GUEST_CHAT:
-					return clanFilterEnabled;
-				case TRADEREQ:
-					//TRADE and TRADE_SENT are not received when someone tries to trade you, only TRADEREQ
-					return tradeFilterEnabled;
-			}
-		}
-		return false;
-	}
-
 	@Nullable
 	private Set<ChatTabFilterOptions> chatMessageTypeToChatTabFilterOptions(ChatMessageType chatMessageType) {
 		//Translates the ChatMessageType to the appropriate hashset (not 2D, so not for overheads).
