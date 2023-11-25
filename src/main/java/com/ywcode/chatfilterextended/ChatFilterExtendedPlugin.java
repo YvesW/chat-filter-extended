@@ -281,9 +281,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Subscribe
 	public void onFriendsChatChanged(FriendsChatChanged friendsChatChanged) {
-		//Remove FC usernames when leaving the FC; also procs when hopping/logging out
-		if (!friendsChatChanged.isJoined()) {
-			//todo: check if this works properly and if it does, make it an advanced option
+		//Remove FC usernames when leaving the FC and when the advanced config option is enabled; also procs when hopping/logging out
+		if (!friendsChatChanged.isJoined() && clearChannelSetLeave) {
 			channelStandardizedUsernames.clear();
 		}
 	}
@@ -298,45 +297,44 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	@Subscribe
 	public void onClanChannelChanged(ClanChannelChanged clanChannelChanged) {
 		//If left CC => clear own cc usernames HashSet //todo: check if you want to do this instead of the private boolean isClanChatMember(String playerName) { thing because it's still a cc member, even if you leave the chat, right? => Clan thing: use both approaches so it also accounts for guests in the cc & works when pressing leave probs
-		if (client.getClanChannel(ClanID.CLAN) == null) { //todo: make this an advanced config option, default probs false
-			clanStandardizedUsernames.clear();
-		} else {
-			//If joined own CC, get members and add the usernames to HashSet
-			if (!clanChannelChanged.isGuest() && client.getClanSettings() != null) {
-				List<ClanMember> clanMembers = client.getClanSettings().getMembers();
-				for (ClanMember clanMember : clanMembers) {
-					clanStandardizedUsernames.add(Text.standardize(clanMember.getName()));
+		if (!clanChannelChanged.isGuest()) { //If left or joined own CC or GIM chat
+			int clanId = clanChannelChanged.getClanId();
+			if (clanId == ClanID.CLAN) { //If left/joined own CC, separate line because of all the if-then-else statements used here
+				if (client.getClanChannel(ClanID.CLAN) == null) { //If not in own CC
+					if (clearClanSetLeave) {
+						clanStandardizedUsernames.clear();
+					}
+				} else { //If in own CC
+					//If joined own CC, get members and add the usernames to HashSet
+					addClanMembers(clanChannelChanged, client.getClanSettings(), clanStandardizedUsernames);
 				}
 			}
-		}
 
-		//Also include GIM members in Clan Hashset, untested because no access to a GIM account
-		if (client.getClanChannel(ClanID.GROUP_IRONMAN) != null) {
-			if (clanChannelChanged.getClanId() == ClanID.GROUP_IRONMAN && clanChannelChanged.getClanChannel() != null) {
-				List<ClanChannelMember> gimMembers = clanChannelChanged.getClanChannel().getMembers();
-				for (ClanChannelMember gimMember : gimMembers) {
-					clanStandardizedUsernames.add(Text.standardize(gimMember.getName()));
+			//Also include GIM members in Clan Hashset, untested because no access to a GIM account
+			if (clanId == ClanID.GROUP_IRONMAN) { //If joined/left GIM chat
+				if (client.getClanChannel(ClanID.GROUP_IRONMAN) != null && clanChannelChanged.getClanChannel() != null) { //If in GIM chat
+					List<ClanChannelMember> gimMembers = clanChannelChanged.getClanChannel().getMembers();
+					for (ClanChannelMember gimMember : gimMembers) {
+						clanStandardizedUsernames.add(Text.standardize(gimMember.getName()));
+					}
 				}
 			}
-		}
 
-		//If left guest CC => clear guest cc usernames HashSet
-		if (client.getGuestClanChannel() == null) { //todo: make this an advanced config option, default probs false
-			guestClanStandardizedUsernames.clear();
-		} else {
-			//If joined guest clan, get members and add the usernames to HashSet
-			if (clanChannelChanged.isGuest() && client.getGuestClanSettings() != null) {
-				List<ClanMember> guestClanMembers = client.getGuestClanSettings().getMembers();
-				for (ClanMember guestClanMember : guestClanMembers) {
-					guestClanStandardizedUsernames.add(Text.standardize(guestClanMember.getName()));
+		} else { //If left/joined guest CC
+			if (client.getGuestClanChannel() == null) { //If not in guest CC
+				if (clearGuestClanSetLeave) { //If left guest CC => clear guest cc usernames HashSet if the advanced config option is enabled
+					guestClanStandardizedUsernames.clear();
 				}
+			} else { //If joined guest clan
+				//If joined guest clan, get members and add the usernames to HashSet
+				addClanMembers(clanChannelChanged, client.getGuestClanSettings(), guestClanStandardizedUsernames);
 			}
 		}
 	}
 
 	@Subscribe
 	public void onClanMemberJoined(ClanMemberJoined clanMemberJoined) {
-		//getClanSettings.GetMembers won't include any guests; add these this way
+		//getClanSettings.GetMembers won't include any guests; add newly joined guests this way
 		//In the case of HashSet, the item isn't inserted if it's a duplicate => so no .contains check beforehand.
 		String standardizedJoinedName = Text.standardize(clanMemberJoined.getClanMember().getName());
 		ClanChannel clanChannel = client.getClanChannel();
@@ -349,7 +347,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 		//If username of joined clanmember is in the guest cc, add to HashSet
 		if (guestClanChannel != null && guestClanChannel.findMember(standardizedJoinedName) != null) {
-			clanStandardizedUsernames.add(Text.standardize(standardizedJoinedName));
+			guestClanStandardizedUsernames.add(standardizedJoinedName);
 		}
 	}
 
@@ -384,10 +382,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			});
 		}
 		if (commandExecuted.getCommand().equals("test2")) {
-			System.out.println("TOA_IN_RAID_VARCSTR_PLAYER1_INDEX "+ client.getVarcStrValue(TOA_IN_RAID_VARCSTR_PLAYER1_INDEX));
-			System.out.println("TOA_IN_RAID_VARCSTR_PLAYER8_INDEX "+ client.getVarcStrValue(TOA_IN_RAID_VARCSTR_PLAYER1_INDEX+1));
-			System.out.println("TOA_IN_RAID_VARCSTR_PLAYER8_INDEX "+ client.getVarcStrValue(TOA_IN_RAID_VARCSTR_PLAYER8_INDEX));
-			System.out.println(client.getVarbitValue(14345));
+			System.out.println(clanStandardizedUsernames);
+			System.out.println(guestClanStandardizedUsernames);
 		}
 		if (commandExecuted.getCommand().equals("test3")) {
 			System.out.println(publicFilterEnabled);
@@ -525,7 +521,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Subscribe
 	public void onScriptPostFired(ScriptPostFired scriptPostFired) {
-		int scriptPostFiredId = scriptPostFired.getScriptId();
 		switch (scriptPostFired.getScriptId()) {
 			case REDRAW_CHAT_BUTTONS_SCRIPTID:
 				//178 = [proc,redraw_chat_buttons]
@@ -546,15 +541,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				processToABoard();
 				break;
 		}
-		/*
-		//TEST
-		Set <Integer> ScriptIds = Stream.of(2316,2317,2319,2320,2321,2329,2333,2334,2335,2336,2337,2338,2339,2340,2341,2342,2343,4490,4491,4492,4493,4495).collect(Collectors.toSet());
-
-		//2332 procs a ton and is part of the refreshing graph
-		if (ScriptIds.contains(scriptPostFired.getScriptId())) {
-		//System.out.println(scriptPostFired.getScriptId());
-		}
-		*/
 	}
 	//TODO: set int or something to 1 when in/at tob, 2 toa, 3 cox (worldpoint for at probs and then varbits for in raid? check cox plugin, tob plugins, toa plugin for varbits. check discord plugin for wordlpoints/regions (although banks are probs missing))
 	//todo: reset tob raid list e.g. when entering cox/toa zone, when hopping (already does iirc), on logout (already does iirc), other conditions? clear on disband (probs not though, geeft evt chat message but idk)
@@ -661,6 +647,25 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 	}
 
+	private void addClanMembers(ClanChannelChanged clanChannelChanged, ClanSettings clanSettings, HashSet<String> clanHashSet) {
+		if (clanSettings != null) {
+			//Adds all the members to the HashSet (according to the clan settings)
+			List<ClanMember> clanMembers = clanSettings.getMembers();
+			for (ClanMember clanMember : clanMembers) {
+				clanHashSet.add(Text.standardize(clanMember.getName()));
+			}
+		}
+
+		//Clan members get added via the clan settings, but clan/guest clan guests are not a part of those.
+		if (clanChannelChanged.getClanChannel() != null) {
+			//Previous solution does not add the guests that are already in the CC, also add those
+			List<ClanChannelMember> clanMembersOnline = clanChannelChanged.getClanChannel().getMembers();
+			for (ClanChannelMember clanMember : clanMembersOnline) {
+				clanHashSet.add(Text.standardize(clanMember.getName()));
+			}
+		}
+	}
+
 	@Nullable
 	private Set<ChatTabFilterOptions> componentIDToChatTabFilterSet(int componentID) {
 		//Returns the Set<ChatTabFilterOptions> based on the componentID. Originally had it in an Object with also 2D, but it's kind of annoying to use so screw that.
@@ -729,7 +734,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	private void setConfigFirstStart() {
-		//todo: if changing config stuff that's not in ChatFilterExtendedConfig, change this as well
+		//todo: if changing config stuff that's not in ChatFilterExtendedConfig (but only set by configmanager), change this as well
 		//Config keys that are not part of ChatFilterExtendedConfig are still empty on first startup. Prevent them being null by setting them before other code checks the config keys.
 		for (String filtersEnabledString : filtersEnabledStringList) {
 			if (configManager.getConfiguration(configGroup, filtersEnabledString) == null) {
@@ -748,8 +753,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		processToABoard(); //Person might close the interface before the script procs.
 		getToBPlayers(); //Checks if player is inside ToB to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToB or old ToA players
 		getToAPlayers(); //Checks if player is inside ToA to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToA or old ToB players
-
-		//todo: add something to get the players with varcs etc since you'll add that reset button at some point
 	}
 
 	private boolean isComponentIDChatStone(int componentID) {
@@ -858,8 +861,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	private boolean shouldFilterMessage(ChatMessageType chatMessageType, String playerName) {
-		//Should the message be filtered, based on ChatMessageType and the sender's name
-		if (!isChatTabCustomFilterActiveChatMessageType(chatMessageType)) {
+		//Should the message be filtered, based on ChatMessageType and the sender's name.
+		//For overheads, check shouldFilterMessage2D!
+		Set<ChatTabFilterOptions> chatTabHashSet = chatMessageTypeToChatTabFilterOptions(chatMessageType);
+		if (chatTabHashSet == null || chatTabHashSet.isEmpty()) {
 			return false;
 		}
 		//From hereon, the ChatMessageType has the filter active
@@ -922,11 +927,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		 */
 	}
 
-	private boolean isChatTabCustomFilterActiveChatMessageType(ChatMessageType chatMessageType) {
+	private boolean isChatTabCustomFilterActiveChatMessageType(ChatMessageType chatMessageType) { //todo: remove probs
 		//Returns true if the chat tab is set to Show: custom, based on the ChatMessageType
 		if (chatMessageType != null) {
 			switch (chatMessageType) {
-				//AUTOTYPER	is filtered on public = on anyway
+				//AUTOTYPER	is not shown/is filtered on public = on anyway
 				case PUBLICCHAT:
 				case MODCHAT:
 					return publicFilterEnabled;
@@ -945,6 +950,32 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			}
 		}
 		return false;
+	}
+
+	@Nullable
+	private Set<ChatTabFilterOptions> chatMessageTypeToChatTabFilterOptions(ChatMessageType chatMessageType) {
+		//Translates the ChatMessageType to the appropriate hashset (not 2D, so not for overheads).
+		if (chatMessageType != null) {
+			switch (chatMessageType) {
+				//AUTOTYPER	is not shown/is filtered on public = on anyway
+				case PUBLICCHAT:
+				case MODCHAT:
+					return publicChatFilterOptions;
+				case PRIVATECHAT:
+				case MODPRIVATECHAT:
+					return privateChatFilterOptions;
+				case FRIENDSCHAT:
+					return channelChatFilterOptions;
+				case CLAN_CHAT:
+				case CLAN_GIM_CHAT:
+				case CLAN_GUEST_CHAT:
+					return clanChatFilterOptions;
+				case TRADEREQ:
+					//TRADE and TRADE_SENT are not received when someone tries to trade you, only TRADEREQ
+					return tradeChatFilterOptions;
+			}
+		}
+		return null;
 	}
 
 	/**

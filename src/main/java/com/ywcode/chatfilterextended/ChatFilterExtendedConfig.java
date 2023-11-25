@@ -294,7 +294,8 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "clearClanSetLeave",
 			name = "Clear CC when leaving",
-			description = "Clear the list of the CC members when leaving the CC.",
+			description = "Clear the list of the CC members when leaving the CC.<br>"
+					+ "Keep in mind that this list also contains the GIM players, so if you are having trouble with those, make sure this setting is disabled.",
 			position = 6,
 			section = advancedSettings
 	)
