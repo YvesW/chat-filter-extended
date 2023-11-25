@@ -292,6 +292,30 @@ public interface ChatFilterExtendedConfig extends Config
 	}
 
 	@ConfigItem(
+			keyName = "clearClanSetLeave",
+			name = "Clear CC when leaving",
+			description = "Clear the list of the CC members when leaving the CC.",
+			position = 6,
+			section = advancedSettings
+	)
+	default boolean clearClanSetLeave()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+			keyName = "clearGuestClanSetLeave",
+			name = "Clear GCC when leaving",
+			description = "Clear the list of the Guest CC members when leaving the Guest CC.",
+			position = 7,
+			section = advancedSettings
+	)
+	default boolean clearGuestClanSetLeave()
+	{
+		return false;
+	}
+
+	@ConfigItem(
 			keyName = "showFriendsMessages",
 			name = "Show Friends when filtering",
 			description = "Show public messages from your friends when the plugin's public chat filter is enabled.",

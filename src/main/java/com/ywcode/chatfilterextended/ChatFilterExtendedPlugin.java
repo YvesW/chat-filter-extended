@@ -54,6 +54,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static boolean clearRaidPartySetHop;
 	private static boolean clearRLPartySetHop;
 	private static boolean clearChannelSetLeave;
+	private static boolean clearClanSetLeave;
+	private static boolean clearGuestClanSetLeave;
 
 	private static boolean showFriendsMessages; //todo: probs remove these later on
 	private static boolean showCCMessages;
@@ -224,6 +226,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		clearRaidPartySetHop = config.clearRaidPartySetHop();
 		clearRLPartySetHop = config.clearRLPartySetHop();
 		clearChannelSetLeave = config.clearChannelSetLeave();
+		clearClanSetLeave = config.clearClanSetLeave();
+		clearGuestClanSetLeave = config.clearGuestClanSetLeave();
 
 		showFriendsMessages = config.showFriendsMessages(); //todo: remove when you removed it from all the code + remove it from config and at the top of the file then
 		showCCMessages = config.showCCMessages();
