@@ -56,12 +56,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static boolean clearChannelSetLeave;
 	private static boolean clearClanSetLeave;
 	private static boolean clearGuestClanSetLeave;
-
-	private static boolean showFriendsMessages; //todo: probs remove these later on
-	private static boolean showCCMessages;
-	private static boolean showFCMessages;
-	private static boolean showGuestCCMessages;
-	private static boolean showRaidPartyMessages;
+	private static boolean clearRLPartySetLeave;
 
 	//The config values below are only set through ConfigManager and are not part of ChatFilterExtendedConfig.java
 	private static boolean publicFilterEnabled; //i.e. if the user set the chat tab/stone to custom. So we can re-enable it on startup. Maybe swap this to RSProfile instead of config profile in the future?
@@ -228,12 +223,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		clearChannelSetLeave = config.clearChannelSetLeave();
 		clearClanSetLeave = config.clearClanSetLeave();
 		clearGuestClanSetLeave = config.clearGuestClanSetLeave();
+		clearRLPartySetLeave = config.clearRLPartySetLeave();
 
-		showFriendsMessages = config.showFriendsMessages(); //todo: remove when you removed it from all the code + remove it from config and at the top of the file then
-		showCCMessages = config.showCCMessages();
-		showFCMessages = config.showFCMessages();
-		showGuestCCMessages = config.showGuestCCMessages();
-		showRaidPartyMessages = config.showRaidPartyMessages();
 		//The config values below are only set through ConfigManager and are not part of ChatFilterExtendedConfig.java
 		//PS Probs don't try to refactor this; did not go well (on plugin start) the last time I tried that...
 		publicFilterEnabled = configManager.getConfiguration(configGroup, "publicFilterEnabled", boolean.class);
@@ -569,6 +560,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Subscribe(priority = -2) //Run after any other core party code (PartyPlugin)
 	public void onPartyChanged(PartyChanged partyChanged) {
+		if (!partyService.isInParty()) { //If user left the party
+			if (clearRLPartySetLeave) {
+				runelitePartyStandardizedUsernames.clear();
+			}
+		}
 		setAddPartyMemberStandardizedUsernamesFlag();
 	}
 

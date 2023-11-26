@@ -258,7 +258,7 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "clearRaidPartySetHop",
 			name = "Clear Raid on hop",
-			description = "Clear the list of the Raid party members when hopping. The list will always be cleared when fully logging out.",
+			description = "Clear the list of the Raid Party members when hopping. The list will always be cleared when fully logging out.",
 			position = 3,
 			section = advancedSettings
 	)
@@ -317,52 +317,14 @@ public interface ChatFilterExtendedConfig extends Config
 	}
 
 	@ConfigItem(
-			keyName = "showFriendsMessages",
-			name = "Show Friends when filtering",
-			description = "Show public messages from your friends when the plugin's public chat filter is enabled.",
-			position = 99
+			keyName = "clearRLPartySetLeave",
+			name = "Clear RuneLite Party when leaving",
+			description = "Clear the list of the RuneLite Party members when leaving the RuneLite Party.",
+			position = 8,
+			section = advancedSettings
 	)
-	default boolean showFriendsMessages() {
-		return true;
-	}
-
-	@ConfigItem(
-			keyName = "showCCMessages",
-			name = "Show CC when filtering",
-			description = "Show public messages from your clanmates when the plugin's public chat filter is enabled.",
-			position = 99
-	)
-	default boolean showCCMessages() {
-		return true;
-	}
-
-	@ConfigItem(
-			keyName = "showFCMessages",
-			name = "Show FC when filtering",
-			description = "Show public messages from your FC members when the plugin's public chat filter is enabled.",
-			position = 99
-	)
-	default boolean showFCMessages() {
-		return true;
-	}
-
-	@ConfigItem(
-			keyName = "showGuestCCMessages",
-			name = "Show Guest CC when filtering",
-			description = "Show public messages from your Guest CC members when the plugin's public chat filter is enabled.",
-			position = 99
-	)
-	default boolean showGuestCCMessages() {
-		return true;
-	}
-
-	@ConfigItem(
-			keyName = "showRaidPartyMessages",
-			name = "Show Raid Party when filtering",
-			description = "Show public messages from your Raid Party members when the plugin's public chat filter is enabled.",
-			position = 99
-	)
-	default boolean showRaidPartyMessages() {
-		return true;
+	default boolean clearRLPartySetLeave()
+	{
+		return false;
 	}
 }
