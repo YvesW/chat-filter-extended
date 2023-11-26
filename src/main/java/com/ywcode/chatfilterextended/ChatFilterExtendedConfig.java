@@ -72,17 +72,17 @@ public interface ChatFilterExtendedConfig extends Config
 	}
 
 	@ConfigItem(
-			keyName = "publicChatFilterOptions2D",
-			name = "Public 2D",
-			description = "Allowed chat senders when the custom filter is active (2D / overhead text). Needs to also be active in the set above.<br>"+
-					"Thus enabling 'Friends' in the set above and 'Friends (2D)' in this set does not show your friends' messages in the chatbox, but it does show it above their head.<br>"+
+			keyName = "publicChatFilterOptionsOH",
+			name = "Public OH",
+			description = "Allowed chat senders when the custom filter is active (overhead text). Needs to also be active in the set above.<br>"+
+					"Thus enabling 'Friends' in the set above and 'Friends (OH)' in this set does not show your friends' messages in the chatbox, but it does show it above their head.<br>"+
 					"Hold control or shift to select multiple entries.",
 			position = 1,
 			section = publicSettings
 	)
-	default Set<ChatTabFilterOptions2D> publicChatFilterOptions2D()
+	default Set<ChatTabFilterOptionsOH> publicChatFilterOptionsOH()
 	{
-		return Collections.emptySet(); //Empty set since otherwise the default is only showing 2D (overhead text) instead of also chatbox text.
+		return Collections.emptySet(); //Empty set since otherwise the default is only showing OH (overhead text) instead of also chatbox text.
 	}
 
 	@ConfigItem(

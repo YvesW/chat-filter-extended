@@ -26,7 +26,7 @@ import java.util.*;
 @PluginDescriptor(
 		name = "Chat Filter Extended",
 		description = "Extends the functionality of the chat tabs/stones to filter chat messages not from friends/clan members/FC members/Guest CC members/raid members/party members.",
-		tags = {"chat,chat filter,public,public 2d,friends,friends 2d,fc,fc 2d,cc,cc 2d,guest,guest 2d,raid,raid 2d,party,party 2d,whitelist,whitelist 2d,custom,clanchat,clan,filter,friends chat,private,trade,raids,tob,toa,cox,spam,show"}
+		tags = {"chat,chat filter,public,public OH,friends,friends OH,fc,fc OH,cc,cc OH,guest,guest OH,raid,raid OH,party,party OH,whitelist,whitelist OH,custom,clanchat,clan,filter,friends chat,private,trade,raids,tob,toa,cox,spam,show"}
 )
 //Alternative (shitty) names: Custom Chat View, Chat View Extended, Chat Show Custom, Custom Chat Filter, Chat tabs extended, Chat stones extended
 //My goal was not to make one of these "abc improved" or "better abc" plugins, but the menuOptions like "Show friends" or "Show none" are just called chat filters, I think, and I can't come up with a better name. At least polar calls them that in e.g. script 152 (chat_set_filter)
@@ -37,7 +37,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	// ------------- Wall of config vars -------------
 	// Vars are quite heavily cached so could probably just config.configKey(). However, the best practice behavior in plugins is to have a bunch of variables to store the results of the config methods, and check it in startUp/onConfigChanged. It feels redundant, but it's better than hitting the reflective calls every frame. --LlemonDuck. Additionally, the whitelist strings are actually getting processed.
 	private static Set<ChatTabFilterOptions> publicChatFilterOptions = new HashSet<>();
-	private static Set<ChatTabFilterOptions2D> publicChatFilterOptions2D = new HashSet<>();
+	private static Set<ChatTabFilterOptionsOH> publicChatFilterOptionsOH = new HashSet<>();
 	private static final HashSet<String> publicWhitelist = new HashSet<>();
 	private static Set<ChatTabFilterOptions> privateChatFilterOptions = new HashSet<>();
 	private static final HashSet<String> privateWhitelist = new HashSet<>();
@@ -136,7 +136,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 		//todo: add readme
 		//todo: go through problems
-		//todo: Change config thing to have different filters per chat so one for public, one for private + add config setting to add only 2d text for some people but not into chatbox? So then it'd only hide the chatbox stuff from those people => only for public chat cause rest is chatbox only... Including randos? So you could e.g. be everyone 2d except friends also chatbox but clan fully filtered? Requires public to also be added to the initial options!
+		//todo: Change config thing to have different filters per chat so one for public, one for private + add config setting to add only OH text for some people but not into chatbox? So then it'd only hide the chatbox stuff from those people => only for public chat cause rest is chatbox only... Including randos? So you could e.g. be everyone OH except friends also chatbox but clan fully filtered? Requires public to also be added to the initial options!
 		//todo: make whitelist toCSV. Keep in mind that you also add that to the options, but then also ctrl+F it, because you got some code that looks at it to determine if chat is filtered!
 		//todo: check and refactor the whole fucking shit + check if you can replace widget crawling with varcstrings etc
 		//todo: mss per region settings in advanced doch mss gaat dit te ver + add chat message mss wanneer je iets op custom zet (doch mss wat te spammy) maar def als je private verandert dat het on is! (En mss wrm het niet werkt als je die setting niet enabled hebt?) => echter probs te spammy wat support traffic geeft, dus probs skippen want de config setting is heel duidelijk
@@ -204,7 +204,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	private void updateConfig() {
 		publicChatFilterOptions = config.publicChatFilterOptions();
-		publicChatFilterOptions2D = config.publicChatFilterOptions2D();
+		publicChatFilterOptionsOH = config.publicChatFilterOptionsOH();
 		convertCommaSeparatedConfigStringToSet(config.publicWhitelist(), publicWhitelist);
 		privateChatFilterOptions = config.privateChatFilterOptions();
 		convertCommaSeparatedConfigStringToSet(config.privateWhitelist(), privateWhitelist);
@@ -396,7 +396,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Subscribe(priority = -2) //Run after chatfilter plugin etc, probably not necessary but can't hurt
 	public void onOverheadTextChanged(OverheadTextChanged overheadTextChanged) {
-		//todo: add chat filter when public filter is enabled! (but 2d is disabled!)
+		//todo: add chat filter when public filter is enabled! (but OH is disabled!)
 	}
 
 	@Subscribe(priority = -2) //Run after ChatHistory plugin etc, probably not necessary but can't hurt
@@ -436,15 +436,15 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				}
 				option = optionBuilder.toString();
 
-				//Replace entries with their 2D equivalent if 2D is added to the 2D set
+				//Replace entries with their OH equivalent if OH is added to the OH set
 				//Order does not matter since I'm just replacing, so just iterate over the HashSet
-				Set<ChatTabFilterOptions2D> set2D = componentIDToChatTabFilterSet2D(menuEntryAddedParam1); //Already checks if componentID = public chat
-				if (set2D != null) {
-					for (ChatTabFilterOptions2D entry : set2D) {
-						option = option.replace(entry.toNon2DAbbreviationString() + "/", entry.toAbbreviationString() + "/"); //A slash is added, so it does not result in: "Public 2D: Show Public 2D/Friends/CC 2D
+				Set<ChatTabFilterOptionsOH> setOH = componentIDToChatTabFilterSetOH(menuEntryAddedParam1); //Already checks if componentID = public chat
+				if (setOH != null) {
+					for (ChatTabFilterOptionsOH entry : setOH) {
+						option = option.replace(entry.toNonOHAbbreviationString() + "/", entry.toAbbreviationString() + "/"); //A slash is added, so it does not result in: "Public OH: Show Public OH/Friends/CC OH
 					}
 				}
-				option = option.substring(0, option.length() - 1); //Remove the trailing "/". If deleted earlier, the final option is not properly replaced by its 2D variant.
+				option = option.substring(0, option.length() - 1); //Remove the trailing "/". If deleted earlier, the final option is not properly replaced by its OH variant.
 				chatFilterEntry.setOption(option);
 			}
 		}
@@ -463,7 +463,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			if (idx != -1) {
 				menuOption = menuOption.substring(idx);
 			}
-			for (ChatTabFilterOptions enumValue : ChatTabFilterOptions.values()) { //All the abbreviations from ChatTabFilterOptions2D contain the non-2D abbreviation so contains still matches
+			for (ChatTabFilterOptions enumValue : ChatTabFilterOptions.values()) { //All the abbreviations from ChatTabFilterOptionsOH contain the non-OH abbreviation so contains still matches
 				if (menuOption.contains(enumValue.toAbbreviationString())) { //Plugin uses Friends instead of friends (osrs game)
 					//return in case it is the menu entry/option we added ourselves! We do not want to turn off the filter when clicking on our menu entry/option.
 					return;
@@ -594,7 +594,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	private void convertCommaSeparatedConfigStringToSet(String configString, HashSet<String> setToConvertTo) {
-		//todo: test if changing this to a hashset has any implications
 		//Convert a CSV config string to a set
 		setToConvertTo.clear();
 		setToConvertTo.addAll(Text.fromCSV(Text.standardize(configString)));
@@ -664,7 +663,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Nullable
 	private Set<ChatTabFilterOptions> componentIDToChatTabFilterSet(int componentID) {
-		//Returns the Set<ChatTabFilterOptions> based on the componentID. Originally had it in an Object with also 2D, but it's kind of annoying to use so screw that.
+		//Returns the Set<ChatTabFilterOptions> based on the componentID. Originally had it in an Object with also OH, but it's kind of annoying to use so screw that.
 		//Returns null when componentID != chatstone componentID
 		switch (componentID) {
 			case ComponentID.CHATBOX_TAB_PUBLIC:
@@ -682,11 +681,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	@Nullable
-	private Set<ChatTabFilterOptions2D> componentIDToChatTabFilterSet2D(int componentID) {
-		//Returns the Set<ChatTabFilterOptions2D> based on the componentID. Originally had it in an Object with also 3D/regular, but it's kind of annoying to use so screw that.
+	private Set<ChatTabFilterOptionsOH> componentIDToChatTabFilterSetOH(int componentID) {
+		//Returns the Set<ChatTabFilterOptionsOH> based on the componentID. Originally had it in an Object with also 3D/regular, but it's kind of annoying to use so screw that.
 		//Returns null when componentID != public chatstone componentID
 		if (componentID == ComponentID.CHATBOX_TAB_PUBLIC) {
-			return publicChatFilterOptions2D;
+			return publicChatFilterOptionsOH;
 		}
 		return null;
 	}
@@ -695,7 +694,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//Should a chat stone (e.g. private) be filtered based on the componentID and the config set
 		Set<ChatTabFilterOptions> set = componentIDToChatTabFilterSet(componentID);
 		//componentIDToChatTabFilterSet already checks the componentID, so we don't have to check if it's a chat stone componentID besides doing a null check
-		//The public2D filter only works when the normal one is also active, so can ignore the 2D one for now.
+		//The publicOH filter only works when the normal one is also active, so can ignore the OH one for now.
 		if (set != null) {
 			return !set.isEmpty();
 		}
@@ -856,9 +855,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		return false;
 	}
 
-	private boolean shouldFilterMessage(ChatMessageType chatMessageType, String playerName) { //todo: make shouldFilterMessage2D for overheads
+	private boolean shouldFilterMessage(ChatMessageType chatMessageType, String playerName) { //todo: make shouldFilterMessageOH for overheads
 		//Should the message be filtered, based on ChatMessageType and the sender's name.
-		//For overheads, check shouldFilterMessage2DAllowed! //todo: edit this comment
+		//For overheads, check shouldFilterMessageOHAllowed! //todo: edit this comment
 		Set<ChatTabFilterOptions> chatTabHashSet = chatMessageTypeToChatTabFilterOptionsSet(chatMessageType);
 		if (chatTabHashSet == null || chatTabHashSet.isEmpty()) {
 			return false;
@@ -909,7 +908,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//Public = everyone that did not fit in the earlier groups: not friend, not FC/CC/Guest CC/Raid party/RL party member and not on the appropriate whitelist
 		//Thus, public = the randoms
 		//It's not the local player, so don't have to check for that.
-		//todo: see google calendar. Completely rethink this stuff for overheads and non-overheads. for also add something to account for the 2DOnly stuff since this code is probs perfect for overheads... Copy (part of) this code into separate thing so it can be called for both overhead and this (overhead can put in a chatmessagetype.public or smth
+		//todo: see google calendar. Completely rethink this stuff for overheads and non-overheads. for also add something to account for the OHOnly stuff since this code is probs perfect for overheads... Copy (part of) this code into separate thing so it can be called for both overhead and this (overhead can put in a chatmessagetype.public or smth
 		return !chatTabHashSet.contains(ChatTabFilterOptions.PUBLIC)
 				|| client.isFriended(playerName, false)
 				|| channelStandardizedUsernames.contains(playerName)
@@ -960,7 +959,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Nullable
 	private Set<ChatTabFilterOptions> chatMessageTypeToChatTabFilterOptionsSet(ChatMessageType chatMessageType) {
-		//Translates the ChatMessageType to the appropriate hashset (not 2D, so not for overheads).
+		//Translates the ChatMessageType to the appropriate hashset (not OH, so not for overheads).
 		if (chatMessageType != null) {
 			switch (chatMessageType) {
 				//AUTOTYPER	is not shown/is filtered on public = on anyway
