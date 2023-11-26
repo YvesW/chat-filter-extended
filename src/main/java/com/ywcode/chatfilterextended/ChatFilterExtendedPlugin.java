@@ -373,8 +373,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			});
 		}
 		if (commandExecuted.getCommand().equals("test2")) {
-			System.out.println(clanStandardizedUsernames);
-			System.out.println(guestClanStandardizedUsernames);
+			clearRaidPartyHashsetManually();
 		}
 		if (commandExecuted.getCommand().equals("test3")) {
 			System.out.println(publicFilterEnabled);
@@ -391,12 +390,39 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Subscribe(priority = -4) //Run after ChatMessageManager, core ChatFilterPlugin (which is -2) etc
 	public void onChatMessage(ChatMessage chatMessage) {
-		//todo: add chat filter!
+		ChatMessageType chatMessageType = chatMessage.getType();
+		if (!isChatTabCustomFilterActiveChatMessageType(chatMessageType)) {
+			//if chat is not filtered, return
+			return;
+		}
+
+		Set<ChatTabFilterOptions> chatTabSet = chatMessageTypeToChatTabFilterOptionsSet(chatMessageType);
+		String playerName = chatMessage.getName();
+
+		//ChatMessage that IS part of the publicChatFilterOptions set => needs to incorporate !publicChatFilterOptionsOH.contains in all of it (if in non-OH set => if not in overhead set => return false)
+		//ChatMessage that is NOT part of the publicChatFilterOptions set => works perfectly with shouldFilterMessage
+		boolean shouldFilter = chatTabSet == publicChatFilterOptions ? shouldFilterMessagePublicChatMessage(playerName) : shouldFilterMessage(chatTabSet, playerName);
+		System.out.println(Text.standardize(playerName)+" shouldFilter: "+shouldFilter);
+		if (shouldFilter) {
+			//todo: add chat filter!
+		}
 	}
 
 	@Subscribe(priority = -2) //Run after chatfilter plugin etc, probably not necessary but can't hurt
 	public void onOverheadTextChanged(OverheadTextChanged overheadTextChanged) {
-		//todo: add chat filter when public filter is enabled! (but OH is disabled!)
+		//Overheads => the appropriate set is always publicChatFilterOptions set => works perfectly with shouldFilterMessage
+
+		if (!isChatTabCustomFilterActiveChatMessageType(ChatMessageType.PUBLICCHAT) || !(overheadTextChanged.getActor() instanceof Player)) {
+			//So e.g. Bob Barter (Herbs) at the GE doesn't get filtered
+			//if chat is not filtered, return
+			return;
+		}
+
+		boolean shouldFilter = shouldFilterMessage(publicChatFilterOptions, overheadTextChanged.getActor().getName());
+		System.out.println(Text.standardize(overheadTextChanged.getActor().getName())+" shouldFilter (OH): "+shouldFilter);
+		if (shouldFilter) {
+			//todo: add chat filter code
+		}
 	}
 
 	@Subscribe(priority = -2) //Run after ChatHistory plugin etc, probably not necessary but can't hurt
@@ -750,6 +776,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		getToAPlayers(); //Checks if player is inside ToA to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToA or old ToB players
 	}
 
+	private void clearRaidPartyHashsetManually() {
+		clearRaidPartyHashset();
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Chat Filter Extended: The list of the Raid Party members has been cleared.", "");
+	}
+
 	private boolean isComponentIDChatStone(int componentID) {
 		return chatboxComponentIDs.contains(componentID);
 	}
@@ -855,16 +886,77 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		return false;
 	}
 
-	private boolean shouldFilterMessage(ChatMessageType chatMessageType, String playerName) { //todo: make shouldFilterMessageOH for overheads
-		//Should the message be filtered, based on ChatMessageType and the sender's name.
-		//For overheads, check shouldFilterMessageOHAllowed! //todo: edit this comment
-		Set<ChatTabFilterOptions> chatTabHashSet = chatMessageTypeToChatTabFilterOptionsSet(chatMessageType);
-		if (chatTabHashSet == null || chatTabHashSet.isEmpty()) {
+	private boolean shouldFilterMessagePublicChatMessage(String playerName) {
+		//Should the message be filtered, only for onChatMessage and the public set, based on ChatMessageType and the sender's name.
+		//For the rest, see shouldFilterMessage
+		Set<ChatTabFilterOptions> chatTabHashSet = publicChatFilterOptions;
+		Set<ChatTabFilterOptionsOH> chatTabHashSetOH = publicChatFilterOptionsOH;
+		if (chatTabHashSet == null || chatTabHashSet.isEmpty()) { //Custom is not meant to be on in this case anyway, or the type does not correspond with a ChatMessageType we know.
 			return false;
 		}
-		//From hereon, the ChatMessageType has the filter active
 
 		playerName = Text.standardize(playerName); //Very likely works considering other methods work with a standardized name. Can't test this though since my name doesn't have e.g. a space.
+		if (Strings.isNullOrEmpty(playerName)) {
+			return false;
+		}
+		//If it's your own message, don't filter
+		if (playerName.equals(Text.standardize(client.getLocalPlayer().getName()))) {
+			return false;
+		}
+		if (chatTabHashSet.contains(ChatTabFilterOptions.FRIENDS) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.FRIENDS) && client.isFriended(playerName, false)) {
+			return false;
+		}
+		if (chatTabHashSet.contains(ChatTabFilterOptions.FC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.FC) && channelStandardizedUsernames.contains(playerName)) {
+			return false;
+		}
+		if (chatTabHashSet.contains(ChatTabFilterOptions.CC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.CC) && clanStandardizedUsernames.contains(playerName)) {
+			return false;
+		}
+		if (chatTabHashSet.contains(ChatTabFilterOptions.GUEST_CC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.GUEST_CC) && guestClanStandardizedUsernames.contains(playerName)) {
+			return false;
+		}
+		if (chatTabHashSet.contains(ChatTabFilterOptions.PARTY) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.PARTY) && runelitePartyStandardizedUsernames.contains(playerName)) {
+			return false;
+		}
+		if (chatTabHashSet.contains(ChatTabFilterOptions.RAID) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.RAID) && raidPartyStandardizedUsernames.contains(playerName)) {
+			return false;
+		}
+		//Get appropriate whitelist and if enabled, check if this whitelist contains the playername
+		Set<String> whitelist = chatTabFilterOptionsSetToWhitelist(chatTabHashSet);
+		if (chatTabHashSet.contains(ChatTabFilterOptions.WHITELIST) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.WHITELIST)) {
+			if (whitelist != null && whitelist.contains(playerName)) {
+				return false;
+			}
+		}
+
+		//Public = everyone that did not fit in the earlier groups: not friend, not FC/CC/Guest CC/Raid party/RL party member and not on the appropriate whitelist
+		//Thus, public = the randoms
+		//It's not the local player, so don't have to check for that.
+		if (chatTabHashSet.contains(ChatTabFilterOptions.PUBLIC) //If statement can be simplified, but specifically opted not to do this to increase readability.
+				&& !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.PUBLIC)
+				&& !client.isFriended(playerName, false)
+				&& !channelStandardizedUsernames.contains(playerName)
+				&& !clanStandardizedUsernames.contains(playerName)
+				&& !guestClanStandardizedUsernames.contains(playerName)
+				&& !runelitePartyStandardizedUsernames.contains(playerName)
+				&& !raidPartyStandardizedUsernames.contains(playerName)
+				&& (whitelist != null && !whitelist.contains(playerName))) {
+			return false;
+		}
+		return true;
+	}
+
+	private boolean shouldFilterMessage(Set<ChatTabFilterOptions> chatTabHashSet, String playerName) {
+		//Should the message be filtered, based on ChatTabFilterOptions and the sender's name.
+		//For public onChatMessage, check shouldFilterMessagePublicChatMessage!
+		if (chatTabHashSet == null || chatTabHashSet.isEmpty()) { //Custom is not meant to be on in this case anyway, or the type does not correspond with a ChatMessageType we know.
+			return false;
+		}
+
+		playerName = Text.standardize(playerName); //Very likely works considering other methods work with a standardized name. Can't test this though since my name doesn't have e.g. a space.
+		if (Strings.isNullOrEmpty(playerName)) {
+			return false;
+		}
 		//If it's your own message, don't filter
 		if (playerName.equals(Text.standardize(client.getLocalPlayer().getName()))) {
 			return false;
@@ -908,15 +1000,16 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//Public = everyone that did not fit in the earlier groups: not friend, not FC/CC/Guest CC/Raid party/RL party member and not on the appropriate whitelist
 		//Thus, public = the randoms
 		//It's not the local player, so don't have to check for that.
-		//todo: see google calendar. Completely rethink this stuff for overheads and non-overheads. for also add something to account for the OHOnly stuff since this code is probs perfect for overheads... Copy (part of) this code into separate thing so it can be called for both overhead and this (overhead can put in a chatmessagetype.public or smth
-		return !chatTabHashSet.contains(ChatTabFilterOptions.PUBLIC)
-				|| client.isFriended(playerName, false)
-				|| channelStandardizedUsernames.contains(playerName)
-				|| clanStandardizedUsernames.contains(playerName)
-				|| guestClanStandardizedUsernames.contains(playerName)
-				|| runelitePartyStandardizedUsernames.contains(playerName)
-				|| raidPartyStandardizedUsernames.contains(playerName)
-				|| whitelist != null && whitelist.contains(playerName);
+		if (chatTabHashSet.contains(ChatTabFilterOptions.PUBLIC) //If statement can be simplified, but specifically opted not to do this to increase readability.
+				&& !client.isFriended(playerName, false)
+				&& !channelStandardizedUsernames.contains(playerName)
+				&& !clanStandardizedUsernames.contains(playerName)
+				&& !guestClanStandardizedUsernames.contains(playerName)
+				&& !runelitePartyStandardizedUsernames.contains(playerName)
+				&& !raidPartyStandardizedUsernames.contains(playerName)
+				&& (whitelist != null && !whitelist.contains(playerName))) {
+			return false;
+		}
 
 		//Alternatively do something like this, but I don't really like this solution.
 		/*
@@ -931,6 +1024,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			}
 		}
 		*/
+		return true;
 		//todo: denk na of je methods zoals hieronder wil gebruiken (eventueel als extra) en/of voor clans etc ook
 		//todo: wellicht .add code aanpassen om check te doen of het wat add, dan boolean op true te flikkeren en misschien in onGameTick client.refreshChat() te doen en boolean op false te flikkeren. Alternatief is het al dan te refreshen, maar idk of dat dan niet te vroeg of niet te vaak wordt gecalled. Over nadenken! Mogelijk wel te vaak want er kunnen meerdere mensen per tick toegevoegd worden, vooral als je grote fc of cc joint!
 		//todo: mogelijk ook client.refreshChat() callen in onConfigChanged, of iig als er bepaalde configkeys aangepast worden. Voorbeelden hiervan zijn wanneer een set wordt aangepast of wanneer custom mode disabled of enabled wordt. Wellicht proct dit allebei onConfigChanged! Alternatief is dus een flag gebruiken ipv het event direct callen.
@@ -956,6 +1050,30 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		However, I'd like the usernames to persist until the user logs out or leaves the chat, since sometimes people briefly leave the FC/CC/guest CC and still type etc
 		 */
 
+	private boolean isChatTabCustomFilterActiveChatMessageType(ChatMessageType chatMessageType) {
+		//Returns true if the chat tab is set to Show: custom, based on the ChatMessageType
+		if (chatMessageType != null) {
+			switch (chatMessageType) {
+				//AUTOTYPER	is filtered on public = on anyway
+				case PUBLICCHAT:
+				case MODCHAT:
+					return publicFilterEnabled;
+				case PRIVATECHAT:
+				case MODPRIVATECHAT:
+					return privateFilterEnabled;
+				case FRIENDSCHAT:
+					return channelFilterEnabled;
+				case CLAN_CHAT:
+				case CLAN_GIM_CHAT:
+				case CLAN_GUEST_CHAT:
+					return clanFilterEnabled;
+				case TRADEREQ:
+					//TRADE and TRADE_SENT are not received when someone tries to trade you, only TRADEREQ
+					return tradeFilterEnabled;
+			}
+		}
+		return false;
+	}
 
 	@Nullable
 	private Set<ChatTabFilterOptions> chatMessageTypeToChatTabFilterOptionsSet(ChatMessageType chatMessageType) {

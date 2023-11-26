@@ -12,7 +12,7 @@ public enum ChatTabFilterOptionsOH {
     GUEST_CC("Guest clan OH", "Guest OH"),
     RAID("Raid party OH", "Raid OH"),
     PARTY("RuneLite party OH", "Party OH"),
-    WHITELIST ("Custom whitelist OH", "Whitelist OH");
+    WHITELIST("Custom whitelist OH", "Whitelist OH");
 
     private final String option;
     private final String abbreviation;
