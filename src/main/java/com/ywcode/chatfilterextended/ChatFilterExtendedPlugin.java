@@ -16,15 +16,11 @@ import net.runelite.client.events.*;
 import net.runelite.client.party.*;
 import net.runelite.client.party.events.*;
 import net.runelite.client.plugins.*;
-import net.runelite.client.plugins.chatfilter.*;
 import net.runelite.client.util.*;
 
 import javax.annotation.*;
 import javax.inject.Inject;
 import java.util.*;
-
-import static net.runelite.api.ChatMessageType.MODCHAT;
-import static net.runelite.api.ChatMessageType.PUBLICCHAT;
 
 @Slf4j
 @PluginDescriptor(
