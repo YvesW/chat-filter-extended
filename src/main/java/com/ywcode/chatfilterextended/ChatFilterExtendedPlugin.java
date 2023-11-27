@@ -408,6 +408,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 		if (!isChatTabCustomFilterActiveChatMessageType(chatMessageType)) {
 			//if chat is not filtered, return
+			//shouldFilter already has a Strings.isNullOrEmpty(playerName) check
 			return;
 		}
 
@@ -427,7 +428,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 	}
 
-	@Subscribe(priority = -4) //Run after ChatMessageManager, core ChatFilterPlugin (which is -2) etc
+	/*@Subscribe(priority = -4) //Run after ChatMessageManager, core ChatFilterPlugin (which is -2) etc
 	public void onChatMessage(ChatMessage chatMessage) {
 		ChatMessageType chatMessageType = chatMessage.getType();
 		if (!isChatTabCustomFilterActiveChatMessageType(chatMessageType)) {
@@ -445,22 +446,24 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		if (shouldFilter) {
 			//todo: add chat filter!
 		}
-	}
+	}*/
 
 	@Subscribe(priority = -2) //Run after chatfilter plugin etc. Probably not necessary but can't hurt
 	public void onOverheadTextChanged(OverheadTextChanged overheadTextChanged) {
 		//Overheads => the appropriate set is always publicChatFilterOptions set => works perfectly with shouldFilterMessage
 
-		if (!isChatTabCustomFilterActiveChatMessageType(ChatMessageType.PUBLICCHAT) || !(overheadTextChanged.getActor() instanceof Player)) {
+		Actor actor = overheadTextChanged.getActor();
+		if (!(actor instanceof Player) || !isChatTabCustomFilterActiveChatMessageType(ChatMessageType.PUBLICCHAT)) {
 			//So e.g. Bob Barter (Herbs) at the GE doesn't get filtered
 			//if chat is not filtered, return
+			//shouldFilter already has a Strings.isNullOrEmpty(playerName) check
 			return;
 		}
 
-		boolean shouldFilter = shouldFilterMessage(publicChatFilterOptions, overheadTextChanged.getActor().getName());
-		System.out.println(Text.standardize(overheadTextChanged.getActor().getName())+" shouldFilter (OH): "+shouldFilter);
+		boolean shouldFilter = shouldFilterMessage(publicChatFilterOptions, actor.getName());
 		if (shouldFilter) {
-			//todo: add chat filter code
+			actor.setOverheadText(" ");
+			System.out.println(Text.standardize(actor.getName())+" OH text filtered");
 		}
 	}
 
