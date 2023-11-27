@@ -391,7 +391,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 	}
 
-	@Subscribe(priority = -1) //Run after core ChatFilterPlugin (which is 0) etc
+	@Subscribe(priority = -2) //Run after core ChatFilterPlugin (which is 0) etc. Probably not necessary but can't hurt
 	//todo: test if this works with chat filter disabled...
 	public void onScriptCallbackEvent(ScriptCallbackEvent event) {
 		//Use the RuneLite scriptcallback in ChatBuilder/ChatSplitBuilder.r2asm that ChatFilterPlugin also uses.
