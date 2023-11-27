@@ -16,11 +16,15 @@ import net.runelite.client.events.*;
 import net.runelite.client.party.*;
 import net.runelite.client.party.events.*;
 import net.runelite.client.plugins.*;
+import net.runelite.client.plugins.chatfilter.*;
 import net.runelite.client.util.*;
 
 import javax.annotation.*;
 import javax.inject.Inject;
 import java.util.*;
+
+import static net.runelite.api.ChatMessageType.MODCHAT;
+import static net.runelite.api.ChatMessageType.PUBLICCHAT;
 
 @Slf4j
 @PluginDescriptor(
@@ -192,6 +196,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 					redrawChatButtons();
 				}
 			}
+			client.refreshChat(); //Refresh chat when the config changes (enabling/disabling filter, changing filter settings).
 		}
 	}
 
@@ -390,6 +395,42 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 	}
 
+	@Subscribe(priority = -1) //Run after core ChatFilterPlugin (which is 0) etc
+	//todo: test if this works with chat filter disabled...
+	public void onScriptCallbackEvent(ScriptCallbackEvent event) {
+		//Use the RuneLite scriptcallback in ChatBuilder/ChatSplitBuilder.r2asm that ChatFilterPlugin also uses.
+		//Does not affect overheads, only the chatbox
+		if (!event.getEventName().equals("chatFilterCheck")) {
+			return;
+		}
+
+		//Get the ChatMessageType
+		int[] intStack = client.getIntStack();
+		int intStackSize = client.getIntStackSize();
+		final int messageType = intStack[intStackSize - 2];
+		ChatMessageType chatMessageType = ChatMessageType.of(messageType);
+
+		if (!isChatTabCustomFilterActiveChatMessageType(chatMessageType)) {
+			//if chat is not filtered, return
+			return;
+		}
+
+		//Get the playerName
+		final int messageId = intStack[intStackSize - 1];
+		final MessageNode messageNode = client.getMessages().get(messageId);
+		final String playerName = messageNode.getName();
+
+		Set<ChatTabFilterOptions> chatTabSet = chatMessageTypeToChatTabFilterOptionsSet(chatMessageType);
+		//ChatMessage that IS part of the publicChatFilterOptions set => needs to incorporate !publicChatFilterOptionsOH.contains in all of it (if in non-OH set => if not in overhead set => return false)
+		//ChatMessage that is NOT part of the publicChatFilterOptions set => works perfectly with shouldFilterMessage
+		boolean shouldFilter = chatTabSet == publicChatFilterOptions ? shouldFilterMessagePublicChatMessage(playerName) : shouldFilterMessage(chatTabSet, playerName);
+		if (shouldFilter) {
+			// Block the message
+			System.out.println("Blocked message by "+Text.standardize(playerName));
+			intStack[intStackSize - 3] = 0;
+		}
+	}
+
 	@Subscribe(priority = -4) //Run after ChatMessageManager, core ChatFilterPlugin (which is -2) etc
 	public void onChatMessage(ChatMessage chatMessage) {
 		ChatMessageType chatMessageType = chatMessage.getType();
@@ -476,11 +517,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				chatFilterEntry.setOption(option);
 			}
 
-			//If the ClearRaidPartyMenu should be shown, based on the advanced setting and shift state
-			if (shouldShowClearRaidPartyMenu()) {
-				final MenuEntry chatFilterEntryClearRaidParty = client.createMenuEntry(-1).setType(MenuAction.RUNELITE_HIGH_PRIORITY);
+			//If the ClearRaidPartyMenu should be shown, based on the advanced setting and shift state & only add if that chat is currently filtered
+			if (shouldShowClearRaidPartyMenu() && isChatFilteredComponentID(menuEntryAddedParam1)) {
+				final MenuEntry chatFilterEntryClearRaidParty = client.createMenuEntry(-2).setType(MenuAction.RUNELITE_HIGH_PRIORITY);
 				chatFilterEntryClearRaidParty.setParam1(menuEntryAddedParam1).onClick(this::clearRaidPartyHashsetManually);
-				chatFilterEntry.setOption("Clear Raid Party");
+				chatFilterEntryClearRaidParty.setOption("Clear Raid Party members");
 			}
 		}
 	}
@@ -776,6 +817,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private void clearRaidPartyHashset() {
 		previousRaidPartyInterfaceText = "";
 		raidPartyStandardizedUsernames.clear();
+	}
+
+	private void clearRaidPartyHashsetManually(MenuEntry menuEntry) {
+		clearRaidPartyHashset();
 		//Rebuild the raid party hashset by adding the current people to it. Events that run every gametick (either via onGameTick or e.g. via a script that runs every gametick, are excluded here since they'll run anyway).
 		//Thus, CoX bank is excluded, ToB/ToA lobby party interface is excluded.
 		getCoXPlayers(); //Get CoX players because it does not trigger onPlayerSpawned while inside a raid.
@@ -783,11 +828,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		processToABoard(); //Person might close the interface before the script procs.
 		getToBPlayers(); //Checks if player is inside ToB to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToB or old ToA players
 		getToAPlayers(); //Checks if player is inside ToA to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToA or old ToB players
-	}
-
-	private void clearRaidPartyHashsetManually(MenuEntry menuEntry) {
-		clearRaidPartyHashset();
-		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Chat Filter Extended: The list of the Raid Party members has been cleared.", "");
+		client.refreshChat(); //Refresh chat after manually changing the raid filter set
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Chat Filter Extended: The set of the Raid Party members has been cleared.", "");
 	}
 
 	private boolean isComponentIDChatStone(int componentID) {
@@ -1034,7 +1076,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 		*/
 		return true;
-		//todo: denk na of je methods zoals hieronder wil gebruiken (eventueel als extra) en/of voor clans etc ook
 		//todo: wellicht .add code aanpassen om check te doen of het wat add, dan boolean op true te flikkeren en misschien in onGameTick client.refreshChat() te doen en boolean op false te flikkeren. Alternatief is het al dan te refreshen, maar idk of dat dan niet te vroeg of niet te vaak wordt gecalled. Over nadenken! Mogelijk wel te vaak want er kunnen meerdere mensen per tick toegevoegd worden, vooral als je grote fc of cc joint!
 		//todo: mogelijk ook client.refreshChat() callen in onConfigChanged, of iig als er bepaalde configkeys aangepast worden. Voorbeelden hiervan zijn wanneer een set wordt aangepast of wanneer custom mode disabled of enabled wordt. Wellicht proct dit allebei onConfigChanged! Alternatief is dus een flag gebruiken ipv het event direct callen.
 	}
@@ -1056,14 +1097,15 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			return false;
 		}
 
-		However, I'd like the usernames to persist until the user logs out or leaves the chat, since sometimes people briefly leave the FC/CC/guest CC and still type etc
+		However, I'd like the usernames to persist until the user logs out or leaves the chat (if configured in advanced settings), since sometimes people briefly leave the FC/CC/guest CC and still type etc
+		Thus, I've specifically opted to not use this.
 		 */
 
 	private boolean isChatTabCustomFilterActiveChatMessageType(ChatMessageType chatMessageType) {
 		//Returns true if the chat tab is set to Show: custom, based on the ChatMessageType
 		if (chatMessageType != null) {
 			switch (chatMessageType) {
-				//AUTOTYPER	is filtered on public = on anyway
+				case AUTOTYPER: //AUTOTYPER	is filtered on public = on anyway
 				case PUBLICCHAT:
 				case MODCHAT:
 					return publicFilterEnabled;
@@ -1089,7 +1131,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//Translates the ChatMessageType to the appropriate hashset (not OH, so not for overheads).
 		if (chatMessageType != null) {
 			switch (chatMessageType) {
-				//AUTOTYPER	is not shown/is filtered on public = on anyway
+				case AUTOTYPER: //AUTOTYPER	is not shown/is filtered on public = on anyway
 				case PUBLICCHAT:
 				case MODCHAT:
 					return publicChatFilterOptions;
@@ -1153,8 +1195,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		Widget bottomHalfToBBoardWidget = client.getWidget(TOB_BOARD_ID, BOTTOM_HALF_TOB_BOARD_CHILDID);
 		processBoard(topHalfToBBoardWidget, bottomHalfToBBoardWidget);
 	}
-	//todo: maybe add clear button to clear raid members and/or other lists? idk. Maybe it should be a config setting to show this menuentry. Mss optie: always, shift+right click, never => default shift+right-click
-	//todo: maybe add option to also clear clan, fc etc and some other hashsets but set those to default never => think about it first if this could give problems though... Probably would since it'd miss the current people that joined as guest in the cc/guest cc/current fc members etc
 
 	private void processBoard(Widget topOrMembersPart, Widget bottomOrApplicantsPart) {
 		//Since processing the ToB and ToA boards works the same, this method works for both.
@@ -1350,7 +1390,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			getRLPartyUserJoinedMembersFlag = 0;
 		}
 		System.out.println(runelitePartyStandardizedUsernames);
-		if (getRLPartyUserJoinedMembersFlag == 0) { //Clear the hashset again when flag = 0. Set void sets flag back to 5 in case a user joins while the flag is timing down.
+		if (getRLPartyUserJoinedMembersFlag == 0) { //Clear the hashset when flag = 0. Set void sets flag back to 5 in case a user joins while the flag is going down.
 			partyMemberIds.clear();
 		}
 	}
@@ -1362,7 +1402,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				return true;
 			case DISABLED:
 				return false;
-			case HOLDING_SHIFT:
+			case HOLD_SHIFT:
 				return shiftModifier();
 		}
 		return false;

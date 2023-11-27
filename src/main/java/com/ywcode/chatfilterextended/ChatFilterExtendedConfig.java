@@ -3,7 +3,6 @@ package com.ywcode.chatfilterextended;
 import net.runelite.client.config.*;
 
 import java.util.*;
-import java.util.stream.*;
 
 @ConfigGroup("ChatFilterExtended")
 public interface ChatFilterExtendedConfig extends Config
@@ -221,7 +220,7 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "clearChannelSetHop",
 			name = "Clear FC on hop",
-			description = "Clear the list of the FC members when hopping. The list will always be cleared when fully logging out.",
+			description = "Clear the set of the FC members when hopping. The set will always be cleared when fully logging out.",
 			position = 0,
 			section = advancedSettings
 	)
@@ -233,8 +232,8 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "clearClanSetHop",
 			name = "Clear CC on hop",
-			description = "Clear the list of the CC members when hopping. The list will always be cleared when fully logging out.<br>"
-					+ "Keep in mind that this list also contains the GIM players, so if you are having trouble with those, make sure this setting is disabled.",
+			description = "Clear the set of the CC members when hopping. The set will always be cleared when fully logging out.<br>"
+					+ "Keep in mind that this set also contains the GIM players, so if you are having trouble with those, make sure this setting is disabled.",
 			position = 1,
 			section = advancedSettings
 	)
@@ -246,7 +245,7 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "clearGuestClanSetHop",
 			name = "Clear Guest CC on hop",
-			description = "Clear the list of the Guest CC members when hopping. These are the members of the guest CC, not the guests in your CC. The list will always be cleared when fully logging out.",
+			description = "Clear the set of the Guest CC members when hopping. These are the members of the guest CC, not the guests in your CC. The set will always be cleared when fully logging out.",
 			position = 2,
 			section = advancedSettings
 	)
@@ -258,7 +257,7 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "clearRaidPartySetHop",
 			name = "Clear Raid on hop",
-			description = "Clear the list of the Raid Party members when hopping. The list will always be cleared when fully logging out.",
+			description = "Clear the set of the Raid Party members when hopping. The set will always be cleared when fully logging out.",
 			position = 3,
 			section = advancedSettings
 	)
@@ -270,7 +269,7 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "clearRLPartySetHop",
 			name = "Clear Party on hop",
-			description = "Clear the list of the RuneLite Party members when hopping. The list will always be cleared when fully logging out.",
+			description = "Clear the set of the RuneLite Party members when hopping. The set will always be cleared when fully logging out.",
 			position = 4,
 			section = advancedSettings
 	)
@@ -282,7 +281,7 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "clearChannelSetLeave",
 			name = "Clear FC when leaving",
-			description = "Clear the list of the FC members when leaving the friends chat (FC).",
+			description = "Clear the set of the FC members when leaving the friends chat (FC).",
 			position = 5,
 			section = advancedSettings
 	)
@@ -294,8 +293,8 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "clearClanSetLeave",
 			name = "Clear CC when leaving",
-			description = "Clear the list of the CC members when leaving the CC.<br>"
-					+ "Keep in mind that this list also contains the GIM players, so if you are having trouble with those, make sure this setting is disabled.",
+			description = "Clear the set of the CC members when leaving the CC.<br>"
+					+ "Keep in mind that this set also contains the GIM players, so if you are having trouble with those, make sure this setting is disabled.",
 			position = 6,
 			section = advancedSettings
 	)
@@ -307,7 +306,7 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "clearGuestClanSetLeave",
 			name = "Clear GCC when leaving",
-			description = "Clear the list of the Guest CC members when leaving the Guest CC.",
+			description = "Clear the set of the Guest CC members when leaving the Guest CC.",
 			position = 7,
 			section = advancedSettings
 	)
@@ -319,7 +318,7 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "clearRLPartySetLeave",
 			name = "Clear RuneLite Party when leaving",
-			description = "Clear the list of the RuneLite Party members when leaving the RuneLite Party.",
+			description = "Clear the set of the RuneLite Party members when leaving the RuneLite Party.",
 			position = 8,
 			section = advancedSettings
 	)
@@ -338,6 +337,6 @@ public interface ChatFilterExtendedConfig extends Config
 	)
 	default ShiftMenuSetting clearRaidPartyShiftMenuSetting()
 	{
-		return ShiftMenuSetting.HOLDING_SHIFT;
+		return ShiftMenuSetting.HOLD_SHIFT;
 	}
 }

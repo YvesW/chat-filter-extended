@@ -6,7 +6,7 @@ import lombok.*;
 @Getter
 public enum ShiftMenuSetting {
     DISABLED("Disabled"),
-    HOLDING_SHIFT("Holding Shift"),
+    HOLD_SHIFT("Hold Shift"),
     ALWAYS("Always enabled");
 
     private final String option;
