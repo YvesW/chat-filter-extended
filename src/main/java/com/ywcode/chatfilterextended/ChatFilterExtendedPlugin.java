@@ -79,6 +79,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static final List<String> filtersEnabledStringList = ImmutableList.of("publicFilterEnabled", "privateFilterEnabled", "channelFilterEnabled", "clanFilterEnabled", "tradeFilterEnabled");
 	private static boolean inCoXRaidOrLobby; //Default value is false
 	private static int getRLPartyMembersFlag; //Default is 0
+	private static boolean shouldRefreshChat; //Default is false
 	private static final int TOA_LOBBY_REGION_ID = 13454;
 	private static final int COX_BANK_REGION_ID = 4919;
 	private static final int TOA_IN_RAID_VARPID = 2926; //Changes to e.g. 1001 when entering ToA, then when leaving it does: 1001 -> 1000 -> 1200 -> 0.
@@ -192,7 +193,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 					redrawChatButtons();
 				}
 			}
-			client.refreshChat(); //Refresh chat when the config changes (enabling/disabling filter, changing filter settings).
+			//client.refreshChat(); //Refresh chat when the config changes (enabling/disabling filter, changing filter settings).
 		}
 	}
 
@@ -284,8 +285,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	@Subscribe
 	public void onFriendsChatMemberJoined(FriendsChatMemberJoined friendsChatMemberJoined) {
 		//Also procs while joining an FC for all the members currently in it
-		//In the case of HashSet, the item isn't inserted if it's a duplicate => so no .contains check beforehand.
-		channelStandardizedUsernames.add(Text.standardize(friendsChatMemberJoined.getMember().getName()));
+		//In the case of HashSet, the item isn't inserted if it's a duplicate => so no .contains check beforehand needed.
+		//In case the HashSet already contains the value, it'll return false, so the boolean will not be set to true
+		if (channelStandardizedUsernames.add(Text.standardize(friendsChatMemberJoined.getMember().getName()))) {
+			shouldRefreshChat = true;
+		}
 	}
 
 	@Subscribe
@@ -309,7 +313,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				if (client.getClanChannel(ClanID.GROUP_IRONMAN) != null && clanChannelChanged.getClanChannel() != null) { //If in GIM chat
 					List<ClanChannelMember> gimMembers = clanChannelChanged.getClanChannel().getMembers();
 					for (ClanChannelMember gimMember : gimMembers) {
-						clanStandardizedUsernames.add(Text.standardize(gimMember.getName()));
+						if (clanStandardizedUsernames.add(Text.standardize(gimMember.getName()))){
+							shouldRefreshChat = true;
+						}
 					}
 				}
 			}
@@ -336,12 +342,16 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 		//If username of joined clanmember is in the cc, add to HashSet
 		if (clanChannel != null && clanChannel.findMember(standardizedJoinedName) != null) { //findMember works both with .removeTags and with .standardize
-			clanStandardizedUsernames.add(standardizedJoinedName);
+			if (clanStandardizedUsernames.add(standardizedJoinedName)) {
+				shouldRefreshChat = true;
+			}
 		}
 
 		//If username of joined clanmember is in the guest cc, add to HashSet
 		if (guestClanChannel != null && guestClanChannel.findMember(standardizedJoinedName) != null) {
-			guestClanStandardizedUsernames.add(standardizedJoinedName);
+			if (guestClanStandardizedUsernames.add(standardizedJoinedName)) {
+				shouldRefreshChat = true;
+			}
 		}
 	}
 
@@ -427,26 +437,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			intStack[intStackSize - 3] = 0;
 		}
 	}
-
-	/*@Subscribe(priority = -4) //Run after ChatMessageManager, core ChatFilterPlugin (which is -2) etc
-	public void onChatMessage(ChatMessage chatMessage) {
-		ChatMessageType chatMessageType = chatMessage.getType();
-		if (!isChatTabCustomFilterActiveChatMessageType(chatMessageType)) {
-			//if chat is not filtered, return
-			return;
-		}
-
-		Set<ChatTabFilterOptions> chatTabSet = chatMessageTypeToChatTabFilterOptionsSet(chatMessageType);
-		String playerName = chatMessage.getName();
-
-		//ChatMessage that IS part of the publicChatFilterOptions set => needs to incorporate !publicChatFilterOptionsOH.contains in all of it (if in non-OH set => if not in overhead set => return false)
-		//ChatMessage that is NOT part of the publicChatFilterOptions set => works perfectly with shouldFilterMessage
-		boolean shouldFilter = chatTabSet == publicChatFilterOptions ? shouldFilterMessagePublicChatMessage(playerName) : shouldFilterMessage(chatTabSet, playerName);
-		System.out.println(Text.standardize(playerName)+" shouldFilter: "+shouldFilter);
-		if (shouldFilter) {
-			//todo: add chat filter!
-		}
-	}*/
 
 	@Subscribe(priority = -2) //Run after chatfilter plugin etc. Probably not necessary but can't hurt
 	public void onOverheadTextChanged(OverheadTextChanged overheadTextChanged) {
@@ -580,6 +570,12 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			getRLPartyUserJoinedMembersFlag--; //Method can set int to 0 so -- first
 			addUserJoinedPartyStandardizedUsernames();
 		}
+
+		if (shouldRefreshChat) {
+			//Refresh chat in case someone got added to the list. Using a flag and doing it onGameTick so it doesn't potentially proc multiple time per gameTick, e.g. when joining an FC/CC
+			client.refreshChat();
+			shouldRefreshChat = false; //Reset flag
+		}
 	}
 
 	//todo: re-enable chat history plugin after testing
@@ -651,7 +647,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		long memberId = userJoin.getMemberId();
 		String standardizedUsername = Text.standardize(partyService.getMemberById(memberId).getDisplayName());
 		if (!Strings.isNullOrEmpty(standardizedUsername)) {
-			runelitePartyStandardizedUsernames.add(standardizedUsername);
+			if (runelitePartyStandardizedUsernames.add(standardizedUsername)) {
+				shouldRefreshChat = true;
+			}
 		} else { //In case the party service can't get the display name yet, add to memberId to hashset and retry for 5 gameticks.
 			partyMemberIds.add(memberId);
 			setAddUserJoinedPartyStandardizedUsernamesFlag();
@@ -664,7 +662,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//Varbits.IN_RAID gets updated to 1 when joining the CoX underground lobby! When leaving the underground lobby, it gets set back to 0. Thus, if it's 1, the player is in the underground lobby or doing a CoX raid. isInFC check is not required because people have to be in the raiding party when this varbit is 1 (CoX is instanced).
 		//Varbit gets set after PlayerSpawned fired, so getCoXPlayers is also ran when the varbit changes.
 		if (inCoXRaidOrLobby) { //If Varbits.IN_RAID > 0
-			raidPartyStandardizedUsernames.add(Text.standardize(playerSpawned.getPlayer().getName())); //Standardize playername that joined cox lobby / cox raid and add to hashset.
+			if (raidPartyStandardizedUsernames.add(Text.standardize(playerSpawned.getPlayer().getName()))) { //Standardize playername that joined cox lobby / cox raid and add to hashset.
+				shouldRefreshChat = true;
+			}
 		}
 	}
 
@@ -686,7 +686,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		if (inCoXRaidOrLobby && client.getGameState() == GameState.LOGGED_IN) { //If Varbits.IN_RAID > 0
 			List<Player> playersCoX = client.getPlayers();
 			for (Player player: playersCoX) {
-				raidPartyStandardizedUsernames.add(Text.standardize(player.getName()));
+				if (raidPartyStandardizedUsernames.add(Text.standardize(player.getName()))) {
+					shouldRefreshChat = true;
+				}
 			}
 		}
 	}
@@ -722,7 +724,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			//Adds all the members to the HashSet (according to the clan settings)
 			List<ClanMember> clanMembers = clanSettings.getMembers();
 			for (ClanMember clanMember : clanMembers) {
-				clanHashSet.add(Text.standardize(clanMember.getName()));
+				if (clanHashSet.add(Text.standardize(clanMember.getName()))) {
+					shouldRefreshChat = true;
+				}
 			}
 		}
 
@@ -731,7 +735,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			//Previous solution does not add the guests that are already in the CC, also add those
 			List<ClanChannelMember> clanMembersOnline = clanChannelChanged.getClanChannel().getMembers();
 			for (ClanChannelMember clanMember : clanMembersOnline) {
-				clanHashSet.add(Text.standardize(clanMember.getName()));
+				if (clanHashSet.add(Text.standardize(clanMember.getName()))) {
+					shouldRefreshChat = true;
+				}
 			}
 		}
 	}
@@ -827,7 +833,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		processToABoard(); //Person might close the interface before the script procs.
 		getToBPlayers(); //Checks if player is inside ToB to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToB or old ToA players
 		getToAPlayers(); //Checks if player is inside ToA to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToA or old ToB players
-		client.refreshChat(); //Refresh chat after manually changing the raid filter set
+		//client.refreshChat(); //Refresh chat after manually changing the raid filter set
 		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Chat Filter Extended: The set of the Raid Party members has been cleared.", "");
 	}
 
@@ -982,6 +988,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//Public = everyone that did not fit in the earlier groups: not friend, not FC/CC/Guest CC/Raid party/RL party member and not on the appropriate whitelist
 		//Thus, public = the randoms
 		//It's not the local player, so don't have to check for that.
+		//noinspection RedundantIfStatement
 		if (chatTabHashSet.contains(ChatTabFilterOptions.PUBLIC) //If statement can be simplified, but specifically opted not to do this to increase readability.
 				&& !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.PUBLIC)
 				&& !client.isFriended(playerName, false)
@@ -1050,6 +1057,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//Public = everyone that did not fit in the earlier groups: not friend, not FC/CC/Guest CC/Raid party/RL party member and not on the appropriate whitelist
 		//Thus, public = the randoms
 		//It's not the local player, so don't have to check for that.
+		//noinspection RedundantIfStatement
 		if (chatTabHashSet.contains(ChatTabFilterOptions.PUBLIC) //If statement can be simplified, but specifically opted not to do this to increase readability.
 				&& !client.isFriended(playerName, false)
 				&& !channelStandardizedUsernames.contains(playerName)
@@ -1100,6 +1108,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		Thus, I've specifically opted to not use this.
 		 */
 
+	@SuppressWarnings("BooleanMethodIsAlwaysInverted") //This is true, but I like keeping it like this for my own logic
 	private boolean isChatTabCustomFilterActiveChatMessageType(ChatMessageType chatMessageType) {
 		//Returns true if the chat tab is set to Show: custom, based on the ChatMessageType
 		if (chatMessageType != null) {
@@ -1209,7 +1218,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 						//If right type (4), get the text and standardize it
 						String standardizedRaidUsername = Text.standardize(nameWidget.getText()); //Also removes the leading and trailing spaces from -
 						if (!standardizedRaidUsername.equals("-")) { //Skip empty entries and add to temporary HashSet to remember
-							raidPartyStandardizedUsernamesTemp.add(standardizedRaidUsername);
+							raidPartyStandardizedUsernamesTemp.add(standardizedRaidUsername); //Return value does not have to be checked as this is the Temp set!
 						}
 					}
 				}
@@ -1224,14 +1233,17 @@ public class ChatFilterExtendedPlugin extends Plugin {
 					if (nameWidget.getType() == 4) {
 						//If right type (4), get the text and standardize it, then add it to the temp hashset
 						//Skipping empty entries ("-") is not required since they are not added to the bottom half of the board (those dynamic children just don't exist).
-						raidPartyStandardizedUsernamesTemp.add(Text.standardize(nameWidget.getText()));
+						raidPartyStandardizedUsernamesTemp.add(Text.standardize(nameWidget.getText())); //Return value does not have to be checked as this is the Temp set.
 					}
 				}
 			}
 		}
 		//If it's the user's party/the user applied, add the temporary HashSet to the real HashSet
 		if (client.getLocalPlayer() != null && raidPartyStandardizedUsernamesTemp.contains(Text.standardize(client.getLocalPlayer().getName()))) {
-			raidPartyStandardizedUsernames.addAll(raidPartyStandardizedUsernamesTemp);
+			//The addAll() method returns true if the collection changes as a result of elements being added into it; otherwise, it will return false
+			if (raidPartyStandardizedUsernames.addAll(raidPartyStandardizedUsernamesTemp)) {
+				shouldRefreshChat = true;
+			}
 		}
 	}
 
@@ -1257,7 +1269,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 						//Prevent empty strings or strings equalling "-" being added to the hashset.
 						if (!Strings.isNullOrEmpty(standardizedUsername) && !standardizedUsername.equals("-")) {
 							//Since the user has to be in this party (can't view other parties like this), add to the real HashSet instead of a temp one
-							raidPartyStandardizedUsernames.add(standardizedUsername);
+							if (raidPartyStandardizedUsernames.add(standardizedUsername)) {
+								shouldRefreshChat = true;
+							}
 						}
 						raidPartyInterfaceText = raidPartyInterfaceText.substring(idx + 4); //get substring to remove first user and first <br> (idx+4 so resulting substring starts after the first <br>)
 					}
@@ -1286,7 +1300,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			String varCStrValueStandardized = Text.standardize(client.getVarcStrValue(varCStrIndex));
 			//isNullOrEmpty check because they get refreshed in probably every room and can potentially add empty strings to the hashset.
 			if (!Strings.isNullOrEmpty(varCStrValueStandardized)) {
-				raidPartyStandardizedUsernames.add(varCStrValueStandardized);
+				if (raidPartyStandardizedUsernames.add(varCStrValueStandardized)) {
+					shouldRefreshChat = true;
+				}
 			}
 		}
 	}
@@ -1334,7 +1350,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				for (Player player : players) {
 					String standardizedUsername = Text.standardize(player.getName());
 					if (friendsChatManager.findByName(standardizedUsername) != null && !Strings.isNullOrEmpty(standardizedUsername)) {
-						raidPartyStandardizedUsernames.add(standardizedUsername);
+						if (raidPartyStandardizedUsernames.add(standardizedUsername)) {
+							shouldRefreshChat = true;
+						}
 					}
 				}
 			}
@@ -1357,7 +1375,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				for (PartyMember partyMember : partyMembers) {
 					String standardizedUsername = Text.standardize(partyMember.getDisplayName());
 					if (!Strings.isNullOrEmpty(standardizedUsername)) {
-						runelitePartyStandardizedUsernames.add(standardizedUsername);
+						if (runelitePartyStandardizedUsernames.add(standardizedUsername)) {
+							shouldRefreshChat = true;
+						}
 					}
 				}
 				System.out.println(runelitePartyStandardizedUsernames);
@@ -1378,7 +1398,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		for (long memberId : partyMemberIds) {
 			String standardizedUsername = Text.standardize(partyService.getMemberById(memberId).getDisplayName());
 			if (!Strings.isNullOrEmpty(standardizedUsername)) {
-				runelitePartyStandardizedUsernames.add(standardizedUsername);
+				if (runelitePartyStandardizedUsernames.add(standardizedUsername)) {
+					shouldRefreshChat = true;
+				}
 			} else {
 				//If a member is not processed correctly, set the boolean to false
 				allMembersProcessed = false;
