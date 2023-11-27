@@ -57,6 +57,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static boolean clearClanSetLeave;
 	private static boolean clearGuestClanSetLeave;
 	private static boolean clearRLPartySetLeave;
+	private static ShiftMenuSetting clearRaidPartyShiftMenuSetting;
 
 	//The config values below are only set through ConfigManager and are not part of ChatFilterExtendedConfig.java
 	private static boolean publicFilterEnabled; //i.e. if the user set the chat tab/stone to custom. So we can re-enable it on startup. Maybe swap this to RSProfile instead of config profile in the future?
@@ -224,6 +225,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		clearClanSetLeave = config.clearClanSetLeave();
 		clearGuestClanSetLeave = config.clearGuestClanSetLeave();
 		clearRLPartySetLeave = config.clearRLPartySetLeave();
+		clearRaidPartyShiftMenuSetting = config.clearRaidPartyShiftMenuSetting();
 
 		//The config values below are only set through ConfigManager and are not part of ChatFilterExtendedConfig.java
 		//PS Probs don't try to refactor this; did not go well (on plugin start) the last time I tried that...
@@ -373,7 +375,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			});
 		}
 		if (commandExecuted.getCommand().equals("test2")) {
-			clearRaidPartyHashsetManually();
+			clearRaidPartyHashsetManually(null);
 		}
 		if (commandExecuted.getCommand().equals("test3")) {
 			System.out.println(publicFilterEnabled);
@@ -408,7 +410,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 	}
 
-	@Subscribe(priority = -2) //Run after chatfilter plugin etc, probably not necessary but can't hurt
+	@Subscribe(priority = -2) //Run after chatfilter plugin etc. Probably not necessary but can't hurt
 	public void onOverheadTextChanged(OverheadTextChanged overheadTextChanged) {
 		//Overheads => the appropriate set is always publicChatFilterOptions set => works perfectly with shouldFilterMessage
 
@@ -425,7 +427,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 	}
 
-	@Subscribe(priority = -2) //Run after ChatHistory plugin etc, probably not necessary but can't hurt
+	@Subscribe(priority = -2) //Run after ChatHistory plugin etc. Probably not necessary but can't hurt
 	public void onMenuEntryAdded(MenuEntryAdded menuEntryAdded) {
 		if (menuEntryAdded.getType() != MenuAction.CC_OP.getId()) {
 			return;
@@ -473,6 +475,13 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				option = option.substring(0, option.length() - 1); //Remove the trailing "/". If deleted earlier, the final option is not properly replaced by its OH variant.
 				chatFilterEntry.setOption(option);
 			}
+
+			//If the ClearRaidPartyMenu should be shown, based on the advanced setting and shift state
+			if (shouldShowClearRaidPartyMenu()) {
+				final MenuEntry chatFilterEntryClearRaidParty = client.createMenuEntry(-1).setType(MenuAction.RUNELITE_HIGH_PRIORITY);
+				chatFilterEntryClearRaidParty.setParam1(menuEntryAddedParam1).onClick(this::clearRaidPartyHashsetManually);
+				chatFilterEntry.setOption("Clear Raid Party");
+			}
 		}
 	}
 
@@ -482,7 +491,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		String menuOption = menuOptionClicked.getMenuOption();
 		//The menu option for show friends is "<col=ffff00>Public:</col> Show friends"
 		//First check if it's a valid chatfilter option, then check that it's not the one we inserted => disable chat filtering if user clicked e.g. Public: Show friends
-		//Since this also contains stuff like "Switch tab", "Clear history" etc which should not turn off the custom filter, we also check for "Show" and if it does not contain some text from a menu entry we added ourselves.
+		//Since this also contains stuff like "Switch tab", "Clear history" etc. which should not turn off the custom filter, we also check for "Show" and if it does not contain some text from a menu entry we added ourselves.
 		if (isComponentIDChatStone(menuOptionClickedParam1) && menuOption.contains("Show")) { //alternatively you could use menuOption.contains("<col=ffff00>") && menuOption.contains("Show") ?
 			//Remove everything before the : so it doesn't match <col=ffff00>Public:</col>
 			int idx = menuOption.indexOf(':');
@@ -550,11 +559,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				processToBBoard();
 				break;
 			case TOB_HUD_DRAW_SCRIPTID:
-				//Procs once per tick, also procs inside of ToB. However, then S28.5 TOB_PARTY_INTERFACE and S28.12 (client.getWidget(InterfaceID.TOB, TOB_PARTY_INTERFACE_NAMES_CHILDID)) are hidden
+				//Procs once per tick, also procs inside ToB. However, then S28.5 TOB_PARTY_INTERFACE and S28.12 (client.getWidget(InterfaceID.TOB, TOB_PARTY_INTERFACE_NAMES_CHILDID)) are hidden
 				processToBPartyInterface();
 				break;
 			case TOA_PARTYDETAILS_BACK_BUTTON_SCRIPTID:
-				//First 6615 [clientscript,toa_partydetails_init] is ran to probably initialize it. Then 6722 [clientscript,toa_partydetails_addmember] runs 8 times to add one member each. Then 6761 [proc,toa_partydetails_sortbutton_draw] runs 10 times. Finally, 6765 [proc,toa_partydetails_back_button], 6756 [proc,toa_partydetails_summary], and 6770 [proc,toa_invocations_side_panel_update] proc once. All in the same gamecycle.
+				//First 6615 [clientscript,toa_partydetails_init] is run to probably initialize it. Then 6722 [clientscript,toa_partydetails_addmember] runs 8 times to add one member each. Then 6761 [proc,toa_partydetails_sortbutton_draw] runs 10 times. Finally, 6765 [proc,toa_partydetails_back_button], 6756 [proc,toa_partydetails_summary], and 6770 [proc,toa_invocations_side_panel_update] proc once. All in the same gamecycle.
 				processToABoard();
 				break;
 		}
@@ -776,7 +785,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		getToAPlayers(); //Checks if player is inside ToA to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToA or old ToB players
 	}
 
-	private void clearRaidPartyHashsetManually() {
+	private void clearRaidPartyHashsetManually(MenuEntry menuEntry) {
 		clearRaidPartyHashset();
 		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Chat Filter Extended: The list of the Raid Party members has been cleared.", "");
 	}
@@ -823,7 +832,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//Channel and clan are probs varbit based => they are always set when this method is executed ("volatile").
 		//Channel, Clan don't remember between hopping; potentially related to varbits as described here https://discord.com/channels/301497432909414422/301497432909414422/1086022946633547867 (i.e. I suspect when hopping it reads the state from the varbits and then sets the chat filters according to those values)
 		clientThread.invokeLater(() -> {
-			//Could potentially put this nicely in an enum at some point. Should probably also document what other arguments do then. 1 might be game but it's not listed in script 184 proc,chat_set_filter. Regarding 2nd argument it's just always +1 to get the next MenuOption and if you enter a value that's too high, it goes to show all/on (for some chat tabs?)
+			//Could potentially put this nicely in an enum at some point. Should probably also document what other arguments do then. 1 might be game, but it's not listed in script 184 proc,chat_set_filter. Regarding 2nd argument it's just always +1 to get the next MenuOption and if you enter a value that's too high, it goes to show all/on (for some chat tabs?)
 			if (publicFilterEnabled) {
 				client.runScript(CHAT_SET_FILTER_SCRIPTID, 2, 0);
 				//2 = public tab, 0 = show all
@@ -1344,6 +1353,24 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		if (getRLPartyUserJoinedMembersFlag == 0) { //Clear the hashset again when flag = 0. Set void sets flag back to 5 in case a user joins while the flag is timing down.
 			partyMemberIds.clear();
 		}
+	}
+
+	private boolean shouldShowClearRaidPartyMenu() {
+		//Should the ClearRaidPartyMenu be shown based on the advanced config setting?
+		switch (clearRaidPartyShiftMenuSetting) {
+			case ALWAYS:
+				return true;
+			case DISABLED:
+				return false;
+			case HOLDING_SHIFT:
+				return shiftModifier();
+		}
+		return false;
+	}
+
+	private boolean shiftModifier() {
+		//Is shift pressed? Returns false if client is not focused
+		return client.isKeyPressed(KeyCode.KC_SHIFT);
 	}
 
 	//todo: make filter code probs (hangt tevens met list etc samen) => voor friends zie chatfilter plugin iig! + test dit ingame
