@@ -135,37 +135,29 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		clientThread.invokeLater(this::getCoXPlayers); //Get CoX players because it does not trigger onPlayerSpawned while inside a raid if the players have already spawned before the plugin is turned on.
 		clientThread.invokeLater(this::processToBBoard); //User might technically enable plugin and exit the ToB board before the refresh scriptid procs.
 		clientThread.invokeLater(this::processToABoard); //User might technically enable plugin and exit the ToA board before the refresh scriptid procs.
+		//todo: add FC members, add CC members (including guests), guest clan members (including guests), add RL party members to startup!
 
-		//todo: add readme
+		//todo: prevent tab from flickering if a message is filtered...
+		//todo: add readme including a couple webms like musicreplacer has
 		//todo: go through problems
-		//todo: Change config thing to have different filters per chat so one for public, one for private + add config setting to add only OH text for some people but not into chatbox? So then it'd only hide the chatbox stuff from those people => only for public chat cause rest is chatbox only... Including randos? So you could e.g. be everyone OH except friends also chatbox but clan fully filtered? Requires public to also be added to the initial options!
-		//todo: make whitelist toCSV. Keep in mind that you also add that to the options, but then also ctrl+F it, because you got some code that looks at it to determine if chat is filtered!
-		//todo: check and refactor the whole fucking shit + check if you can replace widget crawling with varcstrings etc
-		//todo: mss per region settings in advanced doch mss gaat dit te ver + add chat message mss wanneer je iets op custom zet (doch mss wat te spammy) maar def als je private verandert dat het on is! (En mss wrm het niet werkt als je die setting niet enabled hebt?) => echter probs te spammy wat support traffic geeft, dus probs skippen want de config setting is heel duidelijk
-		//todo: potentially add player right-click option (if a config option is enabled, maybe also option to make this only when shift is held down?) to add to a whitelist with a pop-out menu like inventory tags or MES uses?
-		//todo: get varbits here somewhere when logged in probs, if it uses varbits (or e.g. add to list when tobbing/in tob region etc)
-		//todo: maybeee make when to clear fc/cc/raid etc a selectable option under an advanced config tab
-		//todo: denk aan chat highlight gedoe ignoren als filtered dat niet een rando het proct terwijl zijn chat eigenlijk filtered is
-		//todo: mss optie om in bepaalde regionids automatisch op custom te zetten mr idk
-		//todo: denk over alle hashsets na en wanneer je bijv. al in een raid party bent, of wanneer je al in een clan bent / wanneer er al guests in je cc zijn etc. Get all that info here like addAllInRaidUsernamesVarClientStr()
-		//todo: alles wat niet ongametick of op een script draait dat ELKE GAMETICK PROCT onstartup doen (denk ook aan clan members, fc members hashset etc etc! die vallen buiten raids en moet je dus nog doen!) en tevens wanneer je raidsparty cleared via bijv rightclick menu of bijv via van tob nr cox tpen DUS OOK DE VARC SHIT PROBS ALS DAT NULL IS BUITEN TOB EN TOA!!
-		//TODO: at some point consider adding a pop-out menu like MES has to Show custom in which you can add or remove options from the set.
-		//TODO: at some point consider adding a pop-out menu like MES has to other players to add/remove them from the whitelist. Potentially only added when shift is held.
+		//todo: check and refactor the whole fucking shit
+		//todo: add comments
+		//todo: mss per region settings (activeren) in advanced doch mss gaat dit te ver
+		//todo: potentially add player right-click option (config advanced ShiftMenuSettings style) to add/remove a player to a whitelist with a pop-out menu like inventory tags or MES uses?
+		//todo: to ignore highlights, you'd probs have to get the ChatMessage before ChatNotificationsPlugin, getId the Id, getValue the content of the messageNode, and getName() the username, then save the last xx amount of filtered messages and setValue the value of the node to e.g. " ". Then if client.refreshChat gets triggered, you have to go over the saved values and restore the message nodes if the user is now not filtered and the message is " ".
+		//TODO: at some point consider adding a pop-out menu like MES has to Show custom in which you can add or remove options from the set. or add this as separate entry. Use the ShiftMenuSettings style advanced config anyway!
+		//todo: use int to determine what activeRaid is so you can clear raid usernames and set int to other thingy when entering zone/proccing script of other raid => make this an advanced config option => also do this when varc procs (so in raid etc, in case the plugin is activated in the raid)
 	}
 
 	@Override
 	public void shutDown() {
-		//TODO: check if something needs to be added to startup or shutdown + profilechange / rebuild chatbox? => wat als je plugin togglet in raid, in tob lobby etc etc => varbits ook setten on startup zoals slayer plugin, niet enkel onVarbitChanged!
+		//TODO: check if something needs to be added to startup or shutdown + profilechange / rebuild chatbox?
 		//todo: potentially do some of this shit or stop filter when swapping profiles? check how other filter plugins do it
-		//todo: find a way to disable filtering mode when disabling all the show friends/show cc etc options are disabled + to change the filter mode when config is changed + change text back in that case (&filter)
-		//todo: method volgorde fixen, refactor
 		//todo: final tests: login, hopping, toggling on/off plugin, toggling settings on/off, opening clan panels, changing to resizable, after npc chatbox maybe, in/after cutscenes like myths guild
-		//todo: make code easier/clean-up by adding/changing methods, adding local variables etc
 		//todo: remove TEST and remove println
-		//todo: add comments
-		//todo: fix potential interaction with smartchatinput recolor? removing client.getGameState() == GameState.LOADING things does not fix it...
 		//todo: test a bit what happens when putting clan and e.g. public to off, then enabling custom, then disabling the plugin => should go back to off for both? probably? and what if you then reboot the client?
-		//todo: check if cox widgetids, scriptids al ergens in runelite bestaan of niet
+		//todo: check if cox, tob, toa widgetids, scriptids, varbits, varcs etc. al ergens in runelite bestaan of niet
+		//todo: reenable chat history + maybe toggle chat
 
 
 		shuttingDown = true; //Might not be necessary but just to be sure it doesn't set it back to custom text since the script procs
@@ -193,7 +185,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 					redrawChatButtons();
 				}
 			}
-			//client.refreshChat(); //Refresh chat when the config changes (enabling/disabling filter, changing filter settings).
+			client.refreshChat(); //Refresh chat when the config changes (enabling/disabling filter, changing filter settings).
 		}
 	}
 
@@ -269,7 +261,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				if (clearGuestClanSetHop) {
 					guestClanStandardizedUsernames.clear();
 				}
-				//todo: test if things like cc, channel, guestclan clear on hop would be problematic. Otherwise probs remove.
 				break;
 		}
 	}
@@ -294,7 +285,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	@Subscribe
 	public void onClanChannelChanged(ClanChannelChanged clanChannelChanged) {
-		//If left CC => clear own cc usernames HashSet //todo: check if you want to do this instead of the private boolean isClanChatMember(String playerName) { thing because it's still a cc member, even if you leave the chat, right? => Clan thing: use both approaches so it also accounts for guests in the cc & works when pressing leave probs
+		//If left CC => clear own cc usernames HashSet
 		if (!clanChannelChanged.isGuest()) { //If left or joined own CC or GIM chat
 			int clanId = clanChannelChanged.getClanId();
 			if (clanId == ClanID.CLAN) { //If left/joined own CC, separate line because of all the if-then-else statements used here
@@ -355,10 +346,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 	}
 
-	//todo: when to clear shit, e.g. raids when hopping/logged out or when visiting other raid/when leaving fc when at cox, use int to determine what activeraid is so you can clear raid usernames and set int to other thingy when entering zone of other raid
-	//todo: raid: based on varbit or chunk at cox probs (copy fc if member is in same world or maybe the raid interface if that works in the raid itself, check core cox plugin) (also chunk at tob/toa probs for setting int cause of lobby location or justb do that via widghet idk), tob applicants but also when you apply, widget top left when in lobby and when in raid, toa same as tob. check tob healthbar plugin probs
-
-
 	@Subscribe
 	public void onCommandExecuted(CommandExecuted commandExecuted) { //todo: remove this
 		if (commandExecuted.getCommand().equals("test")) {
@@ -402,7 +389,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	@Subscribe(priority = -2) //Run after core ChatFilterPlugin (which is 0) etc. Probably not necessary but can't hurt
-	//todo: test if this works with chat filter disabled...
 	public void onScriptCallbackEvent(ScriptCallbackEvent event) {
 		//Use the RuneLite scriptcallback in ChatBuilder/ChatSplitBuilder.r2asm that ChatFilterPlugin also uses.
 		//Does not affect overheads, only the chatbox
@@ -578,9 +564,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 	}
 
-	//todo: re-enable chat history plugin after testing
-	//todo: remove system.out.println & //test
-
 	@Subscribe
 	public void onScriptPostFired(ScriptPostFired scriptPostFired) {
 		switch (scriptPostFired.getScriptId()) {
@@ -604,9 +587,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				break;
 		}
 	}
-	//TODO: set int or something to 1 when in/at tob, 2 toa, 3 cox (worldpoint for at probs and then varbits for in raid? check cox plugin, tob plugins, toa plugin for varbits. check discord plugin for wordlpoints/regions (although banks are probs missing))
-	//todo: reset tob raid list e.g. when entering cox/toa zone, when hopping (already does iirc), on logout (already does iirc), other conditions? clear on disband (probs not though, geeft evt chat message but idk)
-	//TODO: test what happens when applying and accepted, test what happens when someone else applies and you accept them, test what happens when someone applies and someone else accepts them and you have screen open/closed, test what happens when someone applies and you are not party leader but open board after applying (not accepted yet), test what happens when someone applies and you are not party leader but have board open while he applies (not accepted yet), test what happens in raid?
 
 	@Subscribe
 	public void onVarbitChanged(VarbitChanged varbitChanged) {
@@ -833,7 +813,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		processToABoard(); //Person might close the interface before the script procs.
 		getToBPlayers(); //Checks if player is inside ToB to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToB or old ToA players
 		getToAPlayers(); //Checks if player is inside ToA to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToA or old ToB players
-		//client.refreshChat(); //Refresh chat after manually changing the raid filter set
+		client.refreshChat(); //Refresh chat after manually changing the raid filter set
 		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Chat Filter Extended: The set of the Raid Party members has been cleared.", "");
 	}
 
@@ -1083,8 +1063,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 		*/
 		return true;
-		//todo: wellicht .add code aanpassen om check te doen of het wat add, dan boolean op true te flikkeren en misschien in onGameTick client.refreshChat() te doen en boolean op false te flikkeren. Alternatief is het al dan te refreshen, maar idk of dat dan niet te vroeg of niet te vaak wordt gecalled. Over nadenken! Mogelijk wel te vaak want er kunnen meerdere mensen per tick toegevoegd worden, vooral als je grote fc of cc joint!
-		//todo: mogelijk ook client.refreshChat() callen in onConfigChanged, of iig als er bepaalde configkeys aangepast worden. Voorbeelden hiervan zijn wanneer een set wordt aangepast of wanneer custom mode disabled of enabled wordt. Wellicht proct dit allebei onConfigChanged! Alternatief is dus een flag gebruiken ipv het event direct callen.
 	}
 		/* Alternatively use
 		private boolean isFriendsChatMember(String playerName) {
@@ -1321,7 +1299,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		Widget membersToABoardWidget = client.getWidget(TOA_BOARD_ID, MEMBERS_TOA_BOARD_CHILDID);
 		Widget applicantsToABoardWidget = client.getWidget(TOA_BOARD_ID, APPLICANTS_TOA_BOARD_CHILDID);
 		processBoard(membersToABoardWidget, applicantsToABoardWidget);
-		//todo: tob + toa check if widgetids, scriptids al ergens in runelite bestaan of niet
 	}
 
 	//private static final int TOA_PARTY_INTERFACE_NAMES_CHILDID = 5; //S773.5
@@ -1433,9 +1410,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//Is shift pressed? Returns false if client is not focused
 		return client.isKeyPressed(KeyCode.KC_SHIFT);
 	}
-
-	//todo: make filter code probs (hangt tevens met list etc samen) => voor friends zie chatfilter plugin iig! + test dit ingame
-	//todo: Add own displayname + ook wanneer onacchashchanged en die niet null is. +denk aan cox gedoe zoals de interface bij fc of mensen die in je raid zijn of zo + separate config options voor chatbox vs overhead + rebuild chatbox enzo als config options aangepast zijn + rebuild als mensen aan de lijst zijn toegevoegd (zijn oude messages van voor de add to list dan ook zichtbaar?)
 
 	@Provides
 	ChatFilterExtendedConfig provideConfig(ConfigManager configManager) {

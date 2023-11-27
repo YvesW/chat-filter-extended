@@ -332,8 +332,7 @@ public interface ChatFilterExtendedConfig extends Config
 			name = "Show Clear Raid Party menu option",
 			description = "When to show the Clear Raid Party members menu option.<br>"
 					+ "Disabled: never. Holding shift: when holding shift and right clicking on a chat stone. Always enabled: when right clicking on a chat stone.",
-			position = 9,
-			section = advancedSettings
+			position = 100
 	)
 	default ShiftMenuSetting clearRaidPartyShiftMenuSetting()
 	{
