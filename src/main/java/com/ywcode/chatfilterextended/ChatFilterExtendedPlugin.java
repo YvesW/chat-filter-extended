@@ -126,7 +126,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	@Override
 	public void startUp() {
 		shuttingDown = false; //Maybe it got procced by switching profiles, assuming plugins are all shutdown and started again?
-		setConfigFirstStart(); //todo: check if this needs more config vars added to it after config changes
+		setConfigFirstStart();
 		updateConfig();
 		setChatsToPublic();
 		addAllInRaidUsernamesVarClientStr(); //Will also add a raid group to the hashset if you are not inside ToB/ToA anymore. This is fine and can be useful in certain situations, e.g. getting a scythe, teleporting to the GE to get the split and then turning on the plugin at the GE. You can still see your raid buddies' messages then. If this is undesired, replace with getToBPlayers() and getToAPlayers()
@@ -135,7 +135,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		clientThread.invokeLater(this::getCoXPlayers); //Get CoX players because it does not trigger onPlayerSpawned while inside a raid if the players have already spawned before the plugin is turned on.
 		clientThread.invokeLater(this::processToBBoard); //User might technically enable plugin and exit the ToB board before the refresh scriptid procs.
 		clientThread.invokeLater(this::processToABoard); //User might technically enable plugin and exit the ToA board before the refresh scriptid procs.
-		//todo: add FC members, add CC members (including guests), guest clan members (including guests), add RL party members to startup!
+		clientThread.invokeLater(this::getFCMembers); //In case the plugin is started while already in an FC.
+		clientThread.invokeLater(this::getCCMembers); //In case the plugin is started while already in a CC.
+		clientThread.invokeLater(this::getGuestCCMembers); //In case the plugin is started while already in a guest CC.
 
 		//todo: prevent tab from flickering if a message is filtered...
 		//todo: add readme including a couple webms like musicreplacer has
@@ -161,6 +163,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 
 		shuttingDown = true; //Might not be necessary but just to be sure it doesn't set it back to custom text since the script procs
+		clanStandardizedUsernames.clear();
+		channelStandardizedUsernames.clear();
+		guestClanStandardizedUsernames.clear();
+		clearRaidPartyHashset(); //Also clear the string so the plugin will process the party interface if needed
+		runelitePartyStandardizedUsernames.clear();
 		if (client.getGameState() == GameState.LOGGED_IN || client.getGameState() == GameState.LOADING) {
 			clientThread.invoke(() -> {
 				//This rebuilds both the chatbox and the pmbox
@@ -286,6 +293,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	@Subscribe
 	public void onClanChannelChanged(ClanChannelChanged clanChannelChanged) {
 		//If left CC => clear own cc usernames HashSet
+		ClanChannel clanChannel = clanChannelChanged.getClanChannel();
 		if (!clanChannelChanged.isGuest()) { //If left or joined own CC or GIM chat
 			int clanId = clanChannelChanged.getClanId();
 			if (clanId == ClanID.CLAN) { //If left/joined own CC, separate line because of all the if-then-else statements used here
@@ -295,20 +303,14 @@ public class ChatFilterExtendedPlugin extends Plugin {
 					}
 				} else { //If in own CC
 					//If joined own CC, get members and add the usernames to HashSet
-					addClanMembers(clanChannelChanged, client.getClanSettings(), clanStandardizedUsernames);
+					addClanMembers(clanChannel, client.getClanSettings(ClanID.CLAN), clanStandardizedUsernames);
 				}
 			}
 
 			//Also include GIM members in Clan Hashset, untested because no access to a GIM account
-			if (clanId == ClanID.GROUP_IRONMAN) { //If joined/left GIM chat
-				if (client.getClanChannel(ClanID.GROUP_IRONMAN) != null && clanChannelChanged.getClanChannel() != null) { //If in GIM chat
-					List<ClanChannelMember> gimMembers = clanChannelChanged.getClanChannel().getMembers();
-					for (ClanChannelMember gimMember : gimMembers) {
-						if (clanStandardizedUsernames.add(Text.standardize(gimMember.getName()))){
-							shouldRefreshChat = true;
-						}
-					}
-				}
+			if (clanId == ClanID.GROUP_IRONMAN //If joined/left GIM chat
+					&& client.getClanChannel(ClanID.GROUP_IRONMAN) != null) { //If in GIM chat
+				addClanMembers(clanChannel, client.getClanSettings(ClanID.GROUP_IRONMAN), clanStandardizedUsernames);
 			}
 
 		} else { //If left/joined guest CC
@@ -318,28 +320,32 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				}
 			} else { //If joined guest clan
 				//If joined guest clan, get members and add the usernames to HashSet
-				addClanMembers(clanChannelChanged, client.getGuestClanSettings(), guestClanStandardizedUsernames);
+				addClanMembers(clanChannel, client.getGuestClanSettings(), guestClanStandardizedUsernames);
 			}
 		}
 	}
 
 	@Subscribe
 	public void onClanMemberJoined(ClanMemberJoined clanMemberJoined) {
-		//getClanSettings.GetMembers won't include any guests; add newly joined guests this way
+		//Add newly joined guests this way since the HashSet does not contain clan/guest clan guests yet
 		//In the case of HashSet, the item isn't inserted if it's a duplicate => so no .contains check beforehand.
-		String standardizedJoinedName = Text.standardize(clanMemberJoined.getClanMember().getName());
-		ClanChannel clanChannel = client.getClanChannel();
+		ClanChannel clanChannel = client.getClanChannel(ClanID.CLAN);
+		ClanChannel gimChannel = client.getClanChannel(ClanID.GROUP_IRONMAN);
 		ClanChannel guestClanChannel = client.getGuestClanChannel();
+		String standardizedJoinedName = Text.standardize(clanMemberJoined.getClanMember().getName());
 
-		//If username of joined clanmember is in the cc, add to HashSet
-		if (clanChannel != null && clanChannel.findMember(standardizedJoinedName) != null) { //findMember works both with .removeTags and with .standardize
+		ClanChannel clanChannelJoined = clanMemberJoined.getClanChannel();
+		//If person joins clan/GIM chat, add to clan HashSet. PS switch does not like clanMemberJoined.getClanChannel()
+		if (clanChannelJoined.equals(clanChannel)
+				|| clanChannelJoined.equals(gimChannel)) { //Alternatively use clanChannel != null && clanChannel.findMember(standardizedJoinedName) != null
+			//findMember works both with .removeTags and with .standardize
 			if (clanStandardizedUsernames.add(standardizedJoinedName)) {
 				shouldRefreshChat = true;
 			}
 		}
 
-		//If username of joined clanmember is in the guest cc, add to HashSet
-		if (guestClanChannel != null && guestClanChannel.findMember(standardizedJoinedName) != null) {
+		//If person joins guest CC chat, add to guest clan HashSet.
+		if (clanChannelJoined.equals(guestClanChannel)) { //Alternatively use guestClanChannel != null && guestClanChannel.findMember(standardizedJoinedName) != null
 			if (guestClanStandardizedUsernames.add(standardizedJoinedName)) {
 				shouldRefreshChat = true;
 			}
@@ -699,7 +705,43 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 	}
 
-	private void addClanMembers(ClanChannelChanged clanChannelChanged, ClanSettings clanSettings, HashSet<String> clanHashSet) {
+	private void getFCMembers() {
+		//To add all the FC members to the hashset. Useful if the plugin gets enabled while already in an FC, so should run in StartUp.
+		FriendsChatManager friendsChatManager = client.getFriendsChatManager();
+		if (friendsChatManager != null) {
+			FriendsChatMember[] membersFC = friendsChatManager.getMembers();
+			for (FriendsChatMember member : membersFC) {
+				if (channelStandardizedUsernames.add(Text.standardize(member.getName()))) {
+					shouldRefreshChat = true;
+				}
+			}
+		}
+	}
+
+	private void getCCMembers() {
+		//To add all the CC/GIM members to the hashset. Useful if the plugin gets enabled while already in a CC, so should run in StartUp.
+		//Add own CC
+		ClanChannel clanChannel = client.getClanChannel();
+		ClanSettings clanSettings = client.getClanSettings(ClanID.CLAN);
+		addClanMembers(clanChannel, clanSettings, clanStandardizedUsernames);
+
+		//Add GIM
+		ClanChannel gimClanChannel = client.getClanChannel(ClanID.GROUP_IRONMAN);
+		ClanSettings gimSettings = client.getClanSettings(ClanID.GROUP_IRONMAN);
+		addClanMembers(gimClanChannel, gimSettings, clanStandardizedUsernames);
+		System.out.println(clanStandardizedUsernames);
+	}
+
+	private void getGuestCCMembers() {
+		//To add all the guest CC members to the hashset. Useful if the plugin gets enabled while already in a guest CC, so should run in StartUp.
+		//Add guest CC
+		ClanChannel guestClanChannel = client.getGuestClanChannel();
+		ClanSettings guestClanSettings = client.getGuestClanSettings();
+		addClanMembers(guestClanChannel, guestClanSettings, guestClanStandardizedUsernames);
+		System.out.println(guestClanStandardizedUsernames);
+	}
+
+	private void addClanMembers(ClanChannel clanChannel, ClanSettings clanSettings, HashSet<String> clanHashSet) {
 		if (clanSettings != null) {
 			//Adds all the members to the HashSet (according to the clan settings)
 			List<ClanMember> clanMembers = clanSettings.getMembers();
@@ -711,9 +753,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 
 		//Clan members get added via the clan settings, but clan/guest clan guests are not a part of those.
-		if (clanChannelChanged.getClanChannel() != null) {
+		if (clanChannel != null) {
 			//Previous solution does not add the guests that are already in the CC, also add those
-			List<ClanChannelMember> clanMembersOnline = clanChannelChanged.getClanChannel().getMembers();
+			List<ClanChannelMember> clanMembersOnline = clanChannel.getMembers();
 			for (ClanChannelMember clanMember : clanMembersOnline) {
 				if (clanHashSet.add(Text.standardize(clanMember.getName()))) {
 					shouldRefreshChat = true;
@@ -923,7 +965,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	private boolean shouldFilterMessagePublicChatMessage(String playerName) {
-		//Should the message be filtered, only for onChatMessage and the public set, based on ChatMessageType and the sender's name.
+		//Should the message be filtered, only for onChatMessage (ScriptCallback) and the public set, based on the sender's name.
 		//For the rest, see shouldFilterMessage
 		Set<ChatTabFilterOptions> chatTabHashSet = publicChatFilterOptions;
 		Set<ChatTabFilterOptionsOH> chatTabHashSetOH = publicChatFilterOptionsOH;
@@ -985,7 +1027,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 	private boolean shouldFilterMessage(Set<ChatTabFilterOptions> chatTabHashSet, String playerName) {
 		//Should the message be filtered, based on ChatTabFilterOptions and the sender's name.
-		//For public onChatMessage, check shouldFilterMessagePublicChatMessage!
+		//For public onChatMessage (ScriptCallback), check shouldFilterMessagePublicChatMessage!
 		if (chatTabHashSet == null || chatTabHashSet.isEmpty()) { //Custom is not meant to be on in this case anyway, or the type does not correspond with a ChatMessageType we know.
 			return false;
 		}
@@ -1161,11 +1203,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		}
 		return null;
 	}
-
-	/**
-	 * rest van de plugin: gebruik isclanchatmember (wat als op leave cc, wat als leave cc en dan client herstarten?, wat als guest cc? wat als iemand jouw cc joint als guest), is friendschatmember potentieel aanvullend aan bestaande oplossingen, denk na over wanneer lists gecleared moeten worden
-	 * aanvullend aan bestaande oplossingen, denk na over wanneer lists gecleared moeten worden
-	 */
 
 	//private static final int TOB_BOARD_ID = 50; //N50.0
 	//private static final int TOP_HALF_TOB_BOARD_CHILDID = 27; //S50.27
