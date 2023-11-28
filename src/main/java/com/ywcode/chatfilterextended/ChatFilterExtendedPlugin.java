@@ -74,7 +74,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static final HashSet<String> clanStandardizedUsernames = new HashSet<>();
 	private static final HashSet<String> guestClanStandardizedUsernames = new HashSet<>();
 	private static final HashSet<String> raidPartyStandardizedUsernames = new HashSet<>();
-	private static final HashSet<String> runelitePartyStandardizedUsernames = new HashSet<>(); //TODO: add code to handle this
+	private static final HashSet<String> runelitePartyStandardizedUsernames = new HashSet<>();
 	private static final List<Integer> chatboxComponentIDs = ImmutableList.of(ComponentID.CHATBOX_TAB_PUBLIC, ComponentID.CHATBOX_TAB_PRIVATE, ComponentID.CHATBOX_TAB_CHANNEL, ComponentID.CHATBOX_TAB_CLAN, ComponentID.CHATBOX_TAB_TRADE);
 	private static final List<String> filtersEnabledStringList = ImmutableList.of("publicFilterEnabled", "privateFilterEnabled", "channelFilterEnabled", "clanFilterEnabled", "tradeFilterEnabled");
 	private static boolean inCoXRaidOrLobby; //Default value is false
@@ -106,7 +106,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static final HashSet<Long> partyMemberIds = new HashSet<>();
 	private static int getRLPartyUserJoinedMembersFlag; //Default is 0
 	//Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I did not fully adhere to lol)
-	//PM Can probably replace part of the methods by incorporating the info in the Enum and then using a getter, but enfin
 
 	@Inject
 	private Client client;
@@ -138,6 +137,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		clientThread.invokeLater(this::getFCMembers); //In case the plugin is started while already in an FC.
 		clientThread.invokeLater(this::getCCMembers); //In case the plugin is started while already in a CC.
 		clientThread.invokeLater(this::getGuestCCMembers); //In case the plugin is started while already in a guest CC.
+		//TODO: Potentially add a player right-click option (config advanced ShiftMenuSettings style) to add/remove a player to a whitelist with a pop-out menu (like inventory tags or MES uses). However, there is very likely an engine limit of only 7 options being visible when you right click someone in game or one of their messages. Thus, do not implement this pretty dan niche option.
 
 		//todo: prevent tab from flickering if a message is filtered...
 		//todo: add readme including a couple webms like musicreplacer has
@@ -145,7 +145,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//todo: check and refactor the whole fucking shit
 		//todo: add comments
 		//todo: mss per region settings (activeren) in advanced doch mss gaat dit te ver
-		//todo: potentially add player right-click option (config advanced ShiftMenuSettings style) to add/remove a player to a whitelist with a pop-out menu like inventory tags or MES uses?
 		//todo: to ignore highlights, you'd probs have to get the ChatMessage before ChatNotificationsPlugin, getId the Id, getValue the content of the messageNode, and getName() the username, then save the last xx amount of filtered messages and setValue the value of the node to e.g. " ". Then if client.refreshChat gets triggered, you have to go over the saved values and restore the message nodes if the user is now not filtered and the message is " ".
 		//TODO: at some point consider adding a pop-out menu like MES has to Show custom in which you can add or remove options from the set. or add this as separate entry. Use the ShiftMenuSettings style advanced config anyway!
 		//todo: use int to determine what activeRaid is so you can clear raid usernames and set int to other thingy when entering zone/proccing script of other raid => make this an advanced config option => also do this when varc procs (so in raid etc, in case the plugin is activated in the raid)
@@ -864,11 +863,13 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	}
 
 	private void enableChatFilter(MenuEntry menuEntry) {
+		//Enables the chat filter for the specific tab is the users selects the appropriate menu option.
 		setChatFilterConfig(menuEntry, true);
 		setChatsToPublic();
 	}
 
 	private void setChatFilterConfig(MenuEntry menuEntry, boolean enableFilter) {
+		//Set the RL config value for a chat: is the filter enabled or disabled?
 		int menuComponentID = menuEntry.getParam1();
 		if (isComponentIDChatStone(menuComponentID)) {
 			executeSetChatFilterConfig(menuComponentID, enableFilter);
@@ -939,16 +940,13 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//Sets the WidgetText for the specific chat to Custom, based on componentID. Usage of this already has GameState check.
 		Widget chatWidget = client.getWidget(componentID);
 		if (chatWidget != null && isChatFilteredComponentID(componentID)) {
-			setCustomText(chatWidget);
+			final String customTextString = "<br><col=ffff00>Custom</col>";
+			chatWidget.getStaticChildren()[2].setText(customTextString); //or e.g. chatWidget.getStaticChildren().length-1 but that change more often idk
 		}
 	}
 
-	private void setCustomText(Widget widget) {
-		final String customTextString = "<br><col=ffff00>Custom</col>";
-		widget.getStaticChildren()[2].setText(customTextString); //or e.g. chatWidget.getStaticChildren().length-1 but that change more often idk
-	}
-
 	private boolean isChatFilteredComponentID(int componentID) {
+		//Returns true if the chat is filtered based on ComponentId.
 		switch (componentID) {
 			case ComponentID.CHATBOX_TAB_PUBLIC:
 				return publicFilterEnabled;
@@ -1214,6 +1212,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	//[0] and [20] are the whole lines again, type 3.
 	//[1] and [21] are the usernames, type 4.
 	private void processToBBoard() {
+		//Process the ToB board
 		Widget topHalfToBBoardWidget = client.getWidget(TOB_BOARD_ID, TOP_HALF_TOB_BOARD_CHILDID);
 		Widget bottomHalfToBBoardWidget = client.getWidget(TOB_BOARD_ID, BOTTOM_HALF_TOB_BOARD_CHILDID);
 		processBoard(topHalfToBBoardWidget, bottomHalfToBBoardWidget);
@@ -1266,11 +1265,13 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	//No party text = -<br>-<br>-<br>-<br>-
 	//Party text = Username<br>Username2<br>-<br>-<br>-
 	private void processToBPartyInterface() {
+		//Processed the party interface in the ToB lobby
 		Widget tobPartyInterfaceNamesWidget = client.getWidget(InterfaceID.TOB, TOB_PARTY_INTERFACE_NAMES_CHILDID); //S28.12
 		processRaidPartyInterface(tobPartyInterfaceNamesWidget);
 	}
 
 	private void processRaidPartyInterface(Widget partyInterfaceNamesWidget) {
+		//Process a party interface in the ToB or ToA lobby
 		if (partyInterfaceNamesWidget != null && !partyInterfaceNamesWidget.isHidden()) { //Widget is hidden among others inside ToB while the script will still proc inside ToB.
 			String raidPartyInterfaceText = partyInterfaceNamesWidget.getText();
 			//Only process the widget if the text has changed compared to the previous processing
@@ -1342,6 +1343,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	//No party text = -<br>-<br>-<br>-<br>-<br>-<br>-<br>-
 	//Party text = Username<br>Username2<br>-<br>-<br>-<br>-<br>-<br>-
 	private void processToAPartyInterface() {
+		//Processed the party interface in the ToA lobby
 		Widget toaPartyInterfaceNamesWidget = client.getWidget(InterfaceID.TOA_PARTY, TOA_PARTY_INTERFACE_NAMES_CHILDID); //S773.5
 		processRaidPartyInterface(toaPartyInterfaceNamesWidget);
 	}
