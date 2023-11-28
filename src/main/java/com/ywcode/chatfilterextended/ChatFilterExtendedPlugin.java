@@ -78,6 +78,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static final HashSet<String> runelitePartyStandardizedUsernames = new HashSet<>();
     private static final List<Integer> chatboxComponentIDs = ImmutableList.of(ComponentID.CHATBOX_TAB_PUBLIC, ComponentID.CHATBOX_TAB_PRIVATE, ComponentID.CHATBOX_TAB_CHANNEL, ComponentID.CHATBOX_TAB_CLAN, ComponentID.CHATBOX_TAB_TRADE);
     private static final List<String> filtersEnabledStringList = ImmutableList.of("publicFilterEnabled", "privateFilterEnabled", "channelFilterEnabled", "clanFilterEnabled", "tradeFilterEnabled");
+    private static final List<String> chatTabFilterOptionsKeyNames = ImmutableList.of("publicChatFilterOptions", "privateChatFilterOptions", "channelChatFilterOptions", "clanChatFilterOptions", "tradeChatFilterOptions");
     private static boolean inCoXRaidOrLobby; //Default value is false
     private static int getRLPartyMembersFlag; //Default is 0
     private static boolean shouldRefreshChat; //Default is false
@@ -543,7 +544,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
                                 .setType(MenuAction.RUNELITE)
                                 .setParent(chatFilterEntry)
                                 .setOption(optionBuilder.toString())
-                                .onClick(e -> System.out.println("test"));//todo: add code that actually changes something + add chat message when doing this probs
+                                .onClick(e -> addRemoveValueFromChatSet(set, enumValue, menuEntryAddedParam1));
                     }
                 }
             }
@@ -1006,6 +1007,31 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 return tradeFilterEnabled;
         }
         return false;
+    }
+
+    private void addRemoveValueFromChatSet(Set<ChatTabFilterOptions> chatSet, ChatTabFilterOptions filterOption, int componentID) {
+        //Add or remove a value from a chat set based on if the set already contains the value or not.
+        //Used in the right click menu to add or remove a value from the set.
+        if (!chatSet.add(filterOption)) {
+            //If the set does not contain the value, add it, return !true aka false, so don't remove it.
+            //If the set does contain the value, it can't be added and the if statement is !false aka true, so it'll remove the value.
+            chatSet.remove(filterOption);
+        }
+        configManager.setConfiguration(configGroup, componentIDToChatTabFilterKeyName(componentID), chatSet);
+        //TODO: potentially add a chat message when doing this, but might get too spammy when adding/removing multiple values. One can already confirm it happened by just right-clicking on the chat tab and seeing "Show: Public/Friends/FC/CC" etc.
+    }
+
+    @Nullable
+    private String componentIDToChatTabFilterKeyName(int componentID) {
+        //Returns the keyname based on the componentID, because reflection bad so can't get the name that way.
+        //Returns null when componentID != chatstone componentID
+        //Alternatively switch back to using a switch, which is probs more efficient but less compact.
+        for (int i = 0; i < chatboxComponentIDs.size(); i++) {
+            if (componentID == chatboxComponentIDs.get(i)) {
+                return chatTabFilterOptionsKeyNames.get(i);
+            }
+        }
+        return null;
     }
 
     private boolean shouldFilterMessagePublicChatMessage(String playerName) {

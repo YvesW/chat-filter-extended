@@ -21,7 +21,11 @@ Public?: everything that is not part of the above categories probs
 
 Also everything 2d for public (overhead)
 
+Shift-menu thingies exist, cave when updating the set with sidepanel open, the config panel might not look updated but this is a runelite limitation. It actually does update.
+Flash thingy prevention/proper handling exists unlike default chat filter
+Notifications thing prevention exists unlike default chat filter
+
 Clears when it clears because it's jarring if a lot of messages suddenly disappear when you quickly hop worlds, or briefly leave your cc/fc (default advanced settings have been chosen with this in mind)
 
-Thanks to Annotated for helping me collect Vars/ScriptIds and for extensively helping me test the plugin!
+Thanks to Annotated for helping me collect Vars/ScriptIds and for helping me extensively test the plugin!
 
