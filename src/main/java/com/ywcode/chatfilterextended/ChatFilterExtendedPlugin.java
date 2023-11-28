@@ -82,7 +82,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 	private static boolean shouldRefreshChat; //Default is false
 	private static final int TOA_LOBBY_REGION_ID = 13454;
 	private static final int COX_BANK_REGION_ID = 4919;
-	private static final int TOA_IN_RAID_VARPID = 2926; //Changes to e.g. 1001 when entering ToA, then when leaving it does: 1001 -> 1000 -> 1200 -> 0.
+	private static final int IN_A_RAID_VARPID = 2926; //Changes to e.g. 1001 when entering a raid (ToA, CoX, ToB; does apparently not proc for vork or PNM), then when leaving it does: 1001 -> 1000 -> 1200 -> 0.
+	private static final int TOA_PARTY_VARPID = 3603; //-1 when not in a party, anything else when in a party or in the raid. Alternatively use Varbit 14345: based on proc,toa_lobby_update_header (script 6613): 2 = the party text says "Step Inside Now!", 0 = "No Party", anything else (1) = "Party". Based on my ingame testing: 0 not in a party, 1 when in a party. So anything else is very likely 1 in this case. Will also be 1 in e.g. the lobby when in a solo party.
 	private static final int REDRAW_CHAT_BUTTONS_SCRIPTID = 178; //[proc,redraw_chat_buttons]
 	private static final int CHAT_SET_FILTER_SCRIPTID = 152; //[clientscript,chat_set_filter]
 	private static final int TOB_PARTYDETAILS_BACK_BUTTON_SCRIPTID = 4495; //[proc,tob_partydetails_back_button]
@@ -697,7 +698,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		//Adds the ToA players to the Raid hashset. Useful when resetting the list and updating it again so the old ToB players don't join.
 		//The varcs do not get cleared if the player leaves, so check if the player is inside ToA first.
 		//However, when joining a new raid, the varcStrings get updated. E.g. first do a raid with 4 people, then a duo ToA => upon entering, player 3 and 4 strings will be emptied.
-		if (client.getVarpValue(TOA_IN_RAID_VARPID) > 0) {
+		if (client.getVarpValue(IN_A_RAID_VARPID) > 0 && client.getVarpValue(TOA_PARTY_VARPID) > -1) {
 			for (int i = 0; i < 8; i++) {
 				addInRaidUsernamesVarClientStr(TOA_IN_RAID_VARCSTR_PLAYER1_INDEX + i);
 			}
