@@ -7,7 +7,7 @@ import lombok.*;
 public enum ShiftMenuSetting {
     DISABLED("Disabled"),
     HOLD_SHIFT("Hold Shift"),
-    ALWAYS("Always enabled");
+    ALWAYS("Always");
 
     private final String option;
 
