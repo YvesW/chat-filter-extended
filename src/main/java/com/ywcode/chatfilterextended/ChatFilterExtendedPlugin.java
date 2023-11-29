@@ -464,6 +464,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //shouldFilterChatType already has a ComponentID check build in that checks if it's a chatstone or not.
         if (menuEntryAdded.getOption().contains("Show none")) {
             Set<ChatTabFilterOptions> set = componentIDToChatTabFilterSet(menuEntryAddedParam1);
+            Set<ChatTabFilterOptionsOH> setOH = componentIDToChatTabFilterSetOH(menuEntryAddedParam1);
             if (set != null) {
                 MenuEntry chatFilterEntry = null;
                 if (shouldFilterChatType(menuEntryAddedParam1)) {
@@ -473,7 +474,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
                             .setParam1(menuEntryAddedParam1)
                             .onClick(this::enableChatFilter);
 
-                    //Set name of entry
+                    //Set name (option) of menuEntry
                     final StringBuilder optionBuilder = new StringBuilder();
                     //Pull tab name from menu since Trade/Group is variable + set Option based on config settings
                     String option = menuEntryAdded.getOption();
@@ -495,8 +496,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
                     //Replace entries with their OH equivalent if OH is added to the OH set
                     //Order does not matter since I'm just replacing, so just iterate over the HashSet
-                    Set<ChatTabFilterOptionsOH> setOH = componentIDToChatTabFilterSetOH(menuEntryAddedParam1); //Already checks if componentID = public chat
-                    if (setOH != null) {
+                    if (setOH != null) { //Already checks if componentID = public chat by returning null if it's not public.
                         for (ChatTabFilterOptionsOH entry : setOH) {
                             option = option.replace(entry.toNonOHAbbreviationString() + "/", entry.toAbbreviationString() + "/"); //A slash is added, so it does not result in: "Public OH: Show Public OH/Friends/CC OH
                         }
@@ -546,9 +546,29 @@ public class ChatFilterExtendedPlugin extends Plugin {
                                 .setOption(optionBuilder.toString())
                                 .onClick(e -> addRemoveValueFromChatSet(set, enumValue, menuEntryAddedParam1));
                     }
+
+                    if (setOH != null) { //Already checks if componentID = public chat (it's null if it's not public)
+                        //Using the same method for the overheads as the normal chatbox is kinda aids since I made that a different enum, so here's the same code, but almost copy pasted!
+                        int amountOfChatTabFilterOptionsOH = ChatTabFilterOptionsOH.values().length;
+                        for (int i = 1; i <= amountOfChatTabFilterOptionsOH; i++) {
+                            ChatTabFilterOptionsOH enumValue = ChatTabFilterOptionsOH.values()[amountOfChatTabFilterOptionsOH - i];
+                            StringBuilder optionBuilder = new StringBuilder();
+                            if (setOH.contains(enumValue)) { //Already in the set, so the option should be "remove"
+                                optionBuilder.append("Remove ");
+                            } else {
+                                optionBuilder.append("Add ");
+                            }
+                            optionBuilder.append(enumValue.toString());
+                            client.createMenuEntry(i)
+                                    .setType(MenuAction.RUNELITE)
+                                    .setParent(chatFilterEntry)
+                                    .setOption(optionBuilder.toString())
+                                    .onClick(e -> addRemoveValueFromChatSetOH(setOH, enumValue));
+                        }
+                    }
                 }
             }
-        } //todo: probs add a separate menu thingy added for the overhead sets if right clicked on public button
+        }
     }
 
     @Subscribe
@@ -1017,8 +1037,15 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //If the set does contain the value, it can't be added and the if statement is !false aka true, so it'll remove the value.
             chatSet.remove(filterOption);
         }
-        configManager.setConfiguration(configGroup, componentIDToChatTabFilterKeyName(componentID), chatSet);
-        //TODO: potentially add a chat message when doing this, but might get too spammy when adding/removing multiple values. One can already confirm it happened by just right-clicking on the chat tab and seeing "Show: Public/Friends/FC/CC" etc.
+        String keyName = componentIDToChatTabFilterKeyName(componentID);
+        if (keyName != null) {
+            configManager.setConfiguration(configGroup, keyName, chatSet);
+            //Potentially add a chat message when changing the chatSet, but might get too spammy when adding/removing multiple values. One can already confirm it happened by just right-clicking on the chat tab and seeing "Show: Public/Friends/FC/CC" etc.
+            if (keyName.equals("privateChatFilterOptions") && !forcePrivateOn) {
+                //Notification when people screw with the private filter without forcePrivateOn so they don't complain about it not working properly.
+                client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Chat Filter Extended: Private filtering generally only works well when 'force private to on' is enabled in the plugin's config settings.", "");
+            }
+        }
     }
 
     @Nullable
@@ -1032,6 +1059,17 @@ public class ChatFilterExtendedPlugin extends Plugin {
             }
         }
         return null;
+    }
+
+    private void addRemoveValueFromChatSetOH(Set<ChatTabFilterOptionsOH> chatSet, ChatTabFilterOptionsOH filterOption) {
+        //Add or remove a value from a chat set based on if the set already contains the value or not.
+        //Used in the right click menu to add or remove a value from the set.
+        if (!publicChatFilterOptionsOH.add(filterOption)) {
+            //If the set does not contain the value, add it, return !true aka false, so don't remove it.
+            //If the set does contain the value, it can't be added and the if statement is !false aka true, so it'll remove the value.
+            publicChatFilterOptionsOH.remove(filterOption);
+        }
+        configManager.setConfiguration(configGroup, "publicChatFilterOptionsOH", chatSet);
     }
 
     private boolean shouldFilterMessagePublicChatMessage(String playerName) {
