@@ -328,6 +328,32 @@ public interface ChatFilterExtendedConfig extends Config
 	}
 
 	@ConfigItem(
+			keyName = "fixChatTabAlert",
+			name = "Fix chat tab alert",
+			description = "Prevent a filtered message from causing an incorrect chat tab alert (blinking chat tab).<br>"
+					+ "This setting does not impact the 'Chat Filter' plugin (RuneLite core). Thus, if a message is not filtered by Chat Filter Extended,<br>"
+					+ "but is filtered by the Chat Filter plugin, it might cause an incorrect chat tab alert.",
+			position = 9,
+			section = advancedSettings
+	)
+	default boolean fixChatTabAlert() {
+		return true;
+	}
+
+	@ConfigItem(
+			keyName = "preventLocalPlayerChatTabAlert",
+			name = "Prevent own chat tab alert",
+			description = "Prevent one of your own messages causing a chat tab alert (blinking chat tab).<br>"
+					+ "Requires 'Fix chat tab alert' to be enabled.",
+			position = 10,
+			section = advancedSettings
+	)
+	default boolean preventLocalPlayerChatTabAlert()
+	{
+		return false;
+	}
+
+	@ConfigItem(
 			keyName = "clearRaidPartyShiftMenuSetting",
 			name = "Show Clear Raid Party menu option",
 			description = "When to show the Clear Raid Party members menu option.<br>"

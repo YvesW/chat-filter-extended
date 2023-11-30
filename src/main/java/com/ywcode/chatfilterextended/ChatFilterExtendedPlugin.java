@@ -57,6 +57,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static boolean clearClanSetLeave;
     private static boolean clearGuestClanSetLeave;
     private static boolean clearRLPartySetLeave;
+    private static boolean fixChatTabAlert;
+    private static boolean preventLocalPlayerChatTabAlert;
     private static ShiftMenuSetting clearRaidPartyShiftMenuSetting;
     private static ShiftMenuSetting changeChatSetsShiftMenuSetting;
 
@@ -81,8 +83,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static boolean inCoXRaidOrLobby; //Default value is false
     private static int getRLPartyMembersFlag; //Default is 0
     private static boolean shouldRefreshChat; //Default is false
-    private static final int TOA_LOBBY_REGION_ID = 13454;
-    private static final int COX_BANK_REGION_ID = 4919;
+    private static final int TOA_LOBBY_REGION_ID = 13454; //Region id of ToA lobby (which has the bank)
+    private static final int COX_BANK_REGION_ID = 4919; //Region id of CoX bank
     private static final int IN_A_RAID_VARPID = 2926; //Changes to e.g. 1001 when entering a raid (ToA, CoX, ToB; does apparently not proc for vork or PNM), then when leaving it does: 1001 -> 1000 -> 1200 -> 0.
     private static final int TOA_PARTY_VARPID = 3603; //-1 when not in a party, anything else when in a party or in the raid. Alternatively use Varbit 14345: based on proc,toa_lobby_update_header (script 6613): 2 = the party text says "Step Inside Now!", 0 = "No Party", anything else (1) = "Party". Based on my ingame testing: 0 not in a party, 1 when in a party. So anything else is very likely 1 in this case. Will also be 1 in e.g. the lobby when in a solo party.
     private static final int REDRAW_CHAT_BUTTONS_SCRIPTID = 178; //[proc,redraw_chat_buttons]
@@ -107,6 +109,19 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static final int TOA_IN_RAID_VARCSTR_PLAYER8_INDEX = 1106;
     private static final HashSet<Long> partyMemberIds = new HashSet<>();
     private static int getRLPartyUserJoinedMembersFlag; //Default is 0
+    private static final int CHAT_ALERT_ENABLE_SCRIPTID = 180; //proc,chat_alert_enable See at the bottom for an explanation over what script does what regarding chat alerts.
+    private static int currentChatTabAlertTab; //1 = game. 2 = public. 3 = friends but does not show up when private is split (which is good, because the tab does also not flash then!). 4 = fc. 5 = cc. 6 = trade.
+        private static int publicVarcIntCountdownValue;
+    private static int privateVarcIntCountdownValue;
+    private static int fcVarcIntCountdownValue;
+    private static int ccVarcIntCountdownValue;
+    private static int tradeVarcIntCountdownValue;
+    private static int publicVarcIntCountdownId = 45; //Game chat = 44. See script 183 CS2 code.
+    private static int privateVarcIntCountdownId = 46;
+    private static int fcVarcIntCountdownId = 438; //Yes, 438 is correct
+    private static int ccVarcIntCountdownId = 47;
+    private static int tradeVarcIntCountdownId = 48;
+    private static boolean filterTriggered;
     //Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I did not fully adhere to lol)
 
     @Inject
@@ -227,6 +242,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
         clearClanSetLeave = config.clearClanSetLeave();
         clearGuestClanSetLeave = config.clearGuestClanSetLeave();
         clearRLPartySetLeave = config.clearRLPartySetLeave();
+        fixChatTabAlert = config.fixChatTabAlert();
+        preventLocalPlayerChatTabAlert = config.preventLocalPlayerChatTabAlert();
         clearRaidPartyShiftMenuSetting = config.clearRaidPartyShiftMenuSetting();
         changeChatSetsShiftMenuSetting = config.changeChatSetsShiftMenuSetting();
 
@@ -396,7 +413,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
-    @Subscribe(priority = -2) //Run after core ChatFilterPlugin (which is 0) etc. Probably not necessary but can't hurt
+    @Subscribe
     public void onScriptCallbackEvent(ScriptCallbackEvent event) {
         //Use the RuneLite scriptcallback in ChatBuilder/ChatSplitBuilder.r2asm that ChatFilterPlugin also uses.
         //Does not affect overheads, only the chatbox
@@ -432,7 +449,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
-    @Subscribe(priority = -2) //Run after chatfilter plugin etc. Probably not necessary but can't hurt
+    @Subscribe
     public void onOverheadTextChanged(OverheadTextChanged overheadTextChanged) {
         //Overheads => the appropriate set is always publicChatFilterOptions set => works perfectly with shouldFilterMessage
 
@@ -654,8 +671,43 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 //First 6615 [clientscript,toa_partydetails_init] is run to probably initialize it. Then 6722 [clientscript,toa_partydetails_addmember] runs 8 times to add one member each. Then 6761 [proc,toa_partydetails_sortbutton_draw] runs 10 times. Finally, 6765 [proc,toa_partydetails_back_button], 6756 [proc,toa_partydetails_summary], and 6770 [proc,toa_invocations_side_panel_update] proc once. All in the same gamecycle.
                 processToABoard();
                 break;
+            case CHAT_ALERT_ENABLE_SCRIPTID:
+                //todo: add code with switch based on currentChatTabAlertTab, has to take the advanced config boolean into account, has to take the filterTriggered boolean into account and has to take the own name thingy and it's advanced config setting into account!
+                break;
         }
     }
+
+    @Subscribe
+    public void onScriptPreFired(ScriptPreFired scriptPreFired) {
+        if (scriptPreFired.getScriptId() == CHAT_ALERT_ENABLE_SCRIPTID) {
+            //Set the VarcInt that determines flashing/solid/no chat alert before it goes off. This way you can potentially set it to this value in PostScriptFired if a chat message was filtered.
+            currentChatTabAlertTab = client.getIntStack()[0]; //1 = game. 2 = public. 3 = friends but does not show up when private is split (which is good, because the tab does also not flash then!). 4 = fc. 5 = cc. 6 = trade.
+            switch (currentChatTabAlertTab) {
+                case 2:
+                    publicVarcIntCountdownValue = client.getVarcIntValue(publicVarcIntCountdownId);
+                    break;
+                case 3:
+                    privateVarcIntCountdownValue = client.getVarcIntValue(privateVarcIntCountdownId);
+                    break;
+                case 4:
+                    fcVarcIntCountdownValue = client.getVarcIntValue(fcVarcIntCountdownId);
+                    break;
+                case 5:
+                    ccVarcIntCountdownValue = client.getVarcIntValue(ccVarcIntCountdownId);
+                    break;
+                case 6:
+                    tradeVarcIntCountdownValue = client.getVarcIntValue(tradeVarcIntCountdownId);
+                    break;
+            }
+        }
+    }
+
+    @Subscribe
+    public void onChatMessage(ChatMessage chatMessage) {
+        //todo: check when this procs and if it procs (in relation to prescriptfired/postscriptfired script 180 among others), then add code to set filterTriggered
+    }
+
+    //todo: check why adding e.g. friends to an empty private set, then enabling it nukes the set... nvm, changing antyhing here doesnt seem to work?
 
     @Subscribe
     public void onVarbitChanged(VarbitChanged varbitChanged) {
@@ -1246,7 +1298,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Returns true if the chat tab is set to Show: custom, based on the ChatMessageType
         if (chatMessageType != null) {
             switch (chatMessageType) {
-                case AUTOTYPER: //AUTOTYPER	is filtered on public = on anyway
+                //AUTOTYPER	is filtered on public = on anyway
                 case PUBLICCHAT:
                 case MODCHAT:
                     return publicFilterEnabled;
@@ -1272,7 +1324,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Translates the ChatMessageType to the appropriate hashset (not OH, so not for overheads).
         if (chatMessageType != null) {
             switch (chatMessageType) {
-                case AUTOTYPER: //AUTOTYPER	is not shown/is filtered on public = on anyway
+                //AUTOTYPER	is not shown/is filtered on public = on anyway
                 case PUBLICCHAT:
                 case MODCHAT:
                     return publicChatFilterOptions;
