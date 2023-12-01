@@ -1,0 +1,29 @@
+/*SmartChatInput problematic interaction error:
+2023-11-09 06:13:06 CET [Client] WARN  n.runelite.client.eventbus.EventBus - Uncaught exception in event subscriber
+java.lang.NullPointerException: Cannot invoke "String.contains(java.lang.CharSequence)" because "name" is null
+	at com.smartchatinputcolor.SmartChatInputColorPlugin.deriveChatChannel(SmartChatInputColorPlugin.java:129)
+	at com.smartchatinputcolor.SmartChatInputColorPlugin.recolorChatTypedText(SmartChatInputColorPlugin.java:98)
+	at com.smartchatinputcolor.SmartChatInputColorPlugin.onScriptPostFired(SmartChatInputColorPlugin.java:262)
+	at net.runelite.client.eventbus.EventBus$Subscriber.invoke(EventBus.java:70)
+	at net.runelite.client.eventbus.EventBus.post(EventBus.java:223)
+	at net.runelite.client.callback.Hooks.post(Hooks.java:194)
+	at client.xf(client.java:4992)
+	at cm.ar(cm.java:16152)
+	at mo.ah(mn.java:5782)
+	at client.yh(client.java)
+	at client.ol(client.java:46062)
+	at client.runScript(client.java:7425)
+	at com.ywcode.chatfilterextended.ChatFilterExtendedPlugin.lambda$setChatsToPublic$3(ChatFilterExtendedPlugin.java:678)
+	at net.runelite.client.callback.ClientThread.lambda$invokeLater$1(ClientThread.java:80)
+	at net.runelite.client.callback.ClientThread.invokeList(ClientThread.java:119)
+	at net.runelite.client.callback.ClientThread.invoke(ClientThread.java:101)
+	at net.runelite.client.callback.Hooks.tick(Hooks.java:218)
+	at client.km(client.java:34819)
+	at client.bj(client.java)
+	at bm.an(bm.java:394)
+	at bm.ib(bm.java)
+	at bm.run(bm.java:52825)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+
+	Fixed by just setting a flag and running onGameTick. It was causing the SCIC code to be executed earlier than it normally is, so player.getName was null
+ */

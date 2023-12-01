@@ -1,0 +1,71 @@
+/*
+		System.out.println("menuEntryAdded.getMenuEntry() = "+menuEntryAdded.getMenuEntry());
+		System.out.println("menuEntryAdded.getIdentifier() = "+menuEntryAdded.getIdentifier());
+		System.out.println("menuEntryAdded.getActionParam0() = "+menuEntryAdded.getActionParam0());
+		System.out.println("menuEntryAdded.getActionParam1() = "+menuEntryAdded.getActionParam1());
+		System.out.println("menuEntryAdded.getOption() = "+menuEntryAdded.getOption());
+		System.out.println("menuEntryAdded.getTarget() = "+menuEntryAdded.getTarget());
+		System.out.println("menuEntryAdded.getType() = "+menuEntryAdded.getType());
+		System.out.println("menuEntryAdded.getMenuEntry().getParent() = "+menuEntryAdded.getMenuEntry().getParent());
+		System.out.println("menuEntryAdded.getMenuEntry().getParam0() = "+menuEntryAdded.getMenuEntry().getParam0());
+		System.out.println("menuEntryAdded.getMenuEntry().getParam1() = "+menuEntryAdded.getMenuEntry().getParam1());
+		System.out.println("menuEntryAdded.getMenuEntry().getWidget() = "+menuEntryAdded.getMenuEntry().getWidget());
+		System.out.println("menuEntryAdded.getMenuEntry().getWidget().getId() = "+menuEntryAdded.getMenuEntry().getWidget().getId());
+		System.out.println("menuEntryAdded.getMenuEntry().getWidget().getName() = "+menuEntryAdded.getMenuEntry().getWidget().getName());
+		System.out.println("menuEntryAdded.getMenuEntry().getWidget().getText() = "+menuEntryAdded.getMenuEntry().getWidget().getText());
+
+		//Public
+		menuEntryAdded.getMenuEntry() = MenuEntryImpl(getOption=Switch tab, getTarget=, getIdentifier=1, getType=CC_OP, getParam0=-1, getParam1=10616843, getItemId=-1, isForceLeftClick=false, isDeprioritized=false)
+		menuEntryAdded.getIdentifier() = 1
+		menuEntryAdded.getActionParam0() = -1
+		menuEntryAdded.getActionParam1() = 10616843
+		menuEntryAdded.getOption() = Switch tab
+		menuEntryAdded.getTarget() =
+		menuEntryAdded.getType() = 57
+		menuEntryAdded.getMenuEntry().getParent() = null
+		menuEntryAdded.getMenuEntry().getParam0() = -1
+		menuEntryAdded.getMenuEntry().getParam1() = 10616843
+		menuEntryAdded.getMenuEntry().getWidget() = my@427132b1
+		menuEntryAdded.getMenuEntry().getWidget().getId() = 10616843
+		menuEntryAdded.getMenuEntry().getWidget().getName() =
+		menuEntryAdded.getMenuEntry().getWidget().getText() =
+*/
+        //=====================================================================================
+/*
+		menuOptionClicked.getMenuOption() = <col=ffff00>Public:</col> Show friends
+		menuOptionClicked.getMenuAction() = CC_OP
+		menuOptionClicked.getMenuEntry() = MenuEntryImpl(getOption=<col=ffff00>Public:</col> Show friends, getTarget=, getIdentifier=4, getType=CC_OP, getParam0=-1, getParam1=10616843, getItemId=-1, isForceLeftClick=false, isDeprioritized=false)
+		menuOptionClicked.getId() = 4
+		menuOptionClicked.getMenuTarget() =
+		menuOptionClicked.getParam0() = -1
+		menuOptionClicked.getWidget() = my@427132b1
+		menuOptionClicked.getWidget().getName() =
+		menuOptionClicked.getWidget().getId() = 10616843
+		menuOptionClicked.getWidget().getText() =
+		menuOptionClicked.getMenuEntry().getOption() = <col=ffff00>Public:</col> Show friends
+		menuOptionClicked.getMenuEntry().getIdentifier() = 4
+		menuOptionClicked.getMenuEntry().getParam0() = -1
+		menuOptionClicked.getMenuEntry().getParam1() = 10616843
+		menuOptionClicked.getMenuEntry().getParent() = null
+		menuOptionClicked.getMenuEntry().getTarget() =
+		menuOptionClicked.getMenuEntry().getIdentifier() = 4
+
+
+		menuOptionClicked.getMenuOption() = <col=ffff00>Public:</col> Clear history
+		menuOptionClicked.getMenuAction() = CC_OP_LOW_PRIORITY
+		menuOptionClicked.getMenuEntry() = MenuEntryImpl(getOption=<col=ffff00>Public:</col> Clear history, getTarget=, getIdentifier=7, getType=CC_OP_LOW_PRIORITY, getParam0=-1, getParam1=10616843, getItemId=-1, isForceLeftClick=false, isDeprioritized=false)
+		menuOptionClicked.getId() = 7
+		menuOptionClicked.getMenuTarget() =
+		menuOptionClicked.getParam0() = -1
+		menuOptionClicked.getWidget() = my@427132b1
+		menuOptionClicked.getWidget().getName() =
+		menuOptionClicked.getWidget().getId() = 10616843
+		menuOptionClicked.getWidget().getText() =
+		menuOptionClicked.getMenuEntry().getOption() = <col=ffff00>Public:</col> Clear history
+		menuOptionClicked.getMenuEntry().getIdentifier() = 7
+		menuOptionClicked.getMenuEntry().getParam0() = -1
+		menuOptionClicked.getMenuEntry().getParam1() = 10616843
+		menuOptionClicked.getMenuEntry().getParent() = null
+		menuOptionClicked.getMenuEntry().getTarget() =
+		menuOptionClicked.getMenuEntry().getIdentifier() = 7
+*/
