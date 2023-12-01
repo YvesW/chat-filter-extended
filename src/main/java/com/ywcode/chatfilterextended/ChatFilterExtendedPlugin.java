@@ -110,12 +110,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static final HashSet<Long> partyMemberIds = new HashSet<>();
     private static int getRLPartyUserJoinedMembersFlag; //Default is 0
     private static final int CHAT_ALERT_ENABLE_SCRIPTID = 180; //proc,chat_alert_enable See the tests directory (docs/testing/ChatTab blinking scripts) for an explanation regarding what script does what for chat alerts.
-    private static int currentChatTabAlertTab; //1 = game. 2 = public. 3 = friends but does not show up when private is split (which is good, because the tab does also not flash then!). 4 = fc. 5 = cc. 6 = trade.
-    private static int publicVarcIntCountdownValue;
-    private static int privateVarcIntCountdownValue;
-    private static int fcVarcIntCountdownValue;
-    private static int ccVarcIntCountdownValue;
-    private static int tradeVarcIntCountdownValue;
     private static int publicVarcIntCountdownId = 45; //Game chat = 44. See script 183 CS2 code.
     private static int privateVarcIntCountdownId = 46;
     private static int fcVarcIntCountdownId = 438; //Yes, 438 is correct
