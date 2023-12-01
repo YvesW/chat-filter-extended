@@ -110,12 +110,12 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static final HashSet<Long> partyMemberIds = new HashSet<>();
     private static int getRLPartyUserJoinedMembersFlag; //Default is 0
     private static final int CHAT_ALERT_ENABLE_SCRIPTID = 180; //proc,chat_alert_enable See the tests directory (docs/testing/ChatTab blinking scripts) for an explanation regarding what script does what for chat alerts.
-    private static int publicVarcIntCountdownId = 45; //Game chat = 44. See script 183 CS2 code.
-    private static int privateVarcIntCountdownId = 46;
-    private static int fcVarcIntCountdownId = 438; //Yes, 438 is correct
-    private static int ccVarcIntCountdownId = 47;
-    private static int tradeVarcIntCountdownId = 48;
-    private static boolean filterTriggered;
+    private final List<ChatTabAlert> chatTabAlerts = new ArrayList<>();
+    private static final int PUBLIC_VARC_INT_COUNTDOWN_ID = 45; //Game chat = 44. See script 183 CS2 code.
+    private static final int PRIVATE_VARC_INT_COUNTDOWN_ID = 46;
+    private static final int FC_VARC_INT_COUNTDOWN_ID = 438; //Yes, 438 is correct
+    private static final int CC_VARC_INT_COUNTDOWN_ID = 47;
+    private static final int TRADE_VARC_INT_COUNTDOWN_ID = 48;
     //Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I did not fully adhere to lol)
 
     @Inject
@@ -392,7 +392,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
             });
         }
         if (commandExecuted.getCommand().equals("test2")) {
-            clearRaidPartyHashsetManually(null);
+            System.out.println(this.chatTabAlerts.get(1).isFiltered());
+            System.out.println(this.chatTabAlerts.get(1).isOwnMessage());
+            System.out.println(this.chatTabAlerts.get(1).getChatTabNumber());
+            System.out.println(this.chatTabAlerts.get(1).getVarcIntCountdownValue());
+            System.out.println("total entries: "+this.chatTabAlerts.size());
         }
         if (commandExecuted.getCommand().equals("test3")) {
             System.out.println(publicFilterEnabled);
@@ -613,6 +617,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             executeSetChatsToPublic();
             setChatStoneWidgetTextAll(); //Also executed in setChatsToPublic() to improve the feeling (makes it feel snappier)
             setChatsToPublicFlag = false;
+            System.out.println("size (supposed to be 0) = "+this.chatTabAlerts.size());
         }
 
         int regionId = WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()).getRegionID();
@@ -666,6 +671,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 processToABoard();
                 break;
             case CHAT_ALERT_ENABLE_SCRIPTID:
+                if (this.chatTabAlerts.size() > 0) {
+                    this.chatTabAlerts.remove(0);
+                }
                 //todo: add code with switch based on currentChatTabAlertTab, has to take the advanced config boolean into account, has to take the filterTriggered boolean into account and has to take the own name thingy and it's advanced config setting into account!
                 break;
         }
@@ -675,31 +683,84 @@ public class ChatFilterExtendedPlugin extends Plugin {
     public void onScriptPreFired(ScriptPreFired scriptPreFired) {
         if (scriptPreFired.getScriptId() == CHAT_ALERT_ENABLE_SCRIPTID) {
             //Set the VarcInt that determines flashing/solid/no chat alert before it goes off. This way you can potentially set it to this value in PostScriptFired if a chat message was filtered.
-            currentChatTabAlertTab = client.getIntStack()[0]; //1 = game. 2 = public. 3 = friends but does not show up when private is split (which is good, because the tab does also not flash then!). 4 = fc. 5 = cc. 6 = trade.
+            int currentChatTabAlertTab = client.getIntStack()[0]; //1 = game. 2 = public. 3 = friends but does not show up when private is split (which is good, because the tab does also not flash then!). 4 = fc. 5 = cc. 6 = trade.
             switch (currentChatTabAlertTab) {
                 case 2:
-                    publicVarcIntCountdownValue = client.getVarcIntValue(publicVarcIntCountdownId);
+                    //publicVarcIntCountdownValue = client.getVarcIntValue(PUBLIC_VARC_INT_COUNTDOWN_ID);
                     break;
                 case 3:
-                    privateVarcIntCountdownValue = client.getVarcIntValue(privateVarcIntCountdownId);
+                    //privateVarcIntCountdownValue = client.getVarcIntValue(PRIVATE_VARC_INT_COUNTDOWN_ID);
                     break;
                 case 4:
-                    fcVarcIntCountdownValue = client.getVarcIntValue(fcVarcIntCountdownId);
+                    //fcVarcIntCountdownValue = client.getVarcIntValue(FC_VARC_INT_COUNTDOWN_ID);
                     break;
                 case 5:
-                    ccVarcIntCountdownValue = client.getVarcIntValue(ccVarcIntCountdownId);
+                    //ccVarcIntCountdownValue = client.getVarcIntValue(CC_VARC_INT_COUNTDOWN_ID);
                     break;
                 case 6:
-                    tradeVarcIntCountdownValue = client.getVarcIntValue(tradeVarcIntCountdownId);
+                    //tradeVarcIntCountdownValue = client.getVarcIntValue(TRADE_VARC_INT_COUNTDOWN_ID); //todo: fix this
                     break;
+            }
+            if (this.chatTabAlerts.size() > 0) {
+                if (this.chatTabAlerts.get(0).getChatTabNumber() == currentChatTabAlertTab) {
+                    System.out.println("this.chatTabAlerts.get(0).getChatTabNumber() == currentChatTabAlertTab");
+                } else {
+                    System.out.println("NUMBER DOES NOT MATCH: "+this.chatTabAlerts.get(0).getChatTabNumber()+" vs currentChatTabAlertTab: "+currentChatTabAlertTab);
+                } //todo: see stuff calendar!
             }
         }
     }
 
     @Subscribe
     public void onChatMessage(ChatMessage chatMessage) {
-        //todo: check when this procs and if it procs (in relation to prescriptfired/postscriptfired script 180 among others), then add code to set filterTriggered
+        //The order is: ChatMessage => ScriptPreFired 180 => ScriptPostFired 180. However, sometimes it might be CM => CM => PreF => PostF => PreF => PostF. See "docs/testing/ChatMessage ScriptPrePostFired" for more info.
+
+        ChatMessageType chatMessageType = chatMessage.getType();
+        if (!isChatTabCustomFilterActiveChatMessageType(chatMessageType)) {
+            //if chat is not filtered, return
+            //shouldFilter already has a Strings.isNullOrEmpty(playerName) check
+            return;
+        }
+
+        String playerName = chatMessage.getName();
+        Set<ChatTabFilterOptions> chatTabSet = chatMessageTypeToChatTabFilterOptionsSet(chatMessageType);
+        boolean shouldFilter = chatTabSet == publicChatFilterOptions ? shouldFilterMessagePublicChatMessage(playerName) : shouldFilterMessage(chatTabSet, playerName);
+        boolean ownMessage = playerName.equals(client.getLocalPlayer().getName());
+
+        ChatTabAlert alert = new ChatTabAlert(shouldFilter, ownMessage);
+        switch (chatMessageType) {
+            //AUTOTYPER	is filtered on public = on anyway
+            case PUBLICCHAT:
+            case MODCHAT:
+                alert.setChatTabNumber(2);
+                break;
+            case PRIVATECHAT:
+            case MODPRIVATECHAT:
+                alert.setChatTabNumber(3);
+                break;
+            case FRIENDSCHAT:
+                alert.setChatTabNumber(4);
+                break;
+            case CLAN_CHAT:
+            case CLAN_GIM_CHAT:
+            case CLAN_GUEST_CHAT:
+                alert.setChatTabNumber(5);
+                break;
+            case TRADEREQ:
+                //TRADE and TRADE_SENT are not received when someone tries to trade you, only TRADEREQ
+                alert.setChatTabNumber(6);
+                break;
+        }
+
+        this.chatTabAlerts.add(alert);
+
+        //todo: check if this also works for the chatfilter plugin with nothing filtered here (so if this fixes both chatfilter and chat filter extended).
+        //todo: If so, either make it an advanced config option to only work when the chat is filtered by chat filter extended (via dropdown: always, only chat filter extended messages, never)
+        //todo: and also edit the advanced config descriptions of the already existing options + the readme
     }
+
+
+
 
     //todo: check why adding e.g. friends to an empty private set, then enabling it nukes the set... nvm, changing antyhing here doesnt seem to work?
 
