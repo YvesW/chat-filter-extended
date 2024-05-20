@@ -1,26 +1,68 @@
 package com.ywcode.chatfilterextended;
 
-import com.google.common.base.*;
-import com.google.common.collect.*;
-import com.google.inject.*;
-import lombok.extern.slf4j.*;
-import net.runelite.api.*;
-import net.runelite.api.clan.*;
-import net.runelite.api.coords.*;
-import net.runelite.api.events.*;
-import net.runelite.api.widgets.*;
-import net.runelite.client.callback.*;
-import net.runelite.client.config.*;
-import net.runelite.client.eventbus.*;
-import net.runelite.client.events.*;
-import net.runelite.client.party.*;
-import net.runelite.client.party.events.*;
-import net.runelite.client.plugins.*;
-import net.runelite.client.util.*;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
+import com.google.inject.Provides;
+import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Actor;
+import net.runelite.api.ChatMessageType;
+import net.runelite.api.Client;
+import net.runelite.api.FriendsChatManager;
+import net.runelite.api.FriendsChatMember;
+import net.runelite.api.GameState;
+import net.runelite.api.KeyCode;
+import net.runelite.api.MenuAction;
+import net.runelite.api.MenuEntry;
+import net.runelite.api.MessageNode;
+import net.runelite.api.Player;
+import net.runelite.api.ScriptID;
+import net.runelite.api.VarPlayer;
+import net.runelite.api.Varbits;
+import net.runelite.api.clan.ClanChannel;
+import net.runelite.api.clan.ClanChannelMember;
+import net.runelite.api.clan.ClanID;
+import net.runelite.api.clan.ClanMember;
+import net.runelite.api.clan.ClanSettings;
+import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.ClanChannelChanged;
+import net.runelite.api.events.ClanMemberJoined;
+import net.runelite.api.events.CommandExecuted;
+import net.runelite.api.events.FriendsChatChanged;
+import net.runelite.api.events.FriendsChatMemberJoined;
+import net.runelite.api.events.GameStateChanged;
+import net.runelite.api.events.GameTick;
+import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.api.events.MenuOptionClicked;
+import net.runelite.api.events.OverheadTextChanged;
+import net.runelite.api.events.PlayerSpawned;
+import net.runelite.api.events.ScriptCallbackEvent;
+import net.runelite.api.events.ScriptPostFired;
+import net.runelite.api.events.ScriptPreFired;
+import net.runelite.api.events.VarClientStrChanged;
+import net.runelite.api.events.VarbitChanged;
+import net.runelite.api.widgets.ComponentID;
+import net.runelite.api.widgets.InterfaceID;
+import net.runelite.api.widgets.Widget;
+import net.runelite.client.callback.ClientThread;
+import net.runelite.client.config.ConfigManager;
+import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.events.PartyChanged;
+import net.runelite.client.events.ProfileChanged;
+import net.runelite.client.party.PartyMember;
+import net.runelite.client.party.PartyService;
+import net.runelite.client.party.events.UserJoin;
+import net.runelite.client.plugins.Plugin;
+import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.util.Text;
 
-import javax.annotation.*;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @PluginDescriptor(
@@ -58,7 +100,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static boolean clearGuestClanSetLeave;
     private static boolean clearRLPartySetLeave;
     private static boolean fixChatTabAlert;
-    private static boolean preventLocalPlayerChatTabAlert;
+    private static boolean preventLocalPlayerChatTabAlert; //todo: implement!
     private static ShiftMenuSetting clearRaidPartyShiftMenuSetting;
     private static ShiftMenuSetting changeChatSetsShiftMenuSetting;
 
@@ -68,8 +110,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static boolean channelFilterEnabled; //i.e. if the user set the chat tab/stone to custom. So we can re-enable it on startup. Maybe swap this to RSProfile instead of config profile in the future?
     private static boolean clanFilterEnabled; //i.e. if the user set the chat tab/stone to custom. So we can re-enable it on startup. Maybe swap this to RSProfile instead of config profile in the future?
     private static boolean tradeFilterEnabled; //i.e. if the user set the chat tab/stone to custom. So we can re-enable it on startup. Maybe swap this to RSProfile instead of config profile in the future?
-
     // ------------- End of wall of config vars -------------
+
     private static final String configGroup = "ChatFilterExtended";
     private static boolean shuttingDown; //Default value is false
     private static boolean setChatsToPublicFlag; //Default value is false
