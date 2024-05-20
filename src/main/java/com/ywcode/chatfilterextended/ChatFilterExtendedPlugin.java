@@ -70,8 +70,8 @@ import java.util.Set;
         description = "Extends the functionality of the chat tabs/stones to filter chat messages not from friends/clan members/FC members/Guest CC members/raid members/party members.",
         tags = {"chat,chat filter,public,public OH,friends,friends OH,fc,fc OH,cc,cc OH,guest,guest OH,raid,raid OH,party,party OH,whitelist,whitelist OH,custom,clanchat,clan,filter,friends chat,private,trade,raids,tob,toa,cox,spam,show"}
 )
-//Alternative (shitty) names: Custom Chat View, Chat View Extended, Chat Show Custom, Custom Chat Filter, Chat tabs extended, Chat stones extended
-//My goal was not to make one of these "abc improved" or "better abc" plugins, but the menuOptions like "Show friends" or "Show none" are just called chat filters, I think, and I can't come up with a better name. At least polar calls them that in e.g. script 152 (chat_set_filter)
+//Alternative (bad) names: Custom Chat View, Chat View Extended, Chat Show Custom, Custom Chat Filter, Chat tabs extended, Chat stones extended
+//My goal was not to make one of these "abc improved" or "better abc" plugins, but the menuOptions like "Show friends" or "Show none" are just called chat filters, and I can't come up with a better name. At least Polar calls them that in e.g. script 152 (chat_set_filter)
 //It's just unlucky that the chat filter plugin (which is a perfectly valid name for its function) is also called chat filter, I guess.
 
 public class ChatFilterExtendedPlugin extends Plugin {
@@ -158,6 +158,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static final int FC_VARC_INT_COUNTDOWN_ID = 438; //Yes, 438 is correct
     private static final int CC_VARC_INT_COUNTDOWN_ID = 47;
     private static final int TRADE_VARC_INT_COUNTDOWN_ID = 48;
+    //todo: potentially re-add     private static int currentChatTabAlertTab; //1 = game. 2 = public. 3 = friends but does not show up when private is split (which is good, because the tab does also not flash then!). 4 = fc. 5 = cc. 6 = trade.
     //Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I did not fully adhere to lol)
 
     @Inject
@@ -190,7 +191,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         clientThread.invokeLater(this::getFCMembers); //In case the plugin is started while already in an FC.
         clientThread.invokeLater(this::getCCMembers); //In case the plugin is started while already in a CC.
         clientThread.invokeLater(this::getGuestCCMembers); //In case the plugin is started while already in a guest CC.
-        //TODO: Potentially add a player right-click option (config advanced ShiftMenuSettings style) to add/remove a player to a whitelist with a pop-out menu (like inventory tags or MES uses). However, there is very likely an engine limit of only 7 options being visible when you right click someone in game or one of their messages. Thus, do not implement this pretty dan niche option.
 
         //todo: prevent tab from flickering if a message is filtered...
         //todo: add readme including a couple webms like musicreplacer has
@@ -201,6 +201,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //todo: to ignore highlights, you'd probs have to get the ChatMessage before ChatNotificationsPlugin, getId the Id, getValue the content of the messageNode, and getName() the username, then save the last xx amount of filtered messages and setValue the value of the node to e.g. " ". Then if client.refreshChat gets triggered, you have to go over the saved values and restore the message nodes if the user is now not filtered and the message is " ".
         //TODO: at some point consider adding a pop-out menu like MES has to Show custom in which you can add or remove options from the set. or add this as separate entry. Use the ShiftMenuSettings style advanced config anyway!
         //todo: use int to determine what activeRaid is so you can clear raid usernames and set int to other thingy when entering zone/proccing script of other raid => make this an advanced config option => also do this when varc procs (so in raid etc, in case the plugin is activated in the raid)
+
+        //Note: Specifically opted not to a right-click option (config advanced ShiftMenuSettings style) to add/remove a player to a whitelist with a pop-out menu (like inventory tags or MES uses). There is an engine limit of only 7 options being visible when you right click someone in game or one of their messages. Thus, do not implement this pretty niche option.
     }
 
     @Override
@@ -212,6 +214,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //todo: test a bit what happens when putting clan and e.g. public to off, then enabling custom, then disabling the plugin => should go back to off for both? probably? and what if you then reboot the client?
         //todo: check if cox, tob, toa widgetids, scriptids, varbits, varcs etc. al ergens in runelite bestaan of niet
         //todo: reenable chat history + maybe toggle chat
+        //todo: reset plugin to defaults and check if these are sensible at the end
 
 
         shuttingDown = true; //Might not be necessary but just to be sure it doesn't set it back to custom text since the script procs
@@ -453,6 +456,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
+    //todo: Check how caching is implemented in the ChatFilterPlugin after you last worked on this plugin!
     @Subscribe
     public void onScriptCallbackEvent(ScriptCallbackEvent event) {
         //Use the RuneLite scriptcallback in ChatBuilder/ChatSplitBuilder.r2asm that ChatFilterPlugin also uses.
@@ -521,8 +525,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
         if (menuEntryAdded.getOption().contains("Show none")) {
             Set<ChatTabFilterOptions> set = componentIDToChatTabFilterSet(menuEntryAddedParam1);
             Set<ChatTabFilterOptionsOH> setOH = componentIDToChatTabFilterSetOH(menuEntryAddedParam1);
+            //Sets have been retrieved from the componentID. Returns null when componentID != chatstone componentID
             if (set != null) {
-                MenuEntry chatFilterEntry = null;
+                MenuEntry chatFilterEntry = null; //Used below to show a Change Sets Menu when the set is completely empty IIRC, if it should show something.
+                //Determine if the chat stone (e.g. private) should be filtered based on the componentID and the config set
                 if (shouldFilterChatType(menuEntryAddedParam1)) {
                     //create MenuEntry and set its params
                     chatFilterEntry = client.createMenuEntry(-1)
@@ -539,6 +545,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
                         optionBuilder.append(option, 0, idx).append(":</col> ");
                     }
                     optionBuilder.append("Show ");
+                    //Add this point the </col> tag has been closed and "Show " has been added, e.g. "<col>Public:</col> Show "
 
                     //Grab the abbreviations from the enum based on the selected config
                     //Although maybe not the most optimal, I did not want to convert the HashSet to a List that I could order according to the enum at onConfigChanged
@@ -548,20 +555,24 @@ public class ChatFilterExtendedPlugin extends Plugin {
                             optionBuilder.append(enumValue.toAbbreviationString()).append("/"); //alternatively just use the getter
                         }
                     }
+                    //At this point the name/option is e.g. "<col>Public:</col> Show Friends/FC/CC/"
                     option = optionBuilder.toString();
 
                     //Replace entries with their OH equivalent if OH is added to the OH set
+                    //This is because I made the design decision that the chat filter (e.g. CC) needs to be enabled (visible) AND the OH chat filter (e.g. CC OH) needs to be active to only show CC OH
                     //Order does not matter since I'm just replacing, so just iterate over the HashSet
                     if (setOH != null) { //Already checks if componentID = public chat by returning null if it's not public.
                         for (ChatTabFilterOptionsOH entry : setOH) {
                             option = option.replace(entry.toNonOHAbbreviationString() + "/", entry.toAbbreviationString() + "/"); //A slash is added, so it does not result in: "Public OH: Show Public OH/Friends/CC OH
                         }
                     }
+                    //At this point the name/option is e.g. "<col>Public:</col> Show Friends/FC/CC OH/"
                     option = option.substring(0, option.length() - 1); //Remove the trailing "/". If deleted earlier, the final option is not properly replaced by its OH variant.
                     chatFilterEntry.setOption(option);
+                    //At this point the name/option is e.g. "<col>Public:</col> Show Friends/FC/CC OH"
 
                     //If the ClearRaidPartyMenu should be shown, based on the advanced setting and shift state & only add if that chat is currently filtered
-                    if (shouldShowShiftMenuSetting(clearRaidPartyShiftMenuSetting) && isChatFilteredComponentID(menuEntryAddedParam1)) { //If you also want to display this when the custom filter is not enabled but the show custom opption is shown for the tab, remove  && isChatFilteredComponentID(menuEntryAddedParam1)
+                    if (shouldShowShiftMenuSetting(clearRaidPartyShiftMenuSetting) && isChatFilteredComponentID(menuEntryAddedParam1)) { //If you also want to display this when the custom filter is not enabled but the show custom option is shown for the tab, remove " && isChatFilteredComponentID(menuEntryAddedParam1)"
                         client.createMenuEntry(-2)
                                 .setType(MenuAction.RUNELITE)
                                 .setParam1(menuEntryAddedParam1)
@@ -579,47 +590,49 @@ public class ChatFilterExtendedPlugin extends Plugin {
                                 .setParam1(menuEntryAddedParam1)
                                 .setOption("Change Chat Sets");
                     }
-                    //If the set with chats is not empty, and we can change the menuEntry we added in the beginning (chatFilterEntry) into a RUNELITE_SUBMENU
+                    //If the set with chats is not empty, we can change the menuEntry we added in the beginning (chatFilterEntry) into a RUNELITE_SUBMENU
                     //If the set is empty, we just created it and still need to set the type.
                     chatFilterEntry.setType(MenuAction.RUNELITE_SUBMENU);
 
                     //Add the submenus, use enum.values() to loop over the values.
                     //However, the index REALLY does not like starting at e.g. 8, then adding 7 etc.
                     //So the index goes i++ and we'll get the enumValues from 8 to 1...
-                    int amountOfChatTabFilterOptions = ChatTabFilterOptions.values().length;
+                    int amountOfChatTabFilterOptions = ChatTabFilterOptions.values().length; //Get enum total length
                     for (int i = 1; i <= amountOfChatTabFilterOptions; i++) {
+                        //Get the value of the enum, starting with the final and looping to the first
                         ChatTabFilterOptions enumValue = ChatTabFilterOptions.values()[amountOfChatTabFilterOptions - i];
                         StringBuilder optionBuilder = new StringBuilder();
-                        if (set.contains(enumValue)) { //Already in the set, so the option should be "remove"
+                        if (set.contains(enumValue)) { //Already in the set, so the option should be "Remove "
                             optionBuilder.append("Remove ");
                         } else {
-                            optionBuilder.append("Add ");
+                            optionBuilder.append("Add "); //enumValue is not in the active Set<ChatTabFilterOptions> set yet, so option should start with "Add "
                         }
-                        optionBuilder.append(enumValue.toString());
+                        optionBuilder.append(enumValue.toString()); //Add the value to the OptionBuilder so e.g. "Add Friends"
                         client.createMenuEntry(i)
                                 .setType(MenuAction.RUNELITE)
                                 .setParent(chatFilterEntry)
                                 .setOption(optionBuilder.toString())
-                                .onClick(e -> addRemoveValueFromChatSet(set, enumValue, menuEntryAddedParam1));
+                                .onClick(e -> addRemoveValueFromChatSet(set, enumValue, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
                     }
 
                     if (setOH != null) { //Already checks if componentID = public chat (it's null if it's not public)
-                        //Using the same method for the overheads as the normal chatbox is kinda aids since I made that a different enum, so here's the same code, but almost copy pasted!
-                        int amountOfChatTabFilterOptionsOH = ChatTabFilterOptionsOH.values().length;
+                        //Using the same method for the overheads as the normal chatbox is kinda aids since I made that a different enum, so here's the same code, but almost completely copy pasted!
+                        int amountOfChatTabFilterOptionsOH = ChatTabFilterOptionsOH.values().length; //Get enum total length
                         for (int i = 1; i <= amountOfChatTabFilterOptionsOH; i++) {
+                            //Get the value of the enum, starting with the final and looping to the first
                             ChatTabFilterOptionsOH enumValue = ChatTabFilterOptionsOH.values()[amountOfChatTabFilterOptionsOH - i];
                             StringBuilder optionBuilder = new StringBuilder();
-                            if (setOH.contains(enumValue)) { //Already in the set, so the option should be "remove"
+                            if (setOH.contains(enumValue)) { //Already in the set, so the option should be "Remove "
                                 optionBuilder.append("Remove ");
                             } else {
-                                optionBuilder.append("Add ");
+                                optionBuilder.append("Add "); //enumValue is not in the active Set<ChatTabFilterOptionsOH> setOH yet, so option should start with "Add "
                             }
-                            optionBuilder.append(enumValue.toString());
+                            optionBuilder.append(enumValue.toString()); //Add the value to the OptionBuilder so e.g. "Add Friends OH"
                             client.createMenuEntry(i)
                                     .setType(MenuAction.RUNELITE)
                                     .setParent(chatFilterEntry)
                                     .setOption(optionBuilder.toString())
-                                    .onClick(e -> addRemoveValueFromChatSetOH(setOH, enumValue));
+                                    .onClick(e -> addRemoveValueFromChatSetOH(setOH, enumValue)); //Adds or removes to/from the set, based on if the value is already in the set or not.
                         }
                     }
                 }
@@ -627,6 +640,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
+    //todo: continue evaluating code/comments from here onward
     @Subscribe
     public void onMenuOptionClicked(MenuOptionClicked menuOptionClicked) {
         final int menuOptionClickedParam1 = menuOptionClicked.getParam1();
@@ -769,6 +783,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         boolean shouldFilter = chatTabSet == publicChatFilterOptions ? shouldFilterMessagePublicChatMessage(playerName) : shouldFilterMessage(chatTabSet, playerName);
         boolean ownMessage = playerName.equals(client.getLocalPlayer().getName());
 
+        //todo: potentially revert this to the old approach, not using a custom class
         ChatTabAlert alert = new ChatTabAlert(shouldFilter, ownMessage);
         switch (chatMessageType) {
             //AUTOTYPER	is filtered on public = on anyway
@@ -1155,7 +1170,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         Widget chatWidget = client.getWidget(componentID);
         if (chatWidget != null && isChatFilteredComponentID(componentID)) {
             final String customTextString = "<br><col=ffff00>Custom</col>";
-            chatWidget.getStaticChildren()[2].setText(customTextString); //or e.g. chatWidget.getStaticChildren().length-1 but that change more often idk
+            chatWidget.getStaticChildren()[2].setText(customTextString); //or e.g. chatWidget.getStaticChildren().length-1 but that might change more often idk
         }
     }
 
@@ -1184,6 +1199,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //If the set does contain the value, it can't be added and the if statement is !false aka true, so it'll remove the value.
             chatSet.remove(filterOption);
         }
+        //Get the config key name based on the componentID, returns null when componentID != chatstone componentID
         String keyName = componentIDToChatTabFilterKeyName(componentID);
         if (keyName != null) {
             configManager.setConfiguration(configGroup, keyName, chatSet);
