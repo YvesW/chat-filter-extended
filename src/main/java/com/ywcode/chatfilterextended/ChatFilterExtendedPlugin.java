@@ -62,6 +62,7 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 @Slf4j
@@ -1505,10 +1506,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
         if (topOrMembersPart != null && topOrMembersPart.getDynamicChildren() != null) {
             for (int i = 0; i < topOrMembersPart.getDynamicChildren().length; i++) {
                 //Get child that has type 3 => next one has to be the username
-                if (topOrMembersPart.getChild(i).getType() == 3) {
+                if (Objects.requireNonNull(topOrMembersPart.getChild(i)).getType() == 3) {
                     //Index of the one that has name is type 3 index + 1
                     Widget nameWidget = topOrMembersPart.getChild(i + 1);
-                    if (nameWidget.getType() == 4) {
+                    if (nameWidget != null && nameWidget.getType() == 4) {
                         //If right type (4), get the text and standardize it
                         String standardizedRaidUsername = Text.standardize(nameWidget.getText()); //Also removes the leading and trailing spaces from -
                         if (!standardizedRaidUsername.equals("-")) { //Skip empty entries and add to temporary HashSet to remember
@@ -1521,10 +1522,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
         if (bottomOrApplicantsPart != null && bottomOrApplicantsPart.getDynamicChildren() != null) {
             for (int i = 0; i < bottomOrApplicantsPart.getDynamicChildren().length; i++) {
                 //Get child that has type 3 => next one has to be username
-                if (bottomOrApplicantsPart.getChild(i).getType() == 3) {
+                if (Objects.requireNonNull(bottomOrApplicantsPart.getChild(i)).getType() == 3) {
                     //Index of the one that has name is type 3 index + 1
                     Widget nameWidget = bottomOrApplicantsPart.getChild(i + 1);
-                    if (nameWidget.getType() == 4) {
+                    if (nameWidget != null && nameWidget.getType() == 4) {
                         //If right type (4), get the text and standardize it, then add it to the temp hashset
                         //Skipping empty entries ("-") is not required since they are not added to the bottom half of the board (those dynamic children just don't exist).
                         raidPartyStandardizedUsernamesTemp.add(Text.standardize(nameWidget.getText())); //Return value does not have to be checked as this is the Temp set.
