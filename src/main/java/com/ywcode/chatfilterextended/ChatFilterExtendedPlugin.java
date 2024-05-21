@@ -327,6 +327,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 if (clearGuestClanSetHop) {
                     guestClanStandardizedUsernames.clear();
                 }
+                shouldRefreshChat = true;
                 break;
         }
     }
@@ -336,6 +337,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Remove FC usernames when leaving the FC and when the advanced config option is enabled; also procs when hopping/logging out
         if (!friendsChatChanged.isJoined() && clearChannelSetLeave) {
             channelStandardizedUsernames.clear();
+            shouldRefreshChat = true;
         }
     }
 
@@ -359,6 +361,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 if (client.getClanChannel(ClanID.CLAN) == null) { //If not in own CC
                     if (clearClanSetLeave) {
                         clanStandardizedUsernames.clear();
+                        shouldRefreshChat = true;
                     }
                 } else { //If in own CC
                     //If joined own CC, get members and add the usernames to HashSet
@@ -376,6 +379,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             if (client.getGuestClanChannel() == null) { //If not in guest CC
                 if (clearGuestClanSetLeave) { //If left guest CC => clear guest cc usernames HashSet if the advanced config option is enabled
                     guestClanStandardizedUsernames.clear();
+                    shouldRefreshChat = true;
                 }
             } else { //If joined guest clan
                 //If joined guest clan, get members and add the usernames to HashSet
@@ -450,7 +454,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
         if (commandExecuted.getCommand().equals("test4")) {
             System.out.println(runelitePartyStandardizedUsernames);
-            //raidPartyStandardizedUsernames.clear();
+            //raidPartyStandardizedUsernames.clear(); shouldRefreshChat = true;
         }
         if (commandExecuted.getCommand().equals("test5")) {
             clearRaidPartyHashset();
@@ -850,6 +854,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         if (!partyService.isInParty()) { //If user left the party
             if (clearRLPartySetLeave) {
                 runelitePartyStandardizedUsernames.clear();
+                shouldRefreshChat = true;
             }
         }
         setAddPartyMemberStandardizedUsernamesFlag();
@@ -1074,6 +1079,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private void clearRaidPartyHashset() {
         previousRaidPartyInterfaceText = "";
         raidPartyStandardizedUsernames.clear();
+        shouldRefreshChat = true;
     }
 
     private void clearRaidPartyHashsetManually(MenuEntry menuEntry) {
