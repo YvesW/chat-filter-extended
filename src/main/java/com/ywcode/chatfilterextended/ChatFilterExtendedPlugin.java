@@ -1258,6 +1258,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
             return false;
         }
 
+        //todo: add map as alternative code (idk if there is an alternative code thing for this though, then just make a note). Make code all || probably, potentially with method.
+
         playerName = Text.standardize(playerName); //Very likely works considering other methods work with a standardized name. Can't test this though since my name doesn't have e.g. a space.
         if (Strings.isNullOrEmpty(playerName)) {
             return false;
@@ -1317,6 +1319,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
             return false;
         }
 
+        //todo: add map as alternative code. Make code all || probably, potentially with method.
+
         playerName = Text.standardize(playerName); //Very likely works considering other methods work with a standardized name. Can't test this though since my name doesn't have e.g. a space.
         if (Strings.isNullOrEmpty(playerName)) {
             return false;
@@ -1364,7 +1368,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Public = everyone that did not fit in the earlier groups: not friend, not FC/CC/Guest CC/Raid party/RL party member and not on the appropriate whitelist
         //Thus, public = the randoms
         //It's not the local player, so don't have to check for that.
-        //noinspection RedundantIfStatement
         if (chatTabHashSet.contains(ChatTabFilterOptions.PUBLIC) //If statement can be simplified, but specifically opted not to do this to increase readability.
                 && !client.isFriended(playerName, false)
                 && !channelStandardizedUsernames.contains(playerName)

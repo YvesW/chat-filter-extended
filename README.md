@@ -32,7 +32,9 @@ Shift-menu thingies exist, cave when updating the set with sidepanel open, the c
 Flash thingy prevention/proper handling exists unlike default chat filter  
 Notifications thing prevention exists unlike default chat filter  
 
-Clears when it clears because it's jarring if a lot of messages suddenly disappear when you quickly hop worlds, or briefly leave your cc/fc (default advanced settings have been chosen with this in mind)  
+Clears when it clears because it's jarring if a lot of messages suddenly disappear when you quickly hop worlds, or briefly leave your cc/fc (default advanced settings have been chosen with this in mind)
+
+Add to readme that it does not filter your own chat so you don't have those weird situations with e.g. public chat set to private that does not display your own messages  
 
 Thanks to Annotated for helping me collect Vars/ScriptIds and for helping me extensively test the plugin!
 
