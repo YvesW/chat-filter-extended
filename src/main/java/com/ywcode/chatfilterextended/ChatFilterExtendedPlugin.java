@@ -1368,6 +1368,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Public = everyone that did not fit in the earlier groups: not friend, not FC/CC/Guest CC/Raid party/RL party member and not on the appropriate whitelist
         //Thus, public = the randoms
         //It's not the local player, so don't have to check for that.
+        //noinspection RedundantIfStatement	
         if (chatTabHashSet.contains(ChatTabFilterOptions.PUBLIC) //If statement can be simplified, but specifically opted not to do this to increase readability.
                 && !client.isFriended(playerName, false)
                 && !channelStandardizedUsernames.contains(playerName)
