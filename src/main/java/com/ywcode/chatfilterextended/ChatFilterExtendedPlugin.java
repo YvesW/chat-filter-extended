@@ -1151,7 +1151,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Public, private, trade remember between hops => they are only set when onlyVolatile is set to false.
         //Channel and clan are probs varbit based => they are always set when this method is executed ("volatile").
         //Channel, Clan don't remember between hopping; potentially related to varbits as described here https://discord.com/channels/301497432909414422/301497432909414422/1086022946633547867 (i.e. I suspect when hopping it reads the state from the varbits and then sets the chat filters according to those values)
-        clientThread.invokeLater(() -> {
+        clientThread.invoke(() -> {
             //Could potentially put this nicely in an enum at some point. Should probably also document what other arguments do then. 1 might be game, but it's not listed in script 184 proc,chat_set_filter. Regarding 2nd argument it's just always +1 to get the next MenuOption and if you enter a value that's too high, it goes to show all/on (for some chat tabs?)
             if (publicFilterEnabled) {
                 client.runScript(CHAT_SET_FILTER_SCRIPTID, 2, 0);
