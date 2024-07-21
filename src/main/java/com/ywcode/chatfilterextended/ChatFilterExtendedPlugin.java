@@ -614,13 +614,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
                     //Add the submenus, use enum.values() to loop over the values.
                     int idx = -1;
                     for (ChatTabFilterOptions chatTabFilterOption : ChatTabFilterOptions.values()) {
-                        StringBuilder optionBuilder = new StringBuilder();
-                        if (set.contains(chatTabFilterOption)) { //Already in the set, so the option should be "Remove "
-                            optionBuilder.append("Remove ");
-                        } else {
-                            optionBuilder.append("Add "); //chatTabFilterOption is not in the active Set<ChatTabFilterOptions> set yet, so option should start with "Add "
-                        }
-                        optionBuilder.append(chatTabFilterOption.toString()); //Add the value to the OptionBuilder so e.g. "Add Friends"
+                        StringBuilder optionBuilder = getSubMenuStringBuilder(set.contains(chatTabFilterOption), chatTabFilterOption.toString());
                         client.createMenuEntry(idx--)
                                 .setType(MenuAction.RUNELITE)
                                 .setParent(chatFilterEntry)
@@ -629,21 +623,14 @@ public class ChatFilterExtendedPlugin extends Plugin {
                     }
 
                     if (setOH != null) { //Already checks if componentID = public chat (it's null if it's not public)
-                        //Using the same method for the overheads as the normal chatbox is kinda aids since I made that a different enum, so here's the same code, but almost completely copy pasted!
                         idx = -1;
-                        for (ChatTabFilterOptionsOH chatTabFilterOption : ChatTabFilterOptionsOH.values()) {
-                            StringBuilder optionBuilder = new StringBuilder();
-                            if (setOH.contains(chatTabFilterOption)) { //Already in the set, so the option should be "Remove "
-                                optionBuilder.append("Remove ");
-                            } else {
-                                optionBuilder.append("Add "); //enumValue is not in the active Set<ChatTabFilterOptionsOH> setOH yet, so option should start with "Add "
-                            }
-                            optionBuilder.append(chatTabFilterOption.toString()); //Add the value to the OptionBuilder so e.g. "Add Friends OH"
+                        for (ChatTabFilterOptionsOH chatTabFilterOptionOH : ChatTabFilterOptionsOH.values()) {
+                            StringBuilder optionBuilder = getSubMenuStringBuilder(setOH.contains(chatTabFilterOptionOH), chatTabFilterOptionOH.toString());
                             client.createMenuEntry(idx--)
                                     .setType(MenuAction.RUNELITE)
                                     .setParent(chatFilterEntry)
                                     .setOption(optionBuilder.toString())
-                                    .onClick(e -> addRemoveValueFromChatSetOH(setOH, chatTabFilterOption)); //Adds or removes to/from the set, based on if the value is already in the set or not.
+                                    .onClick(e -> addRemoveValueFromChatSetOH(setOH, chatTabFilterOptionOH)); //Adds or removes to/from the set, based on if the value is already in the set or not.
                         }
                     }
                 }
@@ -1204,6 +1191,20 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 return tradeFilterEnabled;
         }
         return false;
+    }
+
+    //Get the StringBuilder for the submenus.
+    //boolean should be set.contains(chatTabFilterOption) or setOH.contains(chatTabFilterOption)
+    //String should be chatTabFilterOption.toString() or chatTabFilterOptionOH.toString()
+    private StringBuilder getSubMenuStringBuilder(boolean setContainsChatTabFilterOption, String chatTabFilterOption) {
+        StringBuilder optionBuilder = new StringBuilder();
+        if (setContainsChatTabFilterOption) { //Already in the set, so the option should be "Remove "
+            optionBuilder.append("Remove ");
+        } else {
+            optionBuilder.append("Add "); //chatTabFilterOption is not in the active Set<ChatTabFilterOptions> set yet, so option should start with "Add "
+        }
+        optionBuilder.append(chatTabFilterOption); //Add the value to the OptionBuilder so e.g. "Add Friends"
+        return optionBuilder;
     }
 
     private void addRemoveValueFromChatSet(Set<ChatTabFilterOptions> chatSet, ChatTabFilterOptions filterOption, int componentID) {
