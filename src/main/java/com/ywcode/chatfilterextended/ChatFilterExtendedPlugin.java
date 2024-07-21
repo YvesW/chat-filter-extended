@@ -506,7 +506,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         boolean shouldFilter = chatTabSet == publicChatFilterOptions ? shouldFilterMessagePublicChatMessage(playerName) : shouldFilterMessage(chatTabSet, playerName);
         if (shouldFilter) {
             // Block the message
-            System.out.println("Blocked message by " + Text.standardize(playerName));
+            System.out.println("Blocked message by " + Text.standardize(playerName)); //todo: remove
             intStack[intStackSize - 3] = 0;
         }
     }
@@ -526,7 +526,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         boolean shouldFilter = shouldFilterMessage(publicChatFilterOptions, actor.getName());
         if (shouldFilter) {
             actor.setOverheadText(" ");
-            System.out.println(Text.standardize(actor.getName()) + " OH text filtered");
+            System.out.println(Text.standardize(actor.getName()) + " OH text filtered"); //todo: remove
         }
     }
 
@@ -645,8 +645,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
+    //todo: figure out why the submenus don't work properly for probably anything but public (setting config/set)
+    // and why e.g. trade is losing it's custom widget text after changing the set (at least via the submenu, maybe also via config)
+    // todo: and test with an empty set after the fixes probs
+
     //todo: continue evaluating code/comments from here onward
-    //todo: check note index on createmenuentry and check MES code to see how it uses the index!
     @Subscribe
     public void onMenuOptionClicked(MenuOptionClicked menuOptionClicked) {
         final int menuOptionClickedParam1 = menuOptionClicked.getParam1();
@@ -679,7 +682,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             executeSetChatsToPublic();
             setChatStoneWidgetTextAll(); //Also executed in setChatsToPublic() to improve the feeling (makes it feel snappier)
             setChatsToPublicFlag = false;
-            System.out.println("size (supposed to be 0) = "+this.chatTabAlerts.size());
+            System.out.println("size (supposed to be 0) = "+this.chatTabAlerts.size()); //todo: remove
         }
 
         int regionId = WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()).getRegionID();
@@ -765,7 +768,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             }
             if (this.chatTabAlerts.size() > 0) {
                 if (this.chatTabAlerts.get(0).getChatTabNumber() == currentChatTabAlertTab) {
-                    System.out.println("this.chatTabAlerts.get(0).getChatTabNumber() == currentChatTabAlertTab");
+                    System.out.println("this.chatTabAlerts.get(0).getChatTabNumber() == currentChatTabAlertTab"); //todo: remove
                 } else {
                     System.out.println("NUMBER DOES NOT MATCH: "+this.chatTabAlerts.get(0).getChatTabNumber()+" vs currentChatTabAlertTab: "+currentChatTabAlertTab);
                 } //todo: see stuff calendar!
@@ -965,7 +968,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         ClanChannel gimClanChannel = client.getClanChannel(ClanID.GROUP_IRONMAN);
         ClanSettings gimSettings = client.getClanSettings(ClanID.GROUP_IRONMAN);
         addClanMembers(gimClanChannel, gimSettings, clanStandardizedUsernames);
-        System.out.println(clanStandardizedUsernames);
+        System.out.println(clanStandardizedUsernames); //todo: remove
     }
 
     private void getGuestCCMembers() {
@@ -974,7 +977,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         ClanChannel guestClanChannel = client.getGuestClanChannel();
         ClanSettings guestClanSettings = client.getGuestClanSettings();
         addClanMembers(guestClanChannel, guestClanSettings, guestClanStandardizedUsernames);
-        System.out.println(guestClanStandardizedUsernames);
+        System.out.println(guestClanStandardizedUsernames); //todo: remove
     }
 
     private void addClanMembers(ClanChannel clanChannel, ClanSettings clanSettings, HashSet<String> clanHashSet) {
@@ -1705,7 +1708,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
                         }
                     }
                 }
-                System.out.println(runelitePartyStandardizedUsernames);
+                System.out.println(runelitePartyStandardizedUsernames); //todo: remove
             }
         }
     }
@@ -1735,7 +1738,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         if (allMembersProcessed) {
             getRLPartyUserJoinedMembersFlag = 0;
         }
-        System.out.println(runelitePartyStandardizedUsernames);
+        System.out.println(runelitePartyStandardizedUsernames); //todo: remove
         if (getRLPartyUserJoinedMembersFlag == 0) { //Clear the hashset when flag = 0. Set void sets flag back to 5 in case a user joins while the flag is going down.
             partyMemberIds.clear();
         }
