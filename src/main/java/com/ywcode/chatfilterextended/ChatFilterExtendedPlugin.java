@@ -229,6 +229,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				~rebuildpmbox($mesuid2);
          */
         //todo: check if config should be changed: e.g. location, defaults, names, descriptions
+        //todo: maybe prevent chat notifications from filtered people but idk
 
 
         shuttingDown = true; //Might not be necessary but just to be sure it doesn't set it back to custom text since the script procs
