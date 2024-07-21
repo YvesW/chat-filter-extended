@@ -612,44 +612,38 @@ public class ChatFilterExtendedPlugin extends Plugin {
                     chatFilterEntry.setType(MenuAction.RUNELITE_SUBMENU);
 
                     //Add the submenus, use enum.values() to loop over the values.
-                    //However, the index REALLY does not like starting at e.g. 8, then adding 7 etc.
-                    //So the index goes i++ and we'll get the enumValues from 8 to 1...
-                    int amountOfChatTabFilterOptions = ChatTabFilterOptions.values().length; //Get enum total length
-                    for (int i = 1; i <= amountOfChatTabFilterOptions; i++) {
-                        //Get the value of the enum, starting with the final and looping to the first
-                        ChatTabFilterOptions enumValue = ChatTabFilterOptions.values()[amountOfChatTabFilterOptions - i];
+                    int idx = -1;
+                    for (ChatTabFilterOptions chatTabFilterOption : ChatTabFilterOptions.values()) {
                         StringBuilder optionBuilder = new StringBuilder();
-                        if (set.contains(enumValue)) { //Already in the set, so the option should be "Remove "
+                        if (set.contains(chatTabFilterOption)) { //Already in the set, so the option should be "Remove "
                             optionBuilder.append("Remove ");
                         } else {
-                            optionBuilder.append("Add "); //enumValue is not in the active Set<ChatTabFilterOptions> set yet, so option should start with "Add "
+                            optionBuilder.append("Add "); //chatTabFilterOption is not in the active Set<ChatTabFilterOptions> set yet, so option should start with "Add "
                         }
-                        optionBuilder.append(enumValue.toString()); //Add the value to the OptionBuilder so e.g. "Add Friends"
-                        client.createMenuEntry(i)
+                        optionBuilder.append(chatTabFilterOption.toString()); //Add the value to the OptionBuilder so e.g. "Add Friends"
+                        client.createMenuEntry(idx--)
                                 .setType(MenuAction.RUNELITE)
                                 .setParent(chatFilterEntry)
                                 .setOption(optionBuilder.toString())
-                                .onClick(e -> addRemoveValueFromChatSet(set, enumValue, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
+                                .onClick(e -> addRemoveValueFromChatSet(set, chatTabFilterOption, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
                     }
 
                     if (setOH != null) { //Already checks if componentID = public chat (it's null if it's not public)
                         //Using the same method for the overheads as the normal chatbox is kinda aids since I made that a different enum, so here's the same code, but almost completely copy pasted!
-                        int amountOfChatTabFilterOptionsOH = ChatTabFilterOptionsOH.values().length; //Get enum total length
-                        for (int i = 1; i <= amountOfChatTabFilterOptionsOH; i++) {
-                            //Get the value of the enum, starting with the final and looping to the first
-                            ChatTabFilterOptionsOH enumValue = ChatTabFilterOptionsOH.values()[amountOfChatTabFilterOptionsOH - i];
+                        idx = -1;
+                        for (ChatTabFilterOptionsOH chatTabFilterOption : ChatTabFilterOptionsOH.values()) {
                             StringBuilder optionBuilder = new StringBuilder();
-                            if (setOH.contains(enumValue)) { //Already in the set, so the option should be "Remove "
+                            if (setOH.contains(chatTabFilterOption)) { //Already in the set, so the option should be "Remove "
                                 optionBuilder.append("Remove ");
                             } else {
                                 optionBuilder.append("Add "); //enumValue is not in the active Set<ChatTabFilterOptionsOH> setOH yet, so option should start with "Add "
                             }
-                            optionBuilder.append(enumValue.toString()); //Add the value to the OptionBuilder so e.g. "Add Friends OH"
-                            client.createMenuEntry(i)
+                            optionBuilder.append(chatTabFilterOption.toString()); //Add the value to the OptionBuilder so e.g. "Add Friends OH"
+                            client.createMenuEntry(idx--)
                                     .setType(MenuAction.RUNELITE)
                                     .setParent(chatFilterEntry)
                                     .setOption(optionBuilder.toString())
-                                    .onClick(e -> addRemoveValueFromChatSetOH(setOH, enumValue)); //Adds or removes to/from the set, based on if the value is already in the set or not.
+                                    .onClick(e -> addRemoveValueFromChatSetOH(setOH, chatTabFilterOption)); //Adds or removes to/from the set, based on if the value is already in the set or not.
                         }
                     }
                 }
@@ -1487,6 +1481,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private Set<String> chatTabFilterOptionsSetToWhitelist(Set<ChatTabFilterOptions> chatTabFilterOptionsSet) {
         //Translate the ChatTabFilterOptionsSet to the whitelist.
         //Switch statement is not compatible with this type, so if statements it is.
+        //todo: check what this method exactly does
         if (chatTabFilterOptionsSet != null) {
             if (chatTabFilterOptionsSet.equals(publicChatFilterOptions)) {
                 return publicWhitelist;
