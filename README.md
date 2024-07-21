@@ -22,7 +22,9 @@ Clan: including guests
 Guest clan: including guests  
 Maybe gim idk: -> just added to clan hashset iirc  
 Friends:  
-Public?: everything that is not part of the above categories probs  
+Public?: everything that is not part of the above categories probs -> //Public = everyone that did not fit in the earlier groups: not friend, not FC/CC/Guest CC/Raid party/RL party member and not on the appropriate whitelist
+//Thus, public = the randoms
+//It's not the local player, so don't have to check for that.
 whitelist??  
 probably ctrl+f "standardizedusernames.clear()" and "clearRaidPartyHashset()"  
 
