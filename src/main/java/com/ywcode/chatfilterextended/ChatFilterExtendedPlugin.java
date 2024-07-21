@@ -319,8 +319,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 clanStandardizedUsernames.clear();
                 channelStandardizedUsernames.clear();
                 guestClanStandardizedUsernames.clear();
-                clearRaidPartyHashset(); //Also clear the string so the plugin will process the party interface if needed
                 runelitePartyStandardizedUsernames.clear();
+                clearRaidPartyHashset(); //Also clear the string so the plugin will process the party interface if needed + shouldRefreshChat = true
                 break;
             case HOPPING:
                 //Clear raid & RL party members while hopping because you generally don't care about them anymore after hopping to another world
