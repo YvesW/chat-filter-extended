@@ -350,7 +350,7 @@ public interface ChatFilterExtendedConfig extends Config
 	)
 	default boolean preventLocalPlayerChatTabAlert()
 	{
-		return false;
+		return true;
 	}
 
 	@ConfigItem(

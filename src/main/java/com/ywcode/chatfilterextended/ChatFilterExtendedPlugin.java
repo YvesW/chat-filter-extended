@@ -228,6 +228,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 				~rebuildchatbox($mesuid2);
 				~rebuildpmbox($mesuid2);
          */
+        //todo: check if config should be changed: e.g. location, defaults, names, descriptions
 
 
         shuttingDown = true; //Might not be necessary but just to be sure it doesn't set it back to custom text since the script procs
