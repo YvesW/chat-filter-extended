@@ -113,7 +113,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static boolean tradeFilterEnabled; //i.e. if the user set the chat tab/stone to custom. So we can re-enable it on startup. Maybe swap this to RSProfile instead of config profile in the future?
     // ------------- End of wall of config vars -------------
 
-    private static final String configGroup = "ChatFilterExtended";
+    //Variables
+    //todo: probably sort these
     private static boolean shuttingDown; //Default value is false
     private static boolean setChatsToPublicFlag; //Default value is false
     private static final HashSet<String> channelStandardizedUsernames = new HashSet<>();
@@ -121,11 +122,20 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static final HashSet<String> guestClanStandardizedUsernames = new HashSet<>();
     private static final HashSet<String> raidPartyStandardizedUsernames = new HashSet<>();
     private static final HashSet<String> runelitePartyStandardizedUsernames = new HashSet<>();
-    private static final List<Integer> chatboxComponentIDs = ImmutableList.of(ComponentID.CHATBOX_TAB_PUBLIC, ComponentID.CHATBOX_TAB_PRIVATE, ComponentID.CHATBOX_TAB_CHANNEL, ComponentID.CHATBOX_TAB_CLAN, ComponentID.CHATBOX_TAB_TRADE);
-    private static final List<String> filtersEnabledStringList = ImmutableList.of("publicFilterEnabled", "privateFilterEnabled", "channelFilterEnabled", "clanFilterEnabled", "tradeFilterEnabled");
     private static boolean inCoXRaidOrLobby; //Default value is false
     private static int getRLPartyMembersFlag; //Default is 0
     private static boolean shouldRefreshChat; //Default is false
+    private static String previousRaidPartyInterfaceText; //null by default
+    private static final HashSet<Long> partyMemberIds = new HashSet<>();
+    private static int getRLPartyUserJoinedMembersFlag; //Default is 0
+    private final List<ChatTabAlert> chatTabAlerts = new ArrayList<>();
+    //Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I did not fully adhere to lol)
+
+    //Constants
+    //todo: probably sort these
+    private static final String configGroup = "ChatFilterExtended";
+    private static final List<Integer> chatboxComponentIDs = ImmutableList.of(ComponentID.CHATBOX_TAB_PUBLIC, ComponentID.CHATBOX_TAB_PRIVATE, ComponentID.CHATBOX_TAB_CHANNEL, ComponentID.CHATBOX_TAB_CLAN, ComponentID.CHATBOX_TAB_TRADE);
+    private static final List<String> filtersEnabledStringList = ImmutableList.of("publicFilterEnabled", "privateFilterEnabled", "channelFilterEnabled", "clanFilterEnabled", "tradeFilterEnabled");
     private static final int TOA_LOBBY_REGION_ID = 13454; //Region id of ToA lobby (which has the bank)
     private static final int COX_BANK_REGION_ID = 4919; //Region id of CoX bank
     private static final int IN_A_RAID_VARPID = 2926; //Changes to e.g. 1001 when entering a raid (ToA, CoX, ToB; does apparently not proc for vork or PNM), then when leaving it does: 1001 -> 1000 -> 1200 -> 0.
@@ -139,7 +149,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static final int BOTTOM_HALF_TOB_BOARD_CHILDID = 42; //S50.42
     private static final int TOB_HUD_DRAW_SCRIPTID = 2297; //proc,tob_hud_draw Does proc every tick outside though and also (less frequently) in the raid.
     private static final int TOB_PARTY_INTERFACE_NAMES_CHILDID = 12; //S28.12
-    private static String previousRaidPartyInterfaceText; //null by default
     private static final int TOA_BOARD_ID = 774; //S774.32
     private static final int MEMBERS_TOA_BOARD_CHILDID = 32; //S774.32
     private static final int APPLICANTS_TOA_BOARD_CHILDID = 48; //S774.48
@@ -150,17 +159,13 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static final int TOB_IN_RAID_VARCSTR_PLAYER5_INDEX = 334;
     private static final int TOA_IN_RAID_VARCSTR_PLAYER1_INDEX = 1099; //1099-1106 is player 1-8's name when IN the raid (does not work when applying/accepting on the obelisk or in the lobby). Returns an empty string if there is not e.g. a player 8. Probably updates each room.
     private static final int TOA_IN_RAID_VARCSTR_PLAYER8_INDEX = 1106;
-    private static final HashSet<Long> partyMemberIds = new HashSet<>();
-    private static int getRLPartyUserJoinedMembersFlag; //Default is 0
     private static final int CHAT_ALERT_ENABLE_SCRIPTID = 180; //proc,chat_alert_enable See the tests directory (docs/testing/ChatTab blinking scripts) for an explanation regarding what script does what for chat alerts.
-    private final List<ChatTabAlert> chatTabAlerts = new ArrayList<>();
     private static final int PUBLIC_VARC_INT_COUNTDOWN_ID = 45; //Game chat = 44. See script 183 CS2 code.
     private static final int PRIVATE_VARC_INT_COUNTDOWN_ID = 46;
     private static final int FC_VARC_INT_COUNTDOWN_ID = 438; //Yes, 438 is correct
     private static final int CC_VARC_INT_COUNTDOWN_ID = 47;
     private static final int TRADE_VARC_INT_COUNTDOWN_ID = 48;
     //todo: potentially re-add     private static int currentChatTabAlertTab; //1 = game. 2 = public. 3 = friends but does not show up when private is split (which is good, because the tab does also not flash then!). 4 = fc. 5 = cc. 6 = trade.
-    //Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I did not fully adhere to lol)
 
     @Inject
     private Client client;
@@ -216,6 +221,13 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //todo: check if cox, tob, toa widgetids, scriptids, varbits, varcs etc. al ergens in runelite bestaan of niet
         //todo: reenable chat history + maybe toggle chat
         //todo: reset plugin to defaults and check if these are sensible at the end
+        //todo: check what chat filter plugin does.
+        // script 175 does this:
+        /* ~chat_set_filter($int1, ^chatfilter_friends);
+				~redraw_chat_buttons;
+				~rebuildchatbox($mesuid2);
+				~rebuildpmbox($mesuid2);
+         */
 
 
         shuttingDown = true; //Might not be necessary but just to be sure it doesn't set it back to custom text since the script procs
@@ -646,6 +658,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     //todo: continue evaluating code/comments from here onward
+    //todo: check note index on createmenuentry and check MES code to see how it uses the index!
     @Subscribe
     public void onMenuOptionClicked(MenuOptionClicked menuOptionClicked) {
         final int menuOptionClickedParam1 = menuOptionClicked.getParam1();
@@ -1368,7 +1381,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Public = everyone that did not fit in the earlier groups: not friend, not FC/CC/Guest CC/Raid party/RL party member and not on the appropriate whitelist
         //Thus, public = the randoms
         //It's not the local player, so don't have to check for that.
-        //noinspection RedundantIfStatement	
+        //noinspection RedundantIfStatement
         if (chatTabHashSet.contains(ChatTabFilterOptions.PUBLIC) //If statement can be simplified, but specifically opted not to do this to increase readability.
                 && !client.isFriended(playerName, false)
                 && !channelStandardizedUsernames.contains(playerName)
