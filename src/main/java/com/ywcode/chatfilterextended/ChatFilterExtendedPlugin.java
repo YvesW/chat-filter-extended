@@ -841,8 +841,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     @Subscribe
     public void onVarbitChanged(VarbitChanged varbitChanged) {
-        //For some reason the channel and clan tab also have Varbits attached to them, while public, private, and trade do not.
-        //The varbit just sometimes gets transmitted, e.g. when leaving ToB or when hopping worlds.
+        //For some reason the channel and clan tab also have Varbits attached to them, while public, private, and trade do not (see script 184/185).
+        //The varbit just sometimes gets transmitted, e.g. when leaving ToB, when hopping worlds, or when changing e.g. the FC filter (this also transmits the CC varbit).
         //Script 152 or 184 does not run then, so no use doing onScriptPrefired and then using Client.setVarbit
         int varbitId = varbitChanged.getVarbitId();
         if ((channelFilterEnabled && varbitId == FC_CHAT_FILTER_VARBIT && varbitChanged.getValue() != 0) || //928 = FC value, 929 = cc value (int $chatfilter1). 0 = show all IIRC.
@@ -1146,6 +1146,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private void executeSetChatsToPublic() {
         //Set chat tabs to public, so they can then be filtered by the plugin
         //client.getGameState check not needed because this is only ran in onGameTick
+        //This code is being executed in onGameTick since otherwise some plugins like SCIC might bug out. See SCIC errors in testing for more info.
 
         //Public, private, trade remember between hops => they are only set when onlyVolatile is set to false.
         //Channel and clan are probs varbit based => they are always set when this method is executed ("volatile").
