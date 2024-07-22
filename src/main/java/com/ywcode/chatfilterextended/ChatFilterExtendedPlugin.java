@@ -535,113 +535,118 @@ public class ChatFilterExtendedPlugin extends Plugin {
     @Subscribe(priority = -2) //Run after ChatHistory plugin etc. Probably not necessary but can't hurt
     public void onMenuEntryAdded(MenuEntryAdded menuEntryAdded) {
         //Add right-click option(s) and potentially submenus to the chatstones
+
         if (menuEntryAdded.getType() != MenuAction.CC_OP.getId()) {
             return;
         }
 
         String menuEntryOption = menuEntryAdded.getOption();
-        if (menuEntryOption.contains("Show none")) {
-            //getActionParam1() seems to be getMenuEntry().getParam1() which seems to be getMenuEntry().getWidget().getId() = 10616843 = ComponentID (for public chat).
-            int menuEntryAddedParam1 = menuEntryAdded.getActionParam1();
-            Set<ChatTabFilterOptions> set = componentIDToChatTabFilterSet(menuEntryAddedParam1);
-            Set<ChatTabFilterOptionsOH> setOH = componentIDToChatTabFilterSetOH(menuEntryAddedParam1);
-            //Sets have been retrieved from the componentID. Returns null when componentID != chatstone componentID
+        if (!menuEntryOption.contains("Show none")) {
+            //return early if the menu entry option does not contain show none. ComponentID is checked a bit below via if (set == null)
+            return;
+        }
 
-            //Don't need to check SetOH, since it uses the same componentID as the normal set (both that of the public chat keystone)
-            if (set == null) {
-                //Not a chatstone componentID -> return
-                return;
+        //getActionParam1() seems to be getMenuEntry().getParam1() which seems to be getMenuEntry().getWidget().getId() = 10616843 = ComponentID (for public chat).
+        int menuEntryAddedParam1 = menuEntryAdded.getActionParam1();
+        Set<ChatTabFilterOptions> set = componentIDToChatTabFilterSet(menuEntryAddedParam1);
+        Set<ChatTabFilterOptionsOH> setOH = componentIDToChatTabFilterSetOH(menuEntryAddedParam1);
+        //Sets have been retrieved from the componentID. Returns null when componentID != chatstone componentID
+
+        //Don't need to check SetOH, since it uses the same componentID as the normal set (both that of the public chat keystone)
+        if (set == null) {
+            //Not a chatstone componentID -> return
+            return;
+        }
+
+        MenuEntry chatFilterEntry = null; //Used below to show a Change Sets Menu when the set is completely empty, if it should show something (based on shift-click settings etc.).
+        int mainMenuIdx = -1; //Index for main menu to be used below with client.createMenuEntry(mainMenuIdx--)
+
+        //Determine if the chatstone (e.g. private) should be filtered based on the componentID and the config set
+        //shouldFilterChatType already has a ComponentID check build in that checks if it's a chatstone or not + checks if the filter option is enabled or not (if set is empty or not)
+        if (shouldFilterChatType(menuEntryAddedParam1)) {
+            //create MenuEntry and set its params
+            chatFilterEntry = client.createMenuEntry(mainMenuIdx--)
+                    .setType(MenuAction.RUNELITE)
+                    .setParam1(menuEntryAddedParam1)
+                    .onClick(e -> enableChatFilter(menuEntryAddedParam1));
+
+            //Set name (option) of menuEntry
+            final StringBuilder optionBuilder = new StringBuilder();
+            //Pull tab name from menu since Trade/Group is variable + set Option based on config settings
+            int colonIdx = menuEntryOption.indexOf(':');
+            if (colonIdx != -1) {
+                optionBuilder.append(menuEntryOption, 0, colonIdx).append(":</col> ");
             }
+            optionBuilder.append("Show ");
+            //At this point the </col> tag has been closed and "Show " has been added, e.g. "<col>Public:</col> Show "
 
-            MenuEntry chatFilterEntry = null; //Used below to show a Change Sets Menu when the set is completely empty, if it should show something (based on shift-click settings etc.).
+            //Grab the abbreviations from the enum based on the selected config
+            //Although maybe not the most optimal, I did not want to convert the HashSet to a List that I could order according to the enum at onConfigChanged
+            //So I'm just looping over the enum values here
+            for (ChatTabFilterOptions enumValue : ChatTabFilterOptions.values()) {
+                if (set.contains(enumValue)) {
+                    optionBuilder.append(enumValue.toAbbreviationString()).append("/"); //alternatively just use the getter
+                }
+            }
+            //At this point the name/option is e.g. "<col>Public:</col> Show Friends/FC/CC/"
+            menuEntryOption = optionBuilder.toString();
 
-            //Determine if the chatstone (e.g. private) should be filtered based on the componentID and the config set
-            //shouldFilterChatType already has a ComponentID check build in that checks if it's a chatstone or not + checks if the filter option is enabled or not (if set is empty or not)
-            if (shouldFilterChatType(menuEntryAddedParam1)) {
-                //create MenuEntry and set its params
-                chatFilterEntry = client.createMenuEntry(-1)
+            //Replace entries with their OH equivalent if OH is added to the OH set
+            //This is because I made the design decision that the chat filter (e.g. CC) needs to be enabled (visible) AND the OH chat filter (e.g. CC OH) needs to be active to only show CC OH
+            //Order does not matter since I'm just replacing, so just iterate over the HashSet
+            if (setOH != null) { //Already checks if componentID = public chat by returning null if it's not public.
+                for (ChatTabFilterOptionsOH chatTabFilterOptionOH : setOH) {
+                    menuEntryOption = menuEntryOption.replace(chatTabFilterOptionOH.toNonOHAbbreviationString() + "/", chatTabFilterOptionOH.toAbbreviationString() + "/"); //A slash is added, so it does not result in: "Public OH: Show Public OH/Friends/CC OH
+                }
+            }
+            //At this point the name/option is e.g. "<col>Public:</col> Show Friends/FC/CC OH/"
+            menuEntryOption = menuEntryOption.substring(0, menuEntryOption.length() - 1); //Remove the trailing "/". If deleted earlier, the final option is not properly replaced by its OH variant.
+            chatFilterEntry.setOption(menuEntryOption);
+            //At this point the name/option is e.g. "<col>Public:</col> Show Friends/FC/CC OH"
+
+            //If the ClearRaidPartyMenu should be shown, based on the advanced setting and shift state & only add if that chat is currently filtered
+            if (shouldShowShiftMenuSetting(clearRaidPartyShiftMenuSetting) && isChatFilteredComponentID(menuEntryAddedParam1)) { //If you also want to display this when the custom filter is not enabled but the show custom option is shown for the tab, remove " && isChatFilteredComponentID(menuEntryAddedParam1)"
+                client.createMenuEntry(mainMenuIdx--)
                         .setType(MenuAction.RUNELITE)
                         .setParam1(menuEntryAddedParam1)
-                        .onClick(e -> enableChatFilter(menuEntryAddedParam1));
+                        .onClick(this::clearRaidPartyHashsetManually)
+                        .setOption("Clear Raid Party members");
+            }
+        }
 
-                //Set name (option) of menuEntry
-                final StringBuilder optionBuilder = new StringBuilder();
-                //Pull tab name from menu since Trade/Group is variable + set Option based on config settings
-                int idx = menuEntryOption.indexOf(':');
-                if (idx != -1) {
-                    optionBuilder.append(menuEntryOption, 0, idx).append(":</col> ");
-                }
-                optionBuilder.append("Show ");
-                //At this point the </col> tag has been closed and "Show " has been added, e.g. "<col>Public:</col> Show "
+        //Try to show a Change Sets Menu when the set is completely empty. Otherwise, add the submenu to chatFilterEntry! chatFilterEntry can get pretty long and it's difficult selecting the submenu otherwise due to the wide right click menu and the submenu usually showing up to the right.
+        if (shouldShowShiftMenuSetting(changeChatSetsShiftMenuSetting)) { //If the ChangeSetsMenu should be shown, based on the advanced setting and shift state & only add if that chat is currently filtered
+            //If the chat set is fully empty, add a parent menuentry!
+            if (chatFilterEntry == null) { //aka if (!shouldFilterChatType(menuEntryAddedParam1))
+                //Create parent menu
+                chatFilterEntry = client.createMenuEntry(mainMenuIdx--)
+                        .setParam1(menuEntryAddedParam1)
+                        .setOption("Change Chat Sets");
+            }
+            //If the set with chats is not empty, we can change the menuEntry we added in the beginning (chatFilterEntry) into a RUNELITE_SUBMENU
+            //If the set is empty, we just created it and still need to set the type.
+            chatFilterEntry.setType(MenuAction.RUNELITE_SUBMENU);
 
-                //Grab the abbreviations from the enum based on the selected config
-                //Although maybe not the most optimal, I did not want to convert the HashSet to a List that I could order according to the enum at onConfigChanged
-                //So I'm just looping over the enum values here
-                for (ChatTabFilterOptions enumValue : ChatTabFilterOptions.values()) {
-                    if (set.contains(enumValue)) {
-                        optionBuilder.append(enumValue.toAbbreviationString()).append("/"); //alternatively just use the getter
-                    }
-                }
-                //At this point the name/option is e.g. "<col>Public:</col> Show Friends/FC/CC/"
-                menuEntryOption = optionBuilder.toString();
-
-                //Replace entries with their OH equivalent if OH is added to the OH set
-                //This is because I made the design decision that the chat filter (e.g. CC) needs to be enabled (visible) AND the OH chat filter (e.g. CC OH) needs to be active to only show CC OH
-                //Order does not matter since I'm just replacing, so just iterate over the HashSet
-                if (setOH != null) { //Already checks if componentID = public chat by returning null if it's not public.
-                    for (ChatTabFilterOptionsOH chatTabFilterOptionOH : setOH) {
-                        menuEntryOption = menuEntryOption.replace(chatTabFilterOptionOH.toNonOHAbbreviationString() + "/", chatTabFilterOptionOH.toAbbreviationString() + "/"); //A slash is added, so it does not result in: "Public OH: Show Public OH/Friends/CC OH
-                    }
-                }
-                //At this point the name/option is e.g. "<col>Public:</col> Show Friends/FC/CC OH/"
-                menuEntryOption = menuEntryOption.substring(0, menuEntryOption.length() - 1); //Remove the trailing "/". If deleted earlier, the final option is not properly replaced by its OH variant.
-                chatFilterEntry.setOption(menuEntryOption);
-                //At this point the name/option is e.g. "<col>Public:</col> Show Friends/FC/CC OH"
-
-                //If the ClearRaidPartyMenu should be shown, based on the advanced setting and shift state & only add if that chat is currently filtered
-                if (shouldShowShiftMenuSetting(clearRaidPartyShiftMenuSetting) && isChatFilteredComponentID(menuEntryAddedParam1)) { //If you also want to display this when the custom filter is not enabled but the show custom option is shown for the tab, remove " && isChatFilteredComponentID(menuEntryAddedParam1)"
-                    client.createMenuEntry(-2)
-                            .setType(MenuAction.RUNELITE)
-                            .setParam1(menuEntryAddedParam1)
-                            .onClick(this::clearRaidPartyHashsetManually)
-                            .setOption("Clear Raid Party members");
-                }
+            //Add the submenus, use enum.values() to loop over the values.
+            int submenuIdx = -1;
+            for (ChatTabFilterOptions chatTabFilterOption : ChatTabFilterOptions.values()) {
+                StringBuilder optionBuilder = getSubMenuStringBuilder(set.contains(chatTabFilterOption), chatTabFilterOption.toString());
+                client.createMenuEntry(submenuIdx--)
+                        .setType(MenuAction.RUNELITE)
+                        .setParent(chatFilterEntry)
+                        .setOption(optionBuilder.toString())
+                        .onClick(e -> addRemoveValueFromChatSet(set, chatTabFilterOption, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
             }
 
-            //Try to show a Change Sets Menu when the set is completely empty. Otherwise, add the submenu to chatFilterEntry! chatFilterEntry can get pretty long and it's difficult selecting the submenu otherwise due to the wide right click menu and the submenu usually showing up to the right.
-            if (shouldShowShiftMenuSetting(changeChatSetsShiftMenuSetting)) { //If the ChangeSetsMenu should be shown, based on the advanced setting and shift state & only add if that chat is currently filtered
-                //If the chat set is fully empty, add a parent menuentry!
-                if (chatFilterEntry == null) { //if (!shouldFilterChatType(menuEntryAddedParam1))
-                    //Create parent menu
-                    chatFilterEntry = client.createMenuEntry(-1)
-                            .setParam1(menuEntryAddedParam1)
-                            .setOption("Change Chat Sets");
-                }
-                //If the set with chats is not empty, we can change the menuEntry we added in the beginning (chatFilterEntry) into a RUNELITE_SUBMENU
-                //If the set is empty, we just created it and still need to set the type.
-                chatFilterEntry.setType(MenuAction.RUNELITE_SUBMENU);
-
-                //Add the submenus, use enum.values() to loop over the values.
-                int idx = -1;
-                for (ChatTabFilterOptions chatTabFilterOption : ChatTabFilterOptions.values()) {
-                    StringBuilder optionBuilder = getSubMenuStringBuilder(set.contains(chatTabFilterOption), chatTabFilterOption.toString());
-                    client.createMenuEntry(idx--)
+            if (setOH != null) { //Already checks if componentID = public chat (it's null if it's not public)
+                submenuIdx = -1;
+                for (ChatTabFilterOptionsOH chatTabFilterOptionOH : ChatTabFilterOptionsOH.values()) {
+                    StringBuilder optionBuilder = getSubMenuStringBuilder(setOH.contains(chatTabFilterOptionOH), chatTabFilterOptionOH.toString());
+                    client.createMenuEntry(submenuIdx--)
                             .setType(MenuAction.RUNELITE)
                             .setParent(chatFilterEntry)
                             .setOption(optionBuilder.toString())
-                            .onClick(e -> addRemoveValueFromChatSet(set, chatTabFilterOption, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
-                }
-
-                if (setOH != null) { //Already checks if componentID = public chat (it's null if it's not public)
-                    idx = -1;
-                    for (ChatTabFilterOptionsOH chatTabFilterOptionOH : ChatTabFilterOptionsOH.values()) {
-                        StringBuilder optionBuilder = getSubMenuStringBuilder(setOH.contains(chatTabFilterOptionOH), chatTabFilterOptionOH.toString());
-                        client.createMenuEntry(idx--)
-                                .setType(MenuAction.RUNELITE)
-                                .setParent(chatFilterEntry)
-                                .setOption(optionBuilder.toString())
-                                .onClick(e -> addRemoveValueFromChatSetOH(setOH, chatTabFilterOptionOH)); //Adds or removes to/from the set, based on if the value is already in the set or not.
-                    }
+                            .onClick(e -> addRemoveValueFromChatSetOH(setOH, chatTabFilterOptionOH)); //Adds or removes to/from the set, based on if the value is already in the set or not.
                 }
             }
         }
