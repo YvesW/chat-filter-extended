@@ -354,25 +354,25 @@ public interface ChatFilterExtendedConfig extends Config
 	}
 
 	@ConfigItem(
-			keyName = "clearRaidPartyShiftMenuSetting",
-			name = "Show Clear Raid Party menu option",
-			description = "When to show the Clear Raid Party members menu option.<br>"
+			keyName = "changeChatSetsShiftMenuSetting",
+			name = "Show Change Chat Sets menu option",
+			description = "When to show the Change Sets menu option.<br>"
 					+ "Disabled: never. Holding shift: when holding shift and right clicking on a chat stone. Always: when right clicking on a chat stone.",
 			position = 100
 	)
-	default ShiftMenuSetting clearRaidPartyShiftMenuSetting()
+	default ShiftMenuSetting changeChatSetsShiftMenuSetting()
 	{
 		return ShiftMenuSetting.HOLD_SHIFT;
 	}
 
 	@ConfigItem(
-			keyName = "changeChatSetsShiftMenuSetting",
-			name = "Show Change Chat Sets menu option",
-			description = "When to show the Change Sets menu option.<br>"
+			keyName = "clearRaidPartyShiftMenuSetting",
+			name = "Show Clear Raid Party menu option",
+			description = "When to show the Clear Raid Party members menu option.<br>"
 					+ "Disabled: never. Holding shift: when holding shift and right clicking on a chat stone. Always: when right clicking on a chat stone.",
 			position = 101
 	)
-	default ShiftMenuSetting changeChatSetsShiftMenuSetting()
+	default ShiftMenuSetting clearRaidPartyShiftMenuSetting()
 	{
 		return ShiftMenuSetting.HOLD_SHIFT;
 	}

@@ -230,6 +230,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
          */
         //todo: check if config should be changed: e.g. location, defaults, names, descriptions
         //todo: maybe prevent chat notifications from filtered people but idk
+        //todo: als je ooit regionid activatie wil doen, Wrt regionid: maak right click option per tab (idx na clear raids, default shift click only?) met submenu of je custom of custom met opties wil. Check devtools of je dit ook via world map kan maar betwijfel dit, m.n. bij sub regions
 
 
         shuttingDown = true; //Might not be necessary but just to be sure it doesn't set it back to custom text since the script procs
