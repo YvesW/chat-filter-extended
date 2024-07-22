@@ -1248,20 +1248,20 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     @Nullable
     private String componentIDToChatTabFilterKeyName(int componentID) {
-        //Returns the keyname based on the componentID, because reflection bad so can't get the name that way.
+        //Returns the ChatFilterOptions keyname based on the componentID, because reflection bad so can't get the name that way.
         //Returns null when componentID != chatstone componentID
         //Specifically opted to use a Switch instead of a for loop+list combo because the performance is a bit better. In the end both approaches are meh and don't differ that much in performance probs.
         switch (componentID) {
             case ComponentID.CHATBOX_TAB_PUBLIC:
                 return "publicChatFilterOptions";
             case ComponentID.CHATBOX_TAB_PRIVATE:
-                return "privateFilterEnabled";
+                return "privateChatFilterOptions";
             case ComponentID.CHATBOX_TAB_CHANNEL:
-                return "channelFilterEnabled";
+                return "channelChatFilterOptions";
             case ComponentID.CHATBOX_TAB_CLAN:
-                return "clanFilterEnabled";
+                return "clanChatFilterOptions";
             case ComponentID.CHATBOX_TAB_TRADE:
-                return "tradeFilterEnabled";
+                return "tradeChatFilterOptions";
         }
         return null;
     }
