@@ -513,7 +513,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
-    @Subscribe
+    // Setting the priority is very important; otherwise it will race with other plugins such as probably core's ChatFilter and not hide the text!
+    @Subscribe (priority = -10)
     public void onOverheadTextChanged(OverheadTextChanged overheadTextChanged) {
         //Overheads => the appropriate set is always publicChatFilterOptions set => works perfectly with shouldFilterMessage
 
@@ -525,7 +526,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
             return;
         }
 
-        //todo: overhead filtering is not working correctly. figure out why!
         boolean shouldFilter = shouldFilterMessage(publicChatFilterOptions, actor.getName());
         if (shouldFilter) {
             actor.setOverheadText(" ");
