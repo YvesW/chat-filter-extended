@@ -525,6 +525,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             return;
         }
 
+        //todo: overhead filtering is not working correctly. figure out why!
         boolean shouldFilter = shouldFilterMessage(publicChatFilterOptions, actor.getName());
         if (shouldFilter) {
             actor.setOverheadText(" ");
