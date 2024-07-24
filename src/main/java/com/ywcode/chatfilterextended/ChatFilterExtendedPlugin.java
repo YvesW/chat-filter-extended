@@ -117,6 +117,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
     //todo: probably sort these
     private static boolean shuttingDown; //Default value is false
     private static boolean setChatsToPublicFlag; //Default value is false
+    private static GameState previousPreviousGameState;
+    private static GameState previousGameState;
     private static final HashSet<String> channelStandardizedUsernames = new HashSet<>();
     private static final HashSet<String> clanStandardizedUsernames = new HashSet<>();
     private static final HashSet<String> guestClanStandardizedUsernames = new HashSet<>();
@@ -189,7 +191,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         shuttingDown = false; //Maybe it got procced by switching profiles, assuming plugins are all shutdown and started again?
         setConfigFirstStart();
         updateConfig();
-        setChatsToPublic();
+        setChatsToPublic(); //Chats are only being set to public if the filter for that chatstone is active!
         addAllInRaidUsernamesVarClientStr(); //Will also add a raid group to the hashset if you are not inside ToB/ToA anymore. This is fine and can be useful in certain situations, e.g. getting a scythe, teleporting to the GE to get the split and then turning on the plugin at the GE. You can still see your raid buddies' messages then. If this is undesired, replace with getToBPlayers() and getToAPlayers()
         setAddPartyMemberStandardizedUsernamesFlag(); //In case the plugin is started while already in a party.
         clientThread.invokeLater(this::getCoXVarbit); //Get varbit in case the plugin is started while logged in.
@@ -235,8 +237,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
         clanStandardizedUsernames.clear();
         channelStandardizedUsernames.clear();
         guestClanStandardizedUsernames.clear();
-        clearRaidPartyHashset(); //Also clear the string so the plugin will process the party interface if needed
         runelitePartyStandardizedUsernames.clear();
+        clearRaidPartyHashset(); //Also clear the string so the plugin will process the party interface if needed
         if (client.getGameState() == GameState.LOGGED_IN || client.getGameState() == GameState.LOADING) {
             clientThread.invoke(() -> {
                 //This rebuilds both the chatbox and the pmbox
@@ -313,8 +315,12 @@ public class ChatFilterExtendedPlugin extends Plugin {
     public void onGameStateChanged(GameStateChanged gameStateChanged) {
         switch (gameStateChanged.getGameState()) {
             case LOGGED_IN:
-                setChatsToPublic();
-                setAddPartyMemberStandardizedUsernamesFlag(); //Will also proc after loading gamestate, but this will ensure that the party hashset is also correctly populated after fully logging out but remaining in the party.
+                if (previousGameState == GameState.LOADING &&
+                        (previousPreviousGameState == GameState.LOGGING_IN || previousPreviousGameState == GameState.HOPPING)) {
+                    //Alternatively just set a flag on LOGGING_IN and HOPPING lol
+                    setChatsToPublic();
+                    setAddPartyMemberStandardizedUsernamesFlag(); //This will ensure that the party hashset is also correctly populated after fully logging out but remaining in the party.
+                }
                 break;
             case LOGIN_SCREEN:
                 clanStandardizedUsernames.clear();
@@ -344,6 +350,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 break;
                 //todo: potentially add CONNECTION_LOST; check core chat filter plugin
         }
+        previousPreviousGameState = previousGameState; //Yes, I'm a magician with words.
+        previousGameState = gameStateChanged.getGameState();
     }
 
     @Subscribe
