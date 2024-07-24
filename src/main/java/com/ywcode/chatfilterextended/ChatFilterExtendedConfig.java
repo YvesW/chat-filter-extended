@@ -73,9 +73,9 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "publicChatFilterOptionsOH",
 			name = "Public OH",
-			description = "Allowed chat senders when the custom filter is active (overhead text). Needs to also be active in the set above.<br>"+
-					"Thus enabling 'Friends' in the set above and 'Friends (OH)' in this set does not show your friends' messages in the chatbox, but it does show it above their head.<br>"+
-					"Hold control or shift to select multiple entries.",
+			description = "Allowed chat senders when the custom filter is active (overhead text). Needs to also be active in the set above.<br>"
+					+ "Thus enabling 'Friends' in the set above and 'Friends (OH)' in this set does not show your friends' messages in the chatbox,<br>"
+					+ "but it does show it above their head. Hold control or shift to select multiple entries.",
 			position = 1,
 			section = publicSettings
 	)
@@ -100,8 +100,8 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "privateChatFilterOptions",
 			name = "Private",
-			description = "Allowed chat senders when the custom filter is active.<br>"+
-					"Hold control or shift to select multiple entries.",
+			description = "Allowed chat senders when the custom filter is active.<br>"
+					+ "Hold control or shift to select multiple entries.",
 			position = 0,
 			section = privateSettings
 	)
@@ -125,10 +125,10 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "forcePrivateOn",
 			name = "Force private to on when filtering",
-			description = "When you tick this option, you force your private to 'show all' when you enable the custom filter for your private chat ingame.<br>" +
-					"Remember that this means everyone can see you online in their Friends List and get your world when the custom filter is enabled.<br>" +
-					"This might have consequences if you do dangerous activities in the wilderness (e.g. getting scouted/sniped)!<br>"+
-					"If this option is disabled, private will only be properly filtered if you set it to 'show all' and then set it to 'custom'.",
+			description = "When you tick this option, you force your private to 'show all' when you enable the custom filter for your private chat ingame.<br>"
+					+ "Remember that this means everyone can see you online in their Friends List and get your world when the custom filter is enabled.<br>"
+					+ "This might have consequences if you do dangerous activities in the wilderness (e.g. getting scouted/sniped)!<br>"
+					+ "If this option is disabled, private will only be properly filtered if you set it to 'show all' and then set it to 'custom'.",
 			position = 2,
 			section = privateSettings
 	)
@@ -139,8 +139,8 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "channelChatFilterOptions",
 			name = "Channel",
-			description = "Allowed chat senders when the custom filter is active.<br>"+
-					"Hold control or shift to select multiple entries.",
+			description = "Allowed chat senders when the custom filter is active.<br>"
+					+ "Hold control or shift to select multiple entries.",
 			position = 0,
 			section = channelSettings
 	)
@@ -166,8 +166,8 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "clanChatFilterOptions",
 			name = "Clan",
-			description = "Allowed chat senders when the custom filter is active.<br>"+
-					"Hold control or shift to select multiple entries.",
+			description = "Allowed chat senders when the custom filter is active.<br>"
+					+ "Hold control or shift to select multiple entries.",
 			position = 0,
 			section = clanSettings
 	)
@@ -193,8 +193,8 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "tradeChatFilterOptions",
 			name = "Trade",
-			description = "Allowed chat senders when the custom filter is active.<br>"+
-					"Hold control or shift to select multiple entries.",
+			description = "Allowed chat senders when the custom filter is active.<br>"
+					+ "Hold control or shift to select multiple entries.",
 			position = 0,
 			section = tradeSettings
 	)
@@ -245,7 +245,8 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "clearGuestClanSetHop",
 			name = "Clear Guest CC on hop",
-			description = "Clear the set of the Guest CC members when hopping. These are the members of the guest CC, not the guests in your CC. The set will always be cleared when fully logging out.",
+			description = "Clear the set of the Guest CC members when hopping. These are the members of the guest CC, not the guests in your CC.<br>"
+					+ "The set will always be cleared when fully logging out.",
 			position = 2,
 			section = advancedSettings
 	)

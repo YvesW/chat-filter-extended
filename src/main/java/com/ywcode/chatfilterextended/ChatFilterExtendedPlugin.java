@@ -102,8 +102,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static boolean clearRLPartySetLeave;
     private static boolean fixChatTabAlert;
     private static boolean preventLocalPlayerChatTabAlert; //todo: implement!
-    private static ShiftMenuSetting clearRaidPartyShiftMenuSetting;
     private static ShiftMenuSetting changeChatSetsShiftMenuSetting;
+    private static ShiftMenuSetting clearRaidPartyShiftMenuSetting;
 
     //The config values below are only set through ConfigManager and are not part of ChatFilterExtendedConfig.java
     private static boolean publicFilterEnabled; //i.e. if the user set the chat tab/stone to custom. So we can re-enable it on startup. Maybe swap this to RSProfile instead of config profile in the future?
@@ -129,7 +129,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static final HashSet<Long> partyMemberIds = new HashSet<>();
     private static int getRLPartyUserJoinedMembersFlag; //Default is 0
     private final List<ChatTabAlert> chatTabAlerts = new ArrayList<>();
-    //Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I did not fully adhere to lol)
+
+    //Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I probably did not fully adhere to lol)
 
     //Constants
     //todo: probably sort these
@@ -298,8 +299,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
         clearRLPartySetLeave = config.clearRLPartySetLeave();
         fixChatTabAlert = config.fixChatTabAlert();
         preventLocalPlayerChatTabAlert = config.preventLocalPlayerChatTabAlert();
-        clearRaidPartyShiftMenuSetting = config.clearRaidPartyShiftMenuSetting();
         changeChatSetsShiftMenuSetting = config.changeChatSetsShiftMenuSetting();
+        clearRaidPartyShiftMenuSetting = config.clearRaidPartyShiftMenuSetting();
 
         //The config values below are only set through ConfigManager and are not part of ChatFilterExtendedConfig.java
         //PS Probs don't try to refactor this; did not go well (on plugin start) the last time I tried that...
