@@ -128,7 +128,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static String previousRaidPartyInterfaceText; //null by default
     private static final HashSet<Long> partyMemberIds = new HashSet<>();
     private static int getRLPartyUserJoinedMembersFlag; //Default is 0
-    private final List<ChatTabAlert> chatTabAlerts = new ArrayList<>();
+    private final List<ChatTabAlert> chatTabAlerts = new ArrayList<>(); //todo: potentially remove if switching to other alert solution
 
     //Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I probably did not fully adhere to lol)
 
@@ -167,7 +167,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static final int FC_VARC_INT_COUNTDOWN_ID = 438; //Yes, 438 is correct
     private static final int CC_VARC_INT_COUNTDOWN_ID = 47;
     private static final int TRADE_VARC_INT_COUNTDOWN_ID = 48;
-    //todo: potentially re-add     private static int currentChatTabAlertTab; //1 = game. 2 = public. 3 = friends but does not show up when private is split (which is good, because the tab does also not flash then!). 4 = fc. 5 = cc. 6 = trade.
+    //todo: potentially re-add if switching to other alert solution    private static int currentChatTabAlertTab; //1 = game. 2 = public. 3 = friends but does not show up when private is split (which is good, because the tab does also not flash then!). 4 = fc. 5 = cc. 6 = trade.
 
     @Inject
     private Client client;
@@ -1633,10 +1633,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 || (varCStrIndex >= TOA_IN_RAID_VARCSTR_PLAYER1_INDEX && varCStrIndex <= TOA_IN_RAID_VARCSTR_PLAYER8_INDEX)) {
             String varCStrValueStandardized = Text.standardize(client.getVarcStrValue(varCStrIndex));
             //isNullOrEmpty check because they get refreshed in probably every room and can potentially add empty strings to the hashset.
-            if (!Strings.isNullOrEmpty(varCStrValueStandardized)) {
-                if (raidPartyStandardizedUsernames.add(varCStrValueStandardized)) {
-                    shouldRefreshChat = true;
-                }
+            if (!Strings.isNullOrEmpty(varCStrValueStandardized) && raidPartyStandardizedUsernames.add(varCStrValueStandardized)) {
+                shouldRefreshChat = true;
             }
         }
     }
@@ -1705,13 +1703,13 @@ public class ChatFilterExtendedPlugin extends Plugin {
         if (partyService.isInParty()) {
             List<PartyMember> partyMembers = partyService.getMembers();
             if (partyMembers != null && !partyMembers.isEmpty()) {
+                //The list is not empty anymore (can be empty immediately after joining a party) ->
+                // set the flag to 0 and add the partymembers to the correct hashset
                 getRLPartyMembersFlag = 0;
                 for (PartyMember partyMember : partyMembers) {
                     String standardizedUsername = Text.standardize(partyMember.getDisplayName());
-                    if (!Strings.isNullOrEmpty(standardizedUsername)) {
-                        if (runelitePartyStandardizedUsernames.add(standardizedUsername)) {
-                            shouldRefreshChat = true;
-                        }
+                    if (!Strings.isNullOrEmpty(standardizedUsername) && runelitePartyStandardizedUsernames.add(standardizedUsername)) {
+                        shouldRefreshChat = true;
                     }
                 }
                 System.out.println(runelitePartyStandardizedUsernames); //todo: remove
