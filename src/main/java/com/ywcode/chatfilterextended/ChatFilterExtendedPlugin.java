@@ -1178,7 +1178,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     private void setChatStoneWidgetTextAll() {
         //Sets the WidgetText for enabled chats to Custom
-        if (client.getGameState() != GameState.LOGGED_IN) {
+        if (client.getGameState() != GameState.LOGGED_IN || client.getGameState() != GameState.LOADING) {
             return;
         }
         for (int componentID : chatboxComponentIDs) {
