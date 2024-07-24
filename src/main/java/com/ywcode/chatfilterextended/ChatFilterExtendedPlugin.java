@@ -1053,7 +1053,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void redrawChatButtons() {
-        if (client.getGameState() == GameState.LOGGED_IN) {
+        if (client.getGameState() == GameState.LOGGED_IN || client.getGameState() == GameState.LOADING) {
             clientThread.invokeLater(() -> {
                 client.runScript(REDRAW_CHAT_BUTTONS_SCRIPTID); //[proc,redraw_chat_buttons]
             });
