@@ -907,7 +907,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void getCoXVarbit() {
-        if (client.getGameState() == GameState.LOGGED_IN) {
+        if (client.getGameState() == GameState.LOGGED_IN || client.getGameState() == GameState.LOADING) {
             inCoXRaidOrLobby = client.getVarbitValue(Varbits.IN_RAID) > 0; //Convert the int to boolean. 0 = false, 1 = true.
         }
     }
@@ -915,8 +915,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private void getCoXPlayers() {
         //Get all players when inside CoX lobby or CoX raid and add them to the hashset after standardizing the name
         //Useful when starting the plugin inside CoX or when clearing the raid party inside CoX (doesn't proc PlayerSpawned)
-        if (inCoXRaidOrLobby && client.getGameState() == GameState.LOGGED_IN) { //If Varbits.IN_RAID > 0
-            List<Player> playersCoX = client.getPlayers();
+        if (inCoXRaidOrLobby &&
+                (client.getGameState() == GameState.LOGGED_IN
+                || client.getGameState() == GameState.LOADING)) { //If Varbits.IN_RAID > 0
+            List<Player> playersCoX = client.getPlayers(); //In case this actually becomes a thing with boats, probably replace with something like client.getTopLevelWorldView().players().stream().collect(Collectors.toCollection(ArrayList::new)). Maybe gotta check if the wv is null though.
             for (Player player : playersCoX) {
                 if (raidPartyStandardizedUsernames.add(Text.standardize(player.getName()))) {
                     shouldRefreshChat = true;
