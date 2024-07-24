@@ -354,6 +354,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         previousGameState = gameStateChanged.getGameState();
     }
 
+    //todo: continue evaluating code/comments from here onward
     @Subscribe
     public void onFriendsChatChanged(FriendsChatChanged friendsChatChanged) {
         //Remove FC usernames when leaving the FC and when the advanced config option is enabled; also procs when hopping/logging out
@@ -658,11 +659,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
-    //todo: figure out why the submenus don't work properly for probably anything but public (setting config/set)
-    // and why e.g. trade is losing it's custom widget text after changing the set (at least via the submenu, maybe also via config)
-    // todo: and test with an empty set after the fixes probs
-
-    //todo: continue evaluating code/comments from here onward
     @Subscribe
     public void onMenuOptionClicked(MenuOptionClicked menuOptionClicked) {
         final int menuOptionClickedParam1 = menuOptionClicked.getParam1();
@@ -1186,7 +1182,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     private void setChatStoneWidgetTextAll() {
         //Sets the WidgetText for enabled chats to Custom
-        if (client.getGameState() != GameState.LOGGED_IN || client.getGameState() != GameState.LOADING) {
+        if (client.getGameState() != GameState.LOGGED_IN && client.getGameState() != GameState.LOADING) {
             return;
         }
 
