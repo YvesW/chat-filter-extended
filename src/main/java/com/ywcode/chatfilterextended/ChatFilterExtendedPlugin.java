@@ -915,14 +915,17 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private void getCoXPlayers() {
         //Get all players when inside CoX lobby or CoX raid and add them to the hashset after standardizing the name
         //Useful when starting the plugin inside CoX or when clearing the raid party inside CoX (doesn't proc PlayerSpawned)
-        if (inCoXRaidOrLobby &&
-                (client.getGameState() == GameState.LOGGED_IN
-                || client.getGameState() == GameState.LOADING)) { //If Varbits.IN_RAID > 0
-            List<Player> playersCoX = client.getPlayers(); //In case this actually becomes a thing with boats, probably replace with something like client.getTopLevelWorldView().players().stream().collect(Collectors.toCollection(ArrayList::new)). Maybe gotta check if the wv is null though.
-            for (Player player : playersCoX) {
-                if (raidPartyStandardizedUsernames.add(Text.standardize(player.getName()))) {
-                    shouldRefreshChat = true;
-                }
+        if (!inCoXRaidOrLobby ||
+                (client.getGameState() != GameState.LOGGED_IN
+                        && client.getGameState() != GameState.LOADING)) {
+            //If Varbits.IN_RAID == 0 or wrong gamestate, return early
+            return;
+        }
+
+        List<Player> playersCoX = client.getPlayers(); //In case this actually becomes a thing with boats, probably replace with something like client.getTopLevelWorldView().players().stream().collect(Collectors.toCollection(ArrayList::new)). Maybe gotta check if the wv is null though.
+        for (Player player : playersCoX) {
+            if (raidPartyStandardizedUsernames.add(Text.standardize(player.getName()))) {
+                shouldRefreshChat = true;
             }
         }
     }
@@ -956,14 +959,19 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private void getFCMembers() {
         //To add all the FC members to the hashset. Useful if the plugin gets enabled while already in an FC, so should run in StartUp.
         FriendsChatManager friendsChatManager = client.getFriendsChatManager();
-        if (friendsChatManager != null) {
-            FriendsChatMember[] membersFC = friendsChatManager.getMembers();
-            for (FriendsChatMember member : membersFC) {
-                if (channelStandardizedUsernames.add(Text.standardize(member.getName()))) {
-                    shouldRefreshChat = true;
-                }
+
+        if (friendsChatManager == null) {
+            return;
+        }
+
+        FriendsChatMember[] membersFC = friendsChatManager.getMembers();
+        for (FriendsChatMember member : membersFC) {
+            if (channelStandardizedUsernames.add(Text.standardize(member.getName()))) {
+                shouldRefreshChat = true;
             }
         }
+        //Could technically collapse this with e.g. a forEach() stream like below, but readability is complete shit then IMO
+        //Arrays.stream(membersFC).filter(member -> channelStandardizedUsernames.add(Text.standardize(member.getName()))).forEach(member -> shouldRefreshChat = true);
     }
 
     private void getCCMembers() {
@@ -978,15 +986,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         ClanSettings gimSettings = client.getClanSettings(ClanID.GROUP_IRONMAN);
         addClanMembers(gimClanChannel, gimSettings, clanStandardizedUsernames);
         System.out.println(clanStandardizedUsernames); //todo: remove
-    }
-
-    private void getGuestCCMembers() {
-        //To add all the guest CC members to the hashset. Useful if the plugin gets enabled while already in a guest CC, so should run in StartUp.
-        //Add guest CC
-        ClanChannel guestClanChannel = client.getGuestClanChannel();
-        ClanSettings guestClanSettings = client.getGuestClanSettings();
-        addClanMembers(guestClanChannel, guestClanSettings, guestClanStandardizedUsernames);
-        System.out.println(guestClanStandardizedUsernames); //todo: remove
     }
 
     private void addClanMembers(ClanChannel clanChannel, ClanSettings clanSettings, HashSet<String> clanHashSet) {
@@ -1010,6 +1009,15 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 }
             }
         }
+    }
+
+    private void getGuestCCMembers() {
+        //To add all the guest CC members to the hashset. Useful if the plugin gets enabled while already in a guest CC, so should run in StartUp.
+        //Add guest CC
+        ClanChannel guestClanChannel = client.getGuestClanChannel();
+        ClanSettings guestClanSettings = client.getGuestClanSettings();
+        addClanMembers(guestClanChannel, guestClanSettings, guestClanStandardizedUsernames);
+        System.out.println(guestClanStandardizedUsernames); //todo: remove
     }
 
     @Nullable
@@ -1702,20 +1710,23 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private void addPartyMemberStandardizedUsernames() {
         //Opted to use this so party members would remain until hopping.
         //Alternatively just use partyService.isInParty() && partyService.getMemberByDisplayName(player.getName()) != null in the shouldFilter code if you only want it to be when they are in the party.
-        if (partyService.isInParty()) {
-            List<PartyMember> partyMembers = partyService.getMembers();
-            if (partyMembers != null && !partyMembers.isEmpty()) {
-                //The list is not empty anymore (can be empty immediately after joining a party) ->
-                // set the flag to 0 and add the partymembers to the correct hashset
-                getRLPartyMembersFlag = 0;
-                for (PartyMember partyMember : partyMembers) {
-                    String standardizedUsername = Text.standardize(partyMember.getDisplayName());
-                    if (!Strings.isNullOrEmpty(standardizedUsername) && runelitePartyStandardizedUsernames.add(standardizedUsername)) {
-                        shouldRefreshChat = true;
-                    }
+        if (!partyService.isInParty()) {
+            //Return early if not in party
+            return;
+        }
+
+        List<PartyMember> partyMembers = partyService.getMembers();
+        if (partyMembers != null && !partyMembers.isEmpty()) {
+            //The list is not empty anymore (can be empty immediately after joining a party) ->
+            // set the flag to 0 and add the partymembers to the correct hashset
+            getRLPartyMembersFlag = 0;
+            for (PartyMember partyMember : partyMembers) {
+                String standardizedUsername = Text.standardize(partyMember.getDisplayName());
+                if (!Strings.isNullOrEmpty(standardizedUsername) && runelitePartyStandardizedUsernames.add(standardizedUsername)) {
+                    shouldRefreshChat = true;
                 }
-                System.out.println(runelitePartyStandardizedUsernames); //todo: remove
             }
+            System.out.println(runelitePartyStandardizedUsernames); //todo: remove
         }
     }
 
