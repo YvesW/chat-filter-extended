@@ -68,8 +68,8 @@ import java.util.Set;
 @Slf4j
 @PluginDescriptor(
         name = "Chat Filter Extended",
-        description = "Extends the functionality of the chat tabs/stones to filter chat messages not from friends/clan members/FC members/Guest CC members/raid members/party members.",
-        tags = {"chat,chat filter,public,public OH,friends,friends OH,fc,fc OH,cc,cc OH,guest,guest OH,raid,raid OH,party,party OH,whitelist,whitelist OH,custom,clanchat,clan,filter,friends chat,private,trade,raids,tob,toa,cox,spam,show"}
+        description = "Extends the functionality of the chat tabs/stones to filter chat messages not from friends/FC members/clan members/Guest CC members/raid members/RL party members/whitelisted people.",
+        tags = {"chat,chat filter,public,public OH,friends,friends OH,fc,fc OH,cc,cc OH,guest,guest OH,raid,raid OH,party,party OH,whitelist,whitelist OH,custom,clanchat,clan,filter,friends chat,private,trade,raids,tob,toa,cox,spam,show,chat tab,chat stone"}
 )
 //Alternative (bad) names: Custom Chat Filter, Custom Chat View, Chat View Extended, Chat Show Custom, Chat tabs extended, Chatstones extended
 //My goal was not to make one of these "abc improved" or "better abc" plugins, but the menuOptions like "Show friends" or "Show none" are just called chat filters, and I can't come up with a better name. At least Polar calls them that in e.g. script 152 (chat_set_filter)
@@ -206,7 +206,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //todo: mss per region settings (activeren) in advanced doch mss gaat dit te ver
         //todo: to ignore highlights, you'd probs have to get the ChatMessage before ChatNotificationsPlugin, getId the Id, getValue the content of the messageNode, and getName() the username, then save the last xx amount of filtered messages and setValue the value of the node to e.g. " ". Then if client.refreshChat gets triggered, you have to go over the saved values and restore the message nodes if the user is now not filtered and the message is " ".
         //TODO: at some point consider adding a pop-out menu like MES has to Show custom in which you can add or remove options from the set. or add this as separate entry. Use the ShiftMenuSettings style advanced config anyway!
-        //todo: use int to determine what activeRaid is so you can clear raid usernames and set int to other thingy when entering zone/proccing script of other raid => make this an advanced config option => also do this when varc procs (so in raid etc, in case the plugin is activated in the raid)
 
         //Note: Specifically opted not to a right-click option (config advanced ShiftMenuSettings style) to add/remove a player to a whitelist with a pop-out menu (like inventory tags or MES uses). There is an engine limit of only 7 options being visible when you right click someone in game or one of their messages. Thus, do not implement this pretty niche option.
     }
