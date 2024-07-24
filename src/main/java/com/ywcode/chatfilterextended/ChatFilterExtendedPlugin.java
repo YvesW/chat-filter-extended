@@ -137,6 +137,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static final String configGroup = "ChatFilterExtended";
     private static final List<Integer> chatboxComponentIDs = ImmutableList.of(ComponentID.CHATBOX_TAB_PUBLIC, ComponentID.CHATBOX_TAB_PRIVATE, ComponentID.CHATBOX_TAB_CHANNEL, ComponentID.CHATBOX_TAB_CLAN, ComponentID.CHATBOX_TAB_TRADE);
     private static final List<String> filtersEnabledStringList = ImmutableList.of("publicFilterEnabled", "privateFilterEnabled", "channelFilterEnabled", "clanFilterEnabled", "tradeFilterEnabled");
+    private static final String TAB_CUSTOM_TEXT_STRING = "<br><col=ffff00>Custom</col>";
     private static final int TOA_LOBBY_REGION_ID = 13454; //Region id of ToA lobby (which has the bank)
     private static final int COX_BANK_REGION_ID = 4919; //Region id of CoX bank
     private static final int IN_A_RAID_VARPID = 2926; //Changes to e.g. 1001 when entering a raid (ToA, CoX, ToB; does apparently not proc for vork or PNM), then when leaving it does: 1001 -> 1000 -> 1200 -> 0.
@@ -1190,8 +1191,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Sets the WidgetText for the specific chat to Custom, based on componentID. Usage of this already has GameState check.
         Widget chatWidget = client.getWidget(componentID);
         if (chatWidget != null && isChatFilteredComponentID(componentID)) {
-            final String customTextString = "<br><col=ffff00>Custom</col>";
-            chatWidget.getStaticChildren()[2].setText(customTextString); //or e.g. chatWidget.getStaticChildren().length-1 but that might change more often idk
+            chatWidget.getStaticChildren()[2].setText(TAB_CUSTOM_TEXT_STRING); //or e.g. chatWidget.getStaticChildren().length-1 but that might change more often idk
         }
     }
 
