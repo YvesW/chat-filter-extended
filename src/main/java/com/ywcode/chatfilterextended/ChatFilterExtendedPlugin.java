@@ -205,9 +205,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //todo: go through problems
         //todo: check and refactor the whole fucking shit
         //todo: add comments
-        //todo: mss per region settings (activeren) in advanced doch mss gaat dit te ver
         //todo: to ignore highlights, you'd probs have to get the ChatMessage before ChatNotificationsPlugin, getId the Id, getValue the content of the messageNode, and getName() the username, then save the last xx amount of filtered messages and setValue the value of the node to e.g. " ". Then if client.refreshChat gets triggered, you have to go over the saved values and restore the message nodes if the user is now not filtered and the message is " ".
-        //TODO: at some point consider adding a pop-out menu like MES has to Show custom in which you can add or remove options from the set. or add this as separate entry. Use the ShiftMenuSettings style advanced config anyway!
 
         //Note: Specifically opted not to a right-click option (config advanced ShiftMenuSettings style) to add/remove a player to a whitelist with a pop-out menu (like inventory tags or MES uses). There is an engine limit of only 7 options being visible when you right click someone in game or one of their messages. Thus, do not implement this pretty niche option.
     }
@@ -220,8 +218,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //todo: remove TEST and remove println
         //todo: test a bit what happens when putting clan and e.g. public to off, then enabling custom, then disabling the plugin => should go back to off for both? probably? and what if you then reboot the client?
         //todo: check if cox, tob, toa widgetids, scriptids, varbits, varcs etc. al ergens in runelite bestaan of niet
-        //todo: reenable chat history + maybe toggle chat
-        //todo: reset plugin to defaults and check if these are sensible at the end
+        //todo: reenable chat history
         //todo: check what chat filter plugin does.
         // script 175 does this:
         /* ~chat_set_filter($int1, ^chatfilter_friends);
@@ -345,6 +342,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 }
                 shouldRefreshChat = true;
                 break;
+                //todo: potentially add CONNECTION_LOST; check core chat filter plugin
         }
     }
 
