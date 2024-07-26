@@ -364,7 +364,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         previousGameState = gameStateChanged.getGameState();
     }
 
-    //todo: continue evaluating code/comments from here onward
     @Subscribe
     public void onFriendsChatChanged(FriendsChatChanged friendsChatChanged) {
         //Remove FC usernames when leaving the FC and when the advanced config option is enabled; also procs when hopping/logging out
@@ -423,30 +422,26 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
+    //todo: continue evaluating code/comments from here onward
     @Subscribe
     public void onClanMemberJoined(ClanMemberJoined clanMemberJoined) {
         //Add newly joined guests this way since the HashSet does not contain clan/guest clan guests yet
+        //The normal members should already be added as part of the clansettings check earlier
         //In the case of HashSet, the item isn't inserted if it's a duplicate => so no .contains check beforehand.
-        ClanChannel clanChannel = client.getClanChannel(ClanID.CLAN);
-        ClanChannel gimChannel = client.getClanChannel(ClanID.GROUP_IRONMAN);
-        ClanChannel guestClanChannel = client.getGuestClanChannel();
         String standardizedJoinedName = Text.standardize(clanMemberJoined.getClanMember().getName());
-
         ClanChannel clanChannelJoined = clanMemberJoined.getClanChannel();
+
         //If person joins clan/GIM chat, add to clan HashSet. PS switch does not like clanMemberJoined.getClanChannel()
-        if (clanChannelJoined.equals(clanChannel)
-                || clanChannelJoined.equals(gimChannel)) { //Alternatively use clanChannel != null && clanChannel.findMember(standardizedJoinedName) != null
-            //findMember works both with .removeTags and with .standardize
-            if (clanTotalStandardizedUsernames.add(standardizedJoinedName)) {
-                shouldRefreshChat = true;
-            }
+        if ((clanChannelJoined.equals(client.getClanChannel(ClanID.CLAN))
+                || clanChannelJoined.equals(client.getClanChannel(ClanID.GROUP_IRONMAN))) //Alternatively use clanChannel != null && clanChannel.findMember(standardizedJoinedName) != null -> //findMember works both with .removeTags and with .standardize
+                && clanTotalStandardizedUsernames.add(standardizedJoinedName)) {
+            shouldRefreshChat = true;
         }
 
         //If person joins guest CC chat, add to guest clan HashSet.
-        if (clanChannelJoined.equals(guestClanChannel)) { //Alternatively use guestClanChannel != null && guestClanChannel.findMember(standardizedJoinedName) != null
-            if (guestClanTotalStandardizedUsernames.add(standardizedJoinedName)) {
-                shouldRefreshChat = true;
-            }
+        if (clanChannelJoined.equals(client.getGuestClanChannel()) //Alternatively use guestClanChannel != null && guestClanChannel.findMember(standardizedJoinedName) != null
+                && guestClanTotalStandardizedUsernames.add(standardizedJoinedName)) {
+            shouldRefreshChat = true;
         }
     }
 
