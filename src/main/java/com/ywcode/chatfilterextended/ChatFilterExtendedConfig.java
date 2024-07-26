@@ -382,7 +382,7 @@ public interface ChatFilterExtendedConfig extends Config
 	)
 	default ShiftMenuSetting changeChatSetsShiftMenuSetting()
 	{
-		return ShiftMenuSetting.HOLD_SHIFT;
+		return ShiftMenuSetting.ALWAYS;
 	}
 
 	@ConfigItem(
