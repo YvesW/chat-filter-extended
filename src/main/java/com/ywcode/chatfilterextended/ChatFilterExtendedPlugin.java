@@ -91,6 +91,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static final HashSet<String> clanWhitelist = new HashSet<>();
     private static Set<ChatTabFilterOptions> tradeChatFilterOptions = new HashSet<>();
     private static final HashSet<String> tradeWhitelist = new HashSet<>();
+    private static boolean showGuestTrades;
     private static boolean clearChannelSetHop;
     private static boolean clearClanSetHop;
     private static boolean clearGuestClanSetHop;
@@ -120,8 +121,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static GameState previousPreviousGameState;
     private static GameState previousGameState;
     private static final HashSet<String> channelStandardizedUsernames = new HashSet<>();
-    private static final HashSet<String> clanStandardizedUsernames = new HashSet<>();
-    private static final HashSet<String> guestClanStandardizedUsernames = new HashSet<>();
+    private static final HashSet<String> clanMembersStandardizedUsernames = new HashSet<>();
+    private static final HashSet<String> clanTotalStandardizedUsernames = new HashSet<>();
+    private static final HashSet<String> guestClanMembersStandardizedUsernames = new HashSet<>();
+    private static final HashSet<String> guestClanTotalStandardizedUsernames = new HashSet<>();
     private static final HashSet<String> raidPartyStandardizedUsernames = new HashSet<>();
     private static final HashSet<String> runelitePartyStandardizedUsernames = new HashSet<>();
     private static boolean inCoXRaidOrLobby; //Default value is false
@@ -234,9 +237,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
 
         shuttingDown = true; //Might not be necessary but just to be sure it doesn't set it back to custom text since the script procs
-        clanStandardizedUsernames.clear();
         channelStandardizedUsernames.clear();
-        guestClanStandardizedUsernames.clear();
+        clanMembersStandardizedUsernames.clear();
+        clanTotalStandardizedUsernames.clear();
+        guestClanMembersStandardizedUsernames.clear();
+        guestClanTotalStandardizedUsernames.clear();
         runelitePartyStandardizedUsernames.clear();
         clearRaidPartyHashset(); //Also clear the string so the plugin will process the party interface if needed
         if (client.getGameState() == GameState.LOGGED_IN || client.getGameState() == GameState.LOADING) {
@@ -288,6 +293,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         convertCommaSeparatedConfigStringToSet(config.clanWhitelist(), clanWhitelist);
         tradeChatFilterOptions = config.tradeChatFilterOptions();
         convertCommaSeparatedConfigStringToSet(config.tradeWhitelist(), tradeWhitelist);
+        showGuestTrades = config.showGuestTrades();
         clearChannelSetHop = config.clearChannelSetHop();
         clearClanSetHop = config.clearClanSetHop();
         clearGuestClanSetHop = config.clearGuestClanSetHop();
@@ -323,9 +329,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 }
                 break;
             case LOGIN_SCREEN:
-                clanStandardizedUsernames.clear();
                 channelStandardizedUsernames.clear();
-                guestClanStandardizedUsernames.clear();
+                clanMembersStandardizedUsernames.clear();
+                clanTotalStandardizedUsernames.clear();
+                guestClanMembersStandardizedUsernames.clear();
+                guestClanTotalStandardizedUsernames.clear();
                 runelitePartyStandardizedUsernames.clear();
                 clearRaidPartyHashset(); //Also clear the string so the plugin will process the party interface if needed + shouldRefreshChat = true
                 break;
@@ -341,10 +349,12 @@ public class ChatFilterExtendedPlugin extends Plugin {
                     channelStandardizedUsernames.clear();
                 }
                 if (clearClanSetHop) {
-                    clanStandardizedUsernames.clear();
+                    clanMembersStandardizedUsernames.clear();
+                    clanTotalStandardizedUsernames.clear();
                 }
                 if (clearGuestClanSetHop) {
-                    guestClanStandardizedUsernames.clear();
+                    guestClanMembersStandardizedUsernames.clear();
+                    guestClanTotalStandardizedUsernames.clear();
                 }
                 shouldRefreshChat = true;
                 break;
@@ -381,32 +391,34 @@ public class ChatFilterExtendedPlugin extends Plugin {
         if (!clanChannelChanged.isGuest()) { //If left or joined own CC or GIM chat
             int clanId = clanChannelChanged.getClanId();
             if (clanId == ClanID.CLAN) { //If left/joined own CC, separate line because of all the if-then-else statements used here
-                if (client.getClanChannel(ClanID.CLAN) == null) { //If not in own CC
+                if (client.getClanChannel(ClanID.CLAN) == null) { //If not in own CC -> left CC
                     if (clearClanSetLeave) {
-                        clanStandardizedUsernames.clear();
+                        clanMembersStandardizedUsernames.clear();
+                        clanTotalStandardizedUsernames.clear();
                         shouldRefreshChat = true;
                     }
-                } else { //If in own CC
+                } else { //If in own CC (i.e. your clan, not a guest clan)
                     //If joined own CC, get members and add the usernames to HashSet
-                    addClanMembers(clanChannel, client.getClanSettings(ClanID.CLAN), clanStandardizedUsernames);
+                    addClanMembers(clanChannel, client.getClanSettings(ClanID.CLAN));
                 }
             }
 
             //Also include GIM members in Clan Hashset, untested because no access to a GIM account
             if (clanId == ClanID.GROUP_IRONMAN //If joined/left GIM chat
                     && client.getClanChannel(ClanID.GROUP_IRONMAN) != null) { //If in GIM chat
-                addClanMembers(clanChannel, client.getClanSettings(ClanID.GROUP_IRONMAN), clanStandardizedUsernames);
+                addClanMembers(clanChannel, client.getClanSettings(ClanID.GROUP_IRONMAN));
             }
 
         } else { //If left/joined guest CC
             if (client.getGuestClanChannel() == null) { //If not in guest CC
                 if (clearGuestClanSetLeave) { //If left guest CC => clear guest cc usernames HashSet if the advanced config option is enabled
-                    guestClanStandardizedUsernames.clear();
+                    guestClanMembersStandardizedUsernames.clear();
+                    guestClanTotalStandardizedUsernames.clear();
                     shouldRefreshChat = true;
                 }
             } else { //If joined guest clan
                 //If joined guest clan, get members and add the usernames to HashSet
-                addClanMembers(clanChannel, client.getGuestClanSettings(), guestClanStandardizedUsernames);
+                addGuestClanMembers(clanChannel, client.getGuestClanSettings());
             }
         }
     }
@@ -425,14 +437,14 @@ public class ChatFilterExtendedPlugin extends Plugin {
         if (clanChannelJoined.equals(clanChannel)
                 || clanChannelJoined.equals(gimChannel)) { //Alternatively use clanChannel != null && clanChannel.findMember(standardizedJoinedName) != null
             //findMember works both with .removeTags and with .standardize
-            if (clanStandardizedUsernames.add(standardizedJoinedName)) {
+            if (clanTotalStandardizedUsernames.add(standardizedJoinedName)) {
                 shouldRefreshChat = true;
             }
         }
 
         //If person joins guest CC chat, add to guest clan HashSet.
         if (clanChannelJoined.equals(guestClanChannel)) { //Alternatively use guestClanChannel != null && guestClanChannel.findMember(standardizedJoinedName) != null
-            if (guestClanStandardizedUsernames.add(standardizedJoinedName)) {
+            if (guestClanTotalStandardizedUsernames.add(standardizedJoinedName)) {
                 shouldRefreshChat = true;
             }
         }
@@ -777,9 +789,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
             }
             if (this.chatTabAlerts.size() > 0) {
                 if (this.chatTabAlerts.get(0).getChatTabNumber() == currentChatTabAlertTab) {
-                    System.out.println("this.chatTabAlerts.get(0).getChatTabNumber() == currentChatTabAlertTab"); //todo: remove
+                    //System.out.println("this.chatTabAlerts.get(0).getChatTabNumber() == currentChatTabAlertTab"); //todo: remove
                 } else {
-                    System.out.println("NUMBER DOES NOT MATCH: "+this.chatTabAlerts.get(0).getChatTabNumber()+" vs currentChatTabAlertTab: "+currentChatTabAlertTab);
+                    //System.out.println("NUMBER DOES NOT MATCH: "+this.chatTabAlerts.get(0).getChatTabNumber()+" vs currentChatTabAlertTab: "+currentChatTabAlertTab);
                 } //todo: see stuff calendar!
             }
         }
@@ -976,22 +988,39 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Add own CC
         ClanChannel clanChannel = client.getClanChannel();
         ClanSettings clanSettings = client.getClanSettings(ClanID.CLAN);
-        addClanMembers(clanChannel, clanSettings, clanStandardizedUsernames);
+        addClanMembers(clanChannel, clanSettings);
 
         //Add GIM
         ClanChannel gimClanChannel = client.getClanChannel(ClanID.GROUP_IRONMAN);
         ClanSettings gimSettings = client.getClanSettings(ClanID.GROUP_IRONMAN);
-        addClanMembers(gimClanChannel, gimSettings, clanStandardizedUsernames);
-        System.out.println(clanStandardizedUsernames); //todo: remove
+        addClanMembers(gimClanChannel, gimSettings);
+        System.out.println(clanMembersStandardizedUsernames); //todo: remove
+        System.out.println(clanTotalStandardizedUsernames); //todo: remove
     }
 
-    private void addClanMembers(ClanChannel clanChannel, ClanSettings clanSettings, HashSet<String> clanHashSet) {
+    private void addClanMembers(ClanChannel clanChannel, ClanSettings clanSettings) {
+        addClanOrGuestClanMembers(clanChannel, clanSettings, clanMembersStandardizedUsernames, clanTotalStandardizedUsernames);
+    }
+
+    private void addGuestClanMembers(ClanChannel clanChannel, ClanSettings clanSettings) {
+        addClanOrGuestClanMembers(clanChannel, clanSettings, guestClanMembersStandardizedUsernames, guestClanTotalStandardizedUsernames);
+    }
+
+    private void addClanOrGuestClanMembers(ClanChannel clanChannel, ClanSettings clanSettings, HashSet<String> clanMemberHashSet, HashSet<String> clanTotalHashSet) {
         if (clanSettings != null) {
             //Adds all the members to the HashSet (according to the clan settings)
             for (ClanMember clanMember : clanSettings.getMembers()) {
-                if (clanHashSet.add(Text.standardize(clanMember.getName()))) {
+                if (clanMemberHashSet.add(Text.standardize(clanMember.getName()))) {
                     shouldRefreshChat = true;
                 }
+            }
+            //All clan members have been added to the clanMembersHashSet based on the clan settings
+            //Also add them to the clanTotalHashset, which later on adds all the guests as well
+            //While the chance is almost 0, technically the onGameTick refresh called for above could have happened
+            //before addAll has been completed while the code below will not set the flag to true in very specific
+            //scenarios. If the flag gets set twice, then whatever because it'll only be executed once.
+            if (clanTotalHashSet.addAll(clanMemberHashSet)) {
+                shouldRefreshChat = true;
             }
         }
 
@@ -999,7 +1028,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         if (clanChannel != null) {
             //Previous solution does not add the guests that are already in the CC, also add those
             for (ClanChannelMember clanMember : clanChannel.getMembers()) {
-                if (clanHashSet.add(Text.standardize(clanMember.getName()))) {
+                if (clanTotalHashSet.add(Text.standardize(clanMember.getName()))) {
                     shouldRefreshChat = true;
                 }
             }
@@ -1011,8 +1040,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Add guest CC
         ClanChannel guestClanChannel = client.getGuestClanChannel();
         ClanSettings guestClanSettings = client.getGuestClanSettings();
-        addClanMembers(guestClanChannel, guestClanSettings, guestClanStandardizedUsernames);
-        System.out.println(guestClanStandardizedUsernames); //todo: remove
+        addGuestClanMembers(guestClanChannel, guestClanSettings);
+        System.out.println(guestClanMembersStandardizedUsernames); //todo: remove
+        System.out.println(guestClanTotalStandardizedUsernames); //todo: remove
     }
 
     @Nullable
@@ -1310,10 +1340,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
         if (chatTabHashSet.contains(ChatTabFilterOptions.FC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.FC) && channelStandardizedUsernames.contains(playerName)) {
             return false;
         }
-        if (chatTabHashSet.contains(ChatTabFilterOptions.CC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.CC) && clanStandardizedUsernames.contains(playerName)) {
+        if (chatTabHashSet.contains(ChatTabFilterOptions.CC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.CC) && clanTotalStandardizedUsernames.contains(playerName)) {
             return false;
         }
-        if (chatTabHashSet.contains(ChatTabFilterOptions.GUEST_CC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.GUEST_CC) && guestClanStandardizedUsernames.contains(playerName)) {
+        if (chatTabHashSet.contains(ChatTabFilterOptions.GUEST_CC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.GUEST_CC) && guestClanTotalStandardizedUsernames.contains(playerName)) {
             return false;
         }
         if (chatTabHashSet.contains(ChatTabFilterOptions.PARTY) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.PARTY) && runelitePartyStandardizedUsernames.contains(playerName)) {
@@ -1339,8 +1369,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.PUBLIC)
                 && !client.isFriended(playerName, false)
                 && !channelStandardizedUsernames.contains(playerName)
-                && !clanStandardizedUsernames.contains(playerName)
-                && !guestClanStandardizedUsernames.contains(playerName)
+                && !clanTotalStandardizedUsernames.contains(playerName)
+                && !guestClanTotalStandardizedUsernames.contains(playerName)
                 && !runelitePartyStandardizedUsernames.contains(playerName)
                 && !raidPartyStandardizedUsernames.contains(playerName)
                 && (whitelist != null && !whitelist.contains(playerName))) {
@@ -1373,10 +1403,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
         if (chatTabHashSet.contains(ChatTabFilterOptions.FC) && channelStandardizedUsernames.contains(playerName)) {
             return false;
         }
-        if (chatTabHashSet.contains(ChatTabFilterOptions.CC) && clanStandardizedUsernames.contains(playerName)) {
+        if (chatTabHashSet.contains(ChatTabFilterOptions.CC) && getClanHashSet(chatTabHashSet).contains(playerName)) {
             return false;
         }
-        if (chatTabHashSet.contains(ChatTabFilterOptions.GUEST_CC) && guestClanStandardizedUsernames.contains(playerName)) {
+        if (chatTabHashSet.contains(ChatTabFilterOptions.GUEST_CC) && getGuestClanHashSet(chatTabHashSet).contains(playerName)) {
             return false;
         }
         if (chatTabHashSet.contains(ChatTabFilterOptions.PARTY) && runelitePartyStandardizedUsernames.contains(playerName)) {
@@ -1408,8 +1438,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
         if (chatTabHashSet.contains(ChatTabFilterOptions.PUBLIC) //If statement can be simplified, but specifically opted not to do this to increase readability.
                 && !client.isFriended(playerName, false)
                 && !channelStandardizedUsernames.contains(playerName)
-                && !clanStandardizedUsernames.contains(playerName)
-                && !guestClanStandardizedUsernames.contains(playerName)
+                && !clanTotalStandardizedUsernames.contains(playerName)
+                && !guestClanTotalStandardizedUsernames.contains(playerName)
                 && !runelitePartyStandardizedUsernames.contains(playerName)
                 && !raidPartyStandardizedUsernames.contains(playerName)
                 && (whitelist != null && !whitelist.contains(playerName))) {
@@ -1453,6 +1483,20 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		However, I'd like the usernames to persist until the user logs out or leaves the chat (if configured in advanced settings), since sometimes people briefly leave the FC/CC/guest CC and still type etc
 		Thus, I've specifically opted to not use this.
 		 */
+
+    private HashSet<String> getClanHashSet(Set<ChatTabFilterOptions> chatTabHashSet) {
+        if (chatTabHashSet == tradeChatFilterOptions && !showGuestTrades) {
+            return clanMembersStandardizedUsernames;
+        }
+        return clanTotalStandardizedUsernames;
+    }
+
+    private HashSet<String> getGuestClanHashSet(Set<ChatTabFilterOptions> chatTabHashSet) {
+        if (chatTabHashSet == tradeChatFilterOptions && !showGuestTrades) {
+            return guestClanMembersStandardizedUsernames;
+        }
+        return guestClanTotalStandardizedUsernames;
+    }
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted") //This is true, but I like keeping it like this for my own logic
     private boolean isChatTabCustomFilterActiveChatMessageType(ChatMessageType chatMessageType) {

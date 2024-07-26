@@ -200,9 +200,14 @@ public interface ChatFilterExtendedConfig extends Config
 	)
 	default Set<ChatTabFilterOptions> tradeChatFilterOptions()
 	{
-		Set<ChatTabFilterOptions> Default = new HashSet<>(EnumSet.allOf(ChatTabFilterOptions.class));
-		Default.remove(ChatTabFilterOptions.PUBLIC);
+		Set<ChatTabFilterOptions> Default = new HashSet<>(Collections.emptySet());
+		Default.add(ChatTabFilterOptions.FRIENDS);
+		Default.add(ChatTabFilterOptions.CC);
+		Default.add(ChatTabFilterOptions.GUEST_CC);
+		Default.add(ChatTabFilterOptions.WHITELIST);
 		return Default;
+		//Public is randoms, FCs are often open, raid party applying is easy, RL party can be joined freely if you have the pass
+		//You hate to add friends, cc & guest cc have guests disabled by default, custom whitelist has to be set manually
 	}
 
 	@ConfigItem(
@@ -215,6 +220,20 @@ public interface ChatFilterExtendedConfig extends Config
 	default String tradeWhitelist()
 	{
 		return "";
+	}
+
+	@ConfigItem(
+			keyName = "showGuestTrades",
+			name = "Show (guest) clan guest trades",
+			description = "Also show trades by clan guests or guest clan guests when clan/guest clan are included in the set,<br>"
+					+ "and the filter is active. Disabled by default so people cannot impersonate cc/guest cc members by renaming to<br>"
+					+ "a name close to a cc/guest cc member, and joining the cc/guest cc as guest.",
+			position = 2,
+			section = tradeSettings
+	)
+	default boolean showGuestTrades()
+	{
+		return false;
 	}
 
 	@ConfigItem(

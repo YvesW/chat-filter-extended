@@ -38,5 +38,7 @@ Clears when it clears because it's jarring if a lot of messages suddenly disappe
 
 Add to readme that it does not filter your own chat so you don't have those weird situations with e.g. public chat set to private that does not display your own messages  
 
+Add to readme info on showGuestTrades config option -> what it does (basically config description), disabled by default
+
 Thanks to Annotated for helping me collect Vars/ScriptIds and for helping me extensively test the plugin!
 
