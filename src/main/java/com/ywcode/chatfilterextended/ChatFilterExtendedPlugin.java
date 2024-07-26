@@ -1551,19 +1551,19 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Switch statement is not compatible with this type, so if statements it is.
         //todo: check what this method exactly does
         if (chatTabFilterOptionsSet != null) {
-            if (chatTabFilterOptionsSet.equals(publicChatFilterOptions)) {
+            if (chatTabFilterOptionsSet == publicChatFilterOptions) {
                 return publicWhitelist;
             }
-            if (chatTabFilterOptionsSet.equals(privateChatFilterOptions)) {
+            if (chatTabFilterOptionsSet == privateChatFilterOptions) {
                 return privateWhitelist;
             }
-            if (chatTabFilterOptionsSet.equals(channelChatFilterOptions)) {
+            if (chatTabFilterOptionsSet == channelChatFilterOptions) {
                 return channelWhitelist;
             }
-            if (chatTabFilterOptionsSet.equals(clanChatFilterOptions)) {
+            if (chatTabFilterOptionsSet == clanChatFilterOptions) {
                 return clanWhitelist;
             }
-            if (chatTabFilterOptionsSet.equals(tradeChatFilterOptions)) {
+            if (chatTabFilterOptionsSet == tradeChatFilterOptions) {
                 return tradeWhitelist;
             }
         }
