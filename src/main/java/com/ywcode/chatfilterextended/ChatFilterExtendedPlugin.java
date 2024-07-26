@@ -542,7 +542,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             return;
         }
 
-        boolean shouldFilter = shouldFilterMessage(publicChatFilterOptions, actor.getName());
+        boolean shouldFilter = shouldFilterMessage(publicChatFilterOptions, actor.getName()); //Yes, using this method and not the OH (public chat message) one is correct here. When the OH option is active, it shouldFilter the chatbox chat, but not the OH chat! Activating/deactivating the OH option does not remove/filter the OH message!
         if (shouldFilter) {
             actor.setOverheadText(" ");
             System.out.println(Text.standardize(actor.getName()) + " OH text filtered"); //todo: remove
