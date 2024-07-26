@@ -1373,34 +1373,19 @@ public class ChatFilterExtendedPlugin extends Plugin {
             return false;
         }
 
-        //todo: add map as alternative code (idk if there is an alternative code thing for this though, then just make a note). Make code all || probably, potentially with method.
-
         playerName = Text.standardize(playerName); //Very likely works considering other methods work with a standardized name. Can't test this though since my name doesn't have e.g. a space.
-        if (Strings.isNullOrEmpty(playerName)) {
+        //Could probs do something like creating a map, then looping through that but meh
+        if (Strings.isNullOrEmpty(playerName)
+                || playerName.equals(Text.standardize(client.getLocalPlayer().getName())) //If it's your own message, don't filter
+                || (chatTabHashSet.contains(ChatTabFilterOptions.FRIENDS) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.FRIENDS) && client.isFriended(playerName, false))
+                || (chatTabHashSet.contains(ChatTabFilterOptions.FC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.FC) && channelStandardizedUsernames.contains(playerName))
+                || (chatTabHashSet.contains(ChatTabFilterOptions.CC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.CC) && clanTotalStandardizedUsernames.contains(playerName))
+                || (chatTabHashSet.contains(ChatTabFilterOptions.GUEST_CC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.GUEST_CC) && guestClanTotalStandardizedUsernames.contains(playerName))
+                || (chatTabHashSet.contains(ChatTabFilterOptions.PARTY) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.PARTY) && runelitePartyStandardizedUsernames.contains(playerName))
+                || (chatTabHashSet.contains(ChatTabFilterOptions.RAID) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.RAID) && raidPartyStandardizedUsernames.contains(playerName))) {
             return false;
         }
-        //If it's your own message, don't filter
-        if (playerName.equals(Text.standardize(client.getLocalPlayer().getName()))) {
-            return false;
-        }
-        if (chatTabHashSet.contains(ChatTabFilterOptions.FRIENDS) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.FRIENDS) && client.isFriended(playerName, false)) {
-            return false;
-        }
-        if (chatTabHashSet.contains(ChatTabFilterOptions.FC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.FC) && channelStandardizedUsernames.contains(playerName)) {
-            return false;
-        }
-        if (chatTabHashSet.contains(ChatTabFilterOptions.CC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.CC) && clanTotalStandardizedUsernames.contains(playerName)) {
-            return false;
-        }
-        if (chatTabHashSet.contains(ChatTabFilterOptions.GUEST_CC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.GUEST_CC) && guestClanTotalStandardizedUsernames.contains(playerName)) {
-            return false;
-        }
-        if (chatTabHashSet.contains(ChatTabFilterOptions.PARTY) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.PARTY) && runelitePartyStandardizedUsernames.contains(playerName)) {
-            return false;
-        }
-        if (chatTabHashSet.contains(ChatTabFilterOptions.RAID) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.RAID) && raidPartyStandardizedUsernames.contains(playerName)) {
-            return false;
-        }
+
         //Get appropriate whitelist and if enabled, check if this whitelist contains the playername
         Set<String> whitelist = chatTabFilterOptionsSetToWhitelist(chatTabHashSet);
         if (chatTabHashSet.contains(ChatTabFilterOptions.WHITELIST)
@@ -1415,15 +1400,14 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //It's not the local player, so don't have to check for that.
         //noinspection RedundantIfStatement
         if (chatTabHashSet.contains(ChatTabFilterOptions.PUBLIC) //If statement can be simplified, but specifically opted not to do this to increase readability.
-                && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.PUBLIC)
+                && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.PUBLIC) //Because if only overhead mode is active, the message should be filtered
                 && !client.isFriended(playerName, false)
                 && !channelStandardizedUsernames.contains(playerName)
-                && !clanTotalStandardizedUsernames.contains(playerName)
-                && !guestClanTotalStandardizedUsernames.contains(playerName)
+                && !clanTotalStandardizedUsernames.contains(playerName) //Can just use this instead of getClanHashSet(chatTabHashSet) since this will always be the case for public chat
+                && !guestClanTotalStandardizedUsernames.contains(playerName) //Can just use this instead of getGuestClanHashSet(chatTabHashSet) since this will always be the case for public chat
                 && !runelitePartyStandardizedUsernames.contains(playerName)
                 && !raidPartyStandardizedUsernames.contains(playerName)
                 && (whitelist != null && !whitelist.contains(playerName))) {
-            //todo: maybe use booleans instead of checking again if hashset contains ^
             return false;
         }
         return true;
@@ -1433,7 +1417,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private Set<String> chatTabFilterOptionsSetToWhitelist(Set<ChatTabFilterOptions> chatTabFilterOptionsSet) {
         //Translate the ChatTabFilterOptionsSet to the whitelist.
         //Switch statement is not compatible with this type, so if statements it is.
-        //todo: check what this method exactly does
         if (chatTabFilterOptionsSet != null) {
             if (chatTabFilterOptionsSet == publicChatFilterOptions) {
                 return publicWhitelist;
@@ -1461,44 +1444,19 @@ public class ChatFilterExtendedPlugin extends Plugin {
             return false;
         }
 
-        //todo: add map as alternative code. Make code all || probably, potentially with method.
-
         playerName = Text.standardize(playerName); //Very likely works considering other methods work with a standardized name. Can't test this though since my name doesn't have e.g. a space.
-        if (Strings.isNullOrEmpty(playerName)) {
+        //Could probs do something like creating a map, then looping through that but meh
+        if (Strings.isNullOrEmpty(playerName)
+                || playerName.equals(Text.standardize(client.getLocalPlayer().getName())) //Could probs do something like creating a map, then looping through that but meh
+                || (chatTabHashSet.contains(ChatTabFilterOptions.FRIENDS) && client.isFriended(playerName, false))
+                || (chatTabHashSet.contains(ChatTabFilterOptions.FC) && channelStandardizedUsernames.contains(playerName))
+                || (chatTabHashSet.contains(ChatTabFilterOptions.CC) && getClanHashSet(chatTabHashSet).contains(playerName))
+                || (chatTabHashSet.contains(ChatTabFilterOptions.GUEST_CC) && getGuestClanHashSet(chatTabHashSet).contains(playerName))
+                || (chatTabHashSet.contains(ChatTabFilterOptions.PARTY) && runelitePartyStandardizedUsernames.contains(playerName))
+                || (chatTabHashSet.contains(ChatTabFilterOptions.RAID) && raidPartyStandardizedUsernames.contains(playerName))) {
             return false;
         }
-        //If it's your own message, don't filter
-        if (playerName.equals(Text.standardize(client.getLocalPlayer().getName()))) {
-            return false;
-        }
-        if (chatTabHashSet.contains(ChatTabFilterOptions.FRIENDS) && client.isFriended(playerName, false)) {
-            return false;
-        }
-        if (chatTabHashSet.contains(ChatTabFilterOptions.FC) && channelStandardizedUsernames.contains(playerName)) {
-            return false;
-        }
-        if (chatTabHashSet.contains(ChatTabFilterOptions.CC) && getClanHashSet(chatTabHashSet).contains(playerName)) {
-            return false;
-        }
-        if (chatTabHashSet.contains(ChatTabFilterOptions.GUEST_CC) && getGuestClanHashSet(chatTabHashSet).contains(playerName)) {
-            return false;
-        }
-        if (chatTabHashSet.contains(ChatTabFilterOptions.PARTY) && runelitePartyStandardizedUsernames.contains(playerName)) {
-            return false;
-        }
-        if (chatTabHashSet.contains(ChatTabFilterOptions.RAID) && raidPartyStandardizedUsernames.contains(playerName)) {
-            return false;
-        }
-        //Alternatively do something like this, but kinda meh solution. Different solution would be better.
-		/*
-		List<ChatTabFilterOptions> ChatTabFilterOptionsList = ImmutableList.of(ChatTabFilterOptions.FC, ChatTabFilterOptions.CC, ChatTabFilterOptions.GUEST_CC, ChatTabFilterOptions.PARTY, ChatTabFilterOptions.RAID);
-		List<HashSet<String>> standardizedUsernamesHashSetList = Arrays.asList(channelStandardizedUsernames, clanStandardizedUsernames, guestClanStandardizedUsernames, runelitePartyStandardizedUsernames, raidPartyStandardizedUsernames);
-		for (int i = 0; i < ChatTabFilterOptionsList.size(); i++) {
-			if (chatTabHashSet.contains(ChatTabFilterOptionsList.get(i)) && standardizedUsernamesHashSetList.get(i).contains(playerName)) {
-				return false;
-			}
-		}
-		*/
+
         //Get appropriate whitelist and if enabled, check if this whitelist contains the playername
         Set<String> whitelist = chatTabFilterOptionsSetToWhitelist(chatTabHashSet);
         if (chatTabHashSet.contains(ChatTabFilterOptions.WHITELIST) && whitelist != null && whitelist.contains(playerName)) {
@@ -1512,16 +1470,17 @@ public class ChatFilterExtendedPlugin extends Plugin {
         if (chatTabHashSet.contains(ChatTabFilterOptions.PUBLIC) //If statement can be simplified, but specifically opted not to do this to increase readability.
                 && !client.isFriended(playerName, false)
                 && !channelStandardizedUsernames.contains(playerName)
-                && !clanTotalStandardizedUsernames.contains(playerName)
-                && !guestClanTotalStandardizedUsernames.contains(playerName)
+                && !getClanHashSet(chatTabHashSet).contains(playerName)
+                && !getGuestClanHashSet(chatTabHashSet).contains(playerName)
                 && !runelitePartyStandardizedUsernames.contains(playerName)
                 && !raidPartyStandardizedUsernames.contains(playerName)
                 && (whitelist != null && !whitelist.contains(playerName))) {
             return false;
         }
-        //todo: maybe use booleans instead of checking again if hashset contains ^
+        return true;
+    }
 
-        //Alternatively do something like this, but I don't really like this solution.
+        //Alternatively do something like this for public ChatTabFilterOptions, but I don't really like this solution.
 		/*
 		if (chatTabHashSet.contains(ChatTabFilterOptions.PUBLIC)) {
 			if (client.isFriended(playerName, false) || (whitelist != null && whitelist.contains(playerName))) {
@@ -1534,8 +1493,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 			}
 		}
 		*/
-        return true;
-    }
+
 		/* Alternatively use
 		private boolean isFriendsChatMember(String playerName) {
 			FriendsChatManager friendsChatManager = client.getFriendsChatManager();
