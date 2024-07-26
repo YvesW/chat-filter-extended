@@ -422,7 +422,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
-    //todo: continue evaluating code/comments from here onward
     @Subscribe
     public void onClanMemberJoined(ClanMemberJoined clanMemberJoined) {
         //Add newly joined guests this way since the HashSet does not contain clan/guest clan guests yet
@@ -490,6 +489,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
             clearRaidPartyHashset();
         }
     }
+
+    //todo: continue evaluating code/comments from here onward
+
 
     //todo: Check how caching is implemented in the ChatFilterPlugin after you last worked on this plugin!
     @Subscribe
@@ -1310,6 +1312,58 @@ public class ChatFilterExtendedPlugin extends Plugin {
         configManager.setConfiguration(configGroup, "publicChatFilterOptionsOH", chatSet);
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted") //This is true, but I like keeping it like this for my own logic
+    private boolean isChatTabCustomFilterActiveChatMessageType(ChatMessageType chatMessageType) {
+        //Returns true if the chat tab is set to Show: custom, based on the ChatMessageType
+        if (chatMessageType != null) {
+            switch (chatMessageType) {
+                //AUTOTYPER	is filtered on public = on anyway
+                case PUBLICCHAT:
+                case MODCHAT:
+                    return publicFilterEnabled;
+                case PRIVATECHAT:
+                case MODPRIVATECHAT:
+                    return privateFilterEnabled;
+                case FRIENDSCHAT:
+                    return channelFilterEnabled;
+                case CLAN_CHAT:
+                case CLAN_GIM_CHAT:
+                case CLAN_GUEST_CHAT:
+                    return clanFilterEnabled;
+                case TRADEREQ:
+                    //TRADE and TRADE_SENT are not received when someone tries to trade you, only TRADEREQ
+                    return tradeFilterEnabled;
+            }
+        }
+        return false;
+    }
+
+    @Nullable
+    private Set<ChatTabFilterOptions> chatMessageTypeToChatTabFilterOptionsSet(ChatMessageType chatMessageType) {
+        //Translates the ChatMessageType to the appropriate hashset (not OH, so not for overheads).
+        if (chatMessageType != null) {
+            switch (chatMessageType) {
+                //AUTOTYPER	is not shown/is filtered on public = on anyway
+                case PUBLICCHAT:
+                case MODCHAT:
+                    return publicChatFilterOptions;
+                case PRIVATECHAT:
+                case MODPRIVATECHAT:
+                    return privateChatFilterOptions;
+                case FRIENDSCHAT:
+                    return channelChatFilterOptions;
+                case CLAN_CHAT:
+                case CLAN_GIM_CHAT:
+                case CLAN_GUEST_CHAT:
+                    return clanChatFilterOptions;
+                case TRADEREQ:
+                    //TRADE and TRADE_SENT are not received when someone tries to trade you, only TRADEREQ
+                    return tradeChatFilterOptions;
+            }
+        }
+        return null;
+    }
+
     private boolean shouldFilterMessagePublicChatMessage(String playerName) {
         //Should the message be filtered, only for onChatMessage (ScriptCallback) and the public set, based on the sender's name.
         //For the rest, see shouldFilterMessage
@@ -1373,6 +1427,31 @@ public class ChatFilterExtendedPlugin extends Plugin {
             return false;
         }
         return true;
+    }
+
+    @Nullable
+    private Set<String> chatTabFilterOptionsSetToWhitelist(Set<ChatTabFilterOptions> chatTabFilterOptionsSet) {
+        //Translate the ChatTabFilterOptionsSet to the whitelist.
+        //Switch statement is not compatible with this type, so if statements it is.
+        //todo: check what this method exactly does
+        if (chatTabFilterOptionsSet != null) {
+            if (chatTabFilterOptionsSet == publicChatFilterOptions) {
+                return publicWhitelist;
+            }
+            if (chatTabFilterOptionsSet == privateChatFilterOptions) {
+                return privateWhitelist;
+            }
+            if (chatTabFilterOptionsSet == channelChatFilterOptions) {
+                return channelWhitelist;
+            }
+            if (chatTabFilterOptionsSet == clanChatFilterOptions) {
+                return clanWhitelist;
+            }
+            if (chatTabFilterOptionsSet == tradeChatFilterOptions) {
+                return tradeWhitelist;
+            }
+        }
+        return null;
     }
 
     private boolean shouldFilterMessage(Set<ChatTabFilterOptions> chatTabHashSet, String playerName) {
@@ -1491,83 +1570,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
             return guestClanMembersStandardizedUsernames;
         }
         return guestClanTotalStandardizedUsernames;
-    }
-
-    @SuppressWarnings("BooleanMethodIsAlwaysInverted") //This is true, but I like keeping it like this for my own logic
-    private boolean isChatTabCustomFilterActiveChatMessageType(ChatMessageType chatMessageType) {
-        //Returns true if the chat tab is set to Show: custom, based on the ChatMessageType
-        if (chatMessageType != null) {
-            switch (chatMessageType) {
-                //AUTOTYPER	is filtered on public = on anyway
-                case PUBLICCHAT:
-                case MODCHAT:
-                    return publicFilterEnabled;
-                case PRIVATECHAT:
-                case MODPRIVATECHAT:
-                    return privateFilterEnabled;
-                case FRIENDSCHAT:
-                    return channelFilterEnabled;
-                case CLAN_CHAT:
-                case CLAN_GIM_CHAT:
-                case CLAN_GUEST_CHAT:
-                    return clanFilterEnabled;
-                case TRADEREQ:
-                    //TRADE and TRADE_SENT are not received when someone tries to trade you, only TRADEREQ
-                    return tradeFilterEnabled;
-            }
-        }
-        return false;
-    }
-
-    @Nullable
-    private Set<ChatTabFilterOptions> chatMessageTypeToChatTabFilterOptionsSet(ChatMessageType chatMessageType) {
-        //Translates the ChatMessageType to the appropriate hashset (not OH, so not for overheads).
-        if (chatMessageType != null) {
-            switch (chatMessageType) {
-                //AUTOTYPER	is not shown/is filtered on public = on anyway
-                case PUBLICCHAT:
-                case MODCHAT:
-                    return publicChatFilterOptions;
-                case PRIVATECHAT:
-                case MODPRIVATECHAT:
-                    return privateChatFilterOptions;
-                case FRIENDSCHAT:
-                    return channelChatFilterOptions;
-                case CLAN_CHAT:
-                case CLAN_GIM_CHAT:
-                case CLAN_GUEST_CHAT:
-                    return clanChatFilterOptions;
-                case TRADEREQ:
-                    //TRADE and TRADE_SENT are not received when someone tries to trade you, only TRADEREQ
-                    return tradeChatFilterOptions;
-            }
-        }
-        return null;
-    }
-
-    @Nullable
-    private Set<String> chatTabFilterOptionsSetToWhitelist(Set<ChatTabFilterOptions> chatTabFilterOptionsSet) {
-        //Translate the ChatTabFilterOptionsSet to the whitelist.
-        //Switch statement is not compatible with this type, so if statements it is.
-        //todo: check what this method exactly does
-        if (chatTabFilterOptionsSet != null) {
-            if (chatTabFilterOptionsSet == publicChatFilterOptions) {
-                return publicWhitelist;
-            }
-            if (chatTabFilterOptionsSet == privateChatFilterOptions) {
-                return privateWhitelist;
-            }
-            if (chatTabFilterOptionsSet == channelChatFilterOptions) {
-                return channelWhitelist;
-            }
-            if (chatTabFilterOptionsSet == clanChatFilterOptions) {
-                return clanWhitelist;
-            }
-            if (chatTabFilterOptionsSet == tradeChatFilterOptions) {
-                return tradeWhitelist;
-            }
-        }
-        return null;
     }
 
     //private static final int TOB_BOARD_ID = 50; //N50.0
