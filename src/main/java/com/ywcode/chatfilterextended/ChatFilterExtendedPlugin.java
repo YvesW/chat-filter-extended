@@ -490,9 +490,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
-    //todo: continue evaluating code/comments from here onward
-
-
     //todo: Check how caching is implemented in the ChatFilterPlugin after you last worked on this plugin!
     @Subscribe
     public void onScriptCallbackEvent(ScriptCallbackEvent event) {
@@ -529,6 +526,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
             intStack[intStackSize - 3] = 0;
         }
     }
+
+    //todo: continue evaluating code/comments from here onward
 
     // Setting the priority is very important; otherwise it will race with other plugins such as probably core's ChatFilter and not hide the text!
     @Subscribe (priority = -10)
@@ -1379,15 +1378,15 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 || playerName.equals(Text.standardize(client.getLocalPlayer().getName())) //If it's your own message, don't filter
                 || (chatTabHashSet.contains(ChatTabFilterOptions.FRIENDS) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.FRIENDS) && client.isFriended(playerName, false))
                 || (chatTabHashSet.contains(ChatTabFilterOptions.FC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.FC) && channelStandardizedUsernames.contains(playerName))
-                || (chatTabHashSet.contains(ChatTabFilterOptions.CC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.CC) && clanTotalStandardizedUsernames.contains(playerName))
-                || (chatTabHashSet.contains(ChatTabFilterOptions.GUEST_CC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.GUEST_CC) && guestClanTotalStandardizedUsernames.contains(playerName))
+                || (chatTabHashSet.contains(ChatTabFilterOptions.CC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.CC) && clanTotalStandardizedUsernames.contains(playerName))  //Can just use this HashSet instead of getClanHashSet(chatTabHashSet) since this will always be the case for public chat
+                || (chatTabHashSet.contains(ChatTabFilterOptions.GUEST_CC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.GUEST_CC) && guestClanTotalStandardizedUsernames.contains(playerName))  //Can just use this HashSet instead of getGuestClanHashSet(chatTabHashSet) since this will always be the case for public chat
                 || (chatTabHashSet.contains(ChatTabFilterOptions.PARTY) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.PARTY) && runelitePartyStandardizedUsernames.contains(playerName))
                 || (chatTabHashSet.contains(ChatTabFilterOptions.RAID) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.RAID) && raidPartyStandardizedUsernames.contains(playerName))) {
             return false;
         }
 
         //Get appropriate whitelist and if enabled, check if this whitelist contains the playername
-        final Set<String> whitelist = chatTabFilterOptionsSetToWhitelist(chatTabHashSet);
+        final Set<String> whitelist = chatTabFilterOptionsSetToWhitelist(chatTabHashSet); //Don't put this inside the if statement. You use it below.
         if (chatTabHashSet.contains(ChatTabFilterOptions.WHITELIST)
                 && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.WHITELIST)
                 && whitelist != null
@@ -1398,9 +1397,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Public = everyone that did not fit in the earlier groups: not friend, not FC/CC/Guest CC/Raid party/RL party member and not on the appropriate whitelist
         //Thus, public = the randoms
         //It's not the local player, so don't have to check for that.
+        //If statement can be simplified, but specifically opted not to do this to increase readability.
         //noinspection RedundantIfStatement
-        if (chatTabHashSet.contains(ChatTabFilterOptions.PUBLIC) //If statement can be simplified, but specifically opted not to do this to increase readability.
-                && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.PUBLIC) //Because if only overhead mode is active, the message should be filtered
+        if (chatTabHashSet.contains(ChatTabFilterOptions.PUBLIC) && !chatTabHashSetOH.contains(ChatTabFilterOptionsOH.PUBLIC) //Because if only overhead mode is active, the message should be filtered
+                //Check if it is indeed a random:
                 && !client.isFriended(playerName, false)
                 && !channelStandardizedUsernames.contains(playerName)
                 && !clanTotalStandardizedUsernames.contains(playerName) //Can just use this instead of getClanHashSet(chatTabHashSet) since this will always be the case for public chat
@@ -1458,7 +1458,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
 
         //Get appropriate whitelist and if enabled, check if this whitelist contains the playername
-        final Set<String> whitelist = chatTabFilterOptionsSetToWhitelist(chatTabHashSet);
+        final Set<String> whitelist = chatTabFilterOptionsSetToWhitelist(chatTabHashSet); //Don't put inside if statement; you use this below.
         if (chatTabHashSet.contains(ChatTabFilterOptions.WHITELIST) && whitelist != null && whitelist.contains(playerName)) {
             return false;
         }
@@ -1754,7 +1754,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         boolean allMembersProcessed = true;
         for (long memberId : partyMemberIds) {
             final String standardizedUsername = Text.standardize(partyService.getMemberById(memberId).getDisplayName());
-            if (!Strings.isNullOrEmpty(standardizedUsername)) {
+            if (!Strings.isNullOrEmpty(standardizedUsername)) { // Not combined with if statement below so if else can be used
                 if (runelitePartyStandardizedUsernames.add(standardizedUsername)) {
                     shouldRefreshChat = true;
                 }
