@@ -1,6 +1,8 @@
 package com.ywcode.chatfilterextended;
 
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
 
 @Getter(AccessLevel.PACKAGE)
 @Setter(AccessLevel.PACKAGE)
@@ -18,5 +20,3 @@ public class ChatTabAlert {
         this.varcIntCountdownValue = 0;
     }
 }
-
-

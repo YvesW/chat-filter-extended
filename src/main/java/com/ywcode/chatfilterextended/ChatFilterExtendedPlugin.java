@@ -527,8 +527,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
-    //todo: continue evaluating code/comments from here onward
-
     // Setting the priority is very important; otherwise it will race with other plugins such as probably core's ChatFilter and not hide the text!
     @Subscribe (priority = -10)
     public void onOverheadTextChanged(OverheadTextChanged overheadTextChanged) {
@@ -547,6 +545,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
             System.out.println(Text.standardize(actor.getName()) + " OH text filtered"); //todo: remove
         }
     }
+
+    //todo: continue evaluating code/comments from here onward
 
     @Subscribe(priority = -2) //Run after ChatHistory plugin etc. Probably not necessary but can't hurt
     public void onMenuEntryAdded(MenuEntryAdded menuEntryAdded) {
@@ -699,7 +699,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
             executeSetChatsToPublic();
             setChatStoneWidgetTextAll(); //Also executed in setChatsToPublic() to improve the feeling (makes it feel snappier)
             setChatsToPublicFlag = false;
-            System.out.println("size (supposed to be 0) = "+this.chatTabAlerts.size()); //todo: remove
         }
 
         final int regionId = WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()).getRegionID();

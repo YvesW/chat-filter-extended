@@ -1,8 +1,14 @@
 package com.ywcode.chatfilterextended;
 
-import net.runelite.client.config.*;
+import net.runelite.client.config.Config;
+import net.runelite.client.config.ConfigGroup;
+import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.ConfigSection;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.Set;
 
 @ConfigGroup("ChatFilterExtended")
 public interface ChatFilterExtendedConfig extends Config
