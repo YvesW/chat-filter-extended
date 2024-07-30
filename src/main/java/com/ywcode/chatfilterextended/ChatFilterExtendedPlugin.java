@@ -552,8 +552,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
-    //todo: continue evaluating code/comments from here onward
-
     @Subscribe(priority = -2) //Run after ChatHistory plugin etc. Probably not necessary but can't hurt
     public void onMenuEntryAdded(MenuEntryAdded menuEntryAdded) {
         //Add right-click option(s) and potentially submenus to the chatstones
@@ -705,7 +703,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     public void onGameTick(GameTick gameTick) {
         if (setChatsToPublicFlag) {
             executeSetChatsToPublic();
-            setChatStoneWidgetTextAll(); //Also executed in setChatsToPublic() to improve the feeling (makes it feel snappier)
+            setChatStoneWidgetTextAll(); //Also executed in setChatsToPublic() (not to be confused with executeSetChatsToPublic) to improve the feeling (makes it feel snappier)
             setChatsToPublicFlag = false;
         }
 
@@ -744,6 +742,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             case REDRAW_CHAT_BUTTONS_SCRIPTID:
                 //178 = [proc,redraw_chat_buttons]
                 if (!shuttingDown) {
+                    //Set the WidgetText for enabled chats to Custom if not shutting down
                     setChatStoneWidgetTextAll();
                 }
                 break;
@@ -760,8 +759,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 processToABoard();
                 break;
             case CHAT_ALERT_ENABLE_SCRIPTID:
-                if (this.chatTabAlerts.size() > 0) {
-                    this.chatTabAlerts.remove(0);
+                if (!chatTabAlerts.isEmpty()) { //todo: potentially remove if switching to other alert solution
+                    chatTabAlerts.remove(0);
                 }
                 //todo: add code with switch based on currentChatTabAlertTab, has to take the advanced config boolean into account, has to take the filterTriggered boolean into account and has to take the own name thingy and it's advanced config setting into account!
                 break;
@@ -787,11 +786,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
                     //ccVarcIntCountdownValue = client.getVarcIntValue(CC_VARC_INT_COUNTDOWN_ID);
                     break;
                 case 6:
-                    //tradeVarcIntCountdownValue = client.getVarcIntValue(TRADE_VARC_INT_COUNTDOWN_ID); //todo: fix this
+                    //tradeVarcIntCountdownValue = client.getVarcIntValue(TRADE_VARC_INT_COUNTDOWN_ID); //todo: fix this, probs with the solution in calendar note that you thought of months ago. Probs want to keep the notes around though.
                     break;
             }
-            if (this.chatTabAlerts.size() > 0) {
-                if (this.chatTabAlerts.get(0).getChatTabNumber() == currentChatTabAlertTab) {
+            if (!chatTabAlerts.isEmpty()) { //todo: potentially remove if switching to other alert solution
+                if (chatTabAlerts.get(0).getChatTabNumber() == currentChatTabAlertTab) {
                     //System.out.println("this.chatTabAlerts.get(0).getChatTabNumber() == currentChatTabAlertTab"); //todo: remove
                 } else {
                     //System.out.println("NUMBER DOES NOT MATCH: "+this.chatTabAlerts.get(0).getChatTabNumber()+" vs currentChatTabAlertTab: "+currentChatTabAlertTab);
@@ -802,6 +801,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     @Subscribe
     public void onChatMessage(ChatMessage chatMessage) {
+        //todo: potentially remove if switching to other alert solution -> probs remove most/all of it but keep some notes aroudn somewhere
         //The order is: ChatMessage => ScriptPreFired 180 => ScriptPostFired 180. However, sometimes it might be CM => CM => PreF => PostF => PreF => PostF. See "docs/testing/ChatMessage ScriptPrePostFired" for more info.
         final ChatMessageType chatMessageType = chatMessage.getType();
         if (!isChatTabCustomFilterActiveChatMessageType(chatMessageType)) {
@@ -841,28 +841,25 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 break;
         }
 
-        this.chatTabAlerts.add(alert);
+        chatTabAlerts.add(alert);
 
         //todo: check if this also works for the chatfilter plugin with nothing filtered here (so if this fixes both chatfilter and chat filter extended).
         //todo: If so, either make it an advanced config option to only work when the chat is filtered by chat filter extended (via dropdown: always, only chat filter extended messages, never)
         //todo: and also edit the advanced config descriptions of the already existing options + the readme
     }
 
-
-
-
-    //todo: check why adding e.g. friends to an empty private set, then enabling it nukes the set... nvm, changing antyhing here doesnt seem to work?
-
     @Subscribe
     public void onVarbitChanged(VarbitChanged varbitChanged) {
+        final int varbitId = varbitChanged.getVarbitId();
         //For some reason the channel and clan tab also have Varbits attached to them, while public, private, and trade do not (see script 184/185).
         //The varbit just sometimes gets transmitted, e.g. when leaving ToB, when hopping worlds, or when changing e.g. the FC filter (this also transmits the CC varbit).
         //Script 152 or 184 does not run then, so no use doing onScriptPrefired and then using Client.setVarbit
-        final int varbitId = varbitChanged.getVarbitId();
         if ((channelFilterEnabled && varbitId == FC_CHAT_FILTER_VARBIT && varbitChanged.getValue() != 0) || //928 = FC value, 929 = cc value (int $chatfilter1). 0 = show all IIRC.
                 (clanFilterEnabled && varbitId == CC_CHAT_FILTER_VARBIT && varbitChanged.getValue() != 0)) {
             setChatsToPublic();
         }
+
+        //Set inCoXRaidOrLobby when entering/leaving CoX (including lobby)
         if (varbitId == Varbits.IN_RAID) {
             inCoXRaidOrLobby = varbitChanged.getValue() > 0; //Convert the int to boolean. 0 = false, 1 = true.
             if (inCoXRaidOrLobby) {
@@ -884,7 +881,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 shouldRefreshChat = true;
             }
         }
-        setAddPartyMemberStandardizedUsernamesFlag();
+        setAddPartyMemberStandardizedUsernamesFlag(); //The method that gets called by this method already checks if user is in party
     }
 
     @Subscribe(priority = -2) //Run after any other core party code (PartyService & PartyPlugin)
@@ -895,20 +892,22 @@ public class ChatFilterExtendedPlugin extends Plugin {
         final long memberId = userJoin.getMemberId();
         final String standardizedUsername = Text.standardize(partyService.getMemberById(memberId).getDisplayName());
         if (!Strings.isNullOrEmpty(standardizedUsername)) {
-            if (runelitePartyStandardizedUsernames.add(standardizedUsername)) {
+            if (runelitePartyStandardizedUsernames.add(standardizedUsername)) { //Not Combined with if statement above so else can be used
                 shouldRefreshChat = true;
             }
-        } else { //In case the party service can't get the display name yet, add to memberId to hashset and retry for 5 gameticks.
+        } else { //In case the party service can't get the display name yet, add memberId to hashset and retry for 5 gameticks.
             partyMemberIds.add(memberId);
             setAddUserJoinedPartyStandardizedUsernamesFlag();
         }
     }
 
+    //todo: continue evaluating code from here on
+
     @Subscribe
     public void onPlayerSpawned(PlayerSpawned playerSpawned) {
         //Processing the widget inside cox does not work because the data is not transferred if the interface is not opened... Additionally, there is no widget when outside the raid and there is no interesting scriptId that runs while the player is outside.
         //Varbits.IN_RAID gets updated to 1 when joining the CoX underground lobby! When leaving the underground lobby, it gets set back to 0. Thus, if it's 1, the player is in the underground lobby or doing a CoX raid. isInFC check is not required because people have to be in the raiding party when this varbit is 1 (CoX is instanced).
-        //Varbit gets set after PlayerSpawned fired, so getCoXPlayers is also ran when the varbit changes.
+        //Varbit gets set after PlayerSpawned fired, so getCoXPlayers is also called when the varbit changes.
         if (inCoXRaidOrLobby //If Varbits.IN_RAID > 0
                 && raidPartyStandardizedUsernames.add(Text.standardize(playerSpawned.getPlayer().getName()))) { //Standardize playername that joined cox lobby / cox raid and add to hashset.
             shouldRefreshChat = true;
@@ -930,9 +929,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private void getCoXPlayers() {
         //Get all players when inside CoX lobby or CoX raid and add them to the hashset after standardizing the name
         //Useful when starting the plugin inside CoX or when clearing the raid party inside CoX (doesn't proc PlayerSpawned)
-        if (!inCoXRaidOrLobby ||
-                (client.getGameState() != GameState.LOGGED_IN
-                        && client.getGameState() != GameState.LOADING)) {
+        if (!inCoXRaidOrLobby
+                || (client.getGameState() != GameState.LOGGED_IN && client.getGameState() != GameState.LOADING)) {
             //If Varbits.IN_RAID == 0 or wrong gamestate, return early
             return;
         }
@@ -1198,8 +1196,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //client.getGameState check not needed because this is only ran in onGameTick
         //This code is being executed in onGameTick since otherwise some plugins like SCIC might bug out. See SCIC errors in testing for more info.
 
-        //Public, private, trade remember between hops => they are only set when onlyVolatile is set to false.
-        //Channel and clan are probs varbit based => they are always set when this method is executed ("volatile").
+        //Public, private, trade remember between hops.
         //Channel, Clan don't remember between hopping; potentially related to varbits as described here https://discord.com/channels/301497432909414422/301497432909414422/1086022946633547867 (i.e. I suspect when hopping it reads the state from the varbits and then sets the chat filters according to those values)
         clientThread.invoke(() -> {
             //Could potentially put this nicely in an enum at some point. Should probably also document what other arguments do then. 1 might be game, but it's not listed in script 184 proc,chat_set_filter. Regarding 2nd argument it's just always +1 to get the next MenuOption and if you enter a value that's too high, it goes to show all/on (for some chat tabs?)
@@ -1631,7 +1628,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
             return;
         }
 
+        //Set previousRaidPartyInterfaceText before modifying raidPartyInterfaceText
         previousRaidPartyInterfaceText = raidPartyInterfaceText;
+        //Process raidPartyInterfaceText and add to HashSet if needed
         raidPartyInterfaceText = raidPartyInterfaceText + "<br>"; //Append <br> so indexOf and substring works for every item
         for (int i = 0; i < 8; i++) {
             final int idx = raidPartyInterfaceText.indexOf("<br>");
@@ -1716,11 +1715,12 @@ public class ChatFilterExtendedPlugin extends Plugin {
             return;
         }
 
-        FriendsChatManager friendsChatManager = client.getFriendsChatManager();
+        final FriendsChatManager friendsChatManager = client.getFriendsChatManager();
         if (friendsChatManager == null) {
             return;
         }
 
+        //Loop through players and add them to HashSet if they are in the FC
         for (Player player : client.getPlayers()) {
             final String standardizedUsername = Text.standardize(player.getName());
             if (friendsChatManager.findByName(standardizedUsername) != null
@@ -1788,7 +1788,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             getRLPartyUserJoinedMembersFlag = 0;
         }
         System.out.println(runelitePartyStandardizedUsernames); //todo: remove
-        if (getRLPartyUserJoinedMembersFlag == 0) { //Clear the hashset when flag = 0. setAddUserJoinedPartyStandardizedUsernamesFlag sets flag back to 5 in case a user joins while the flag is going down.
+        if (getRLPartyUserJoinedMembersFlag == 0) { //Clear the hashset with party member ids when flag = 0. setAddUserJoinedPartyStandardizedUsernamesFlag sets flag back to 5 in case a user joins while the flag is going down.
             partyMemberIds.clear();
         }
     }

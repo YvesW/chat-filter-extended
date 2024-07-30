@@ -40,5 +40,7 @@ Add to readme that it does not filter your own chat so you don't have those weir
 
 Add to readme info on showGuestTrades config option -> what it does (basically config description), disabled by default
 
+add info regarding clearing raid party hashset manually which can be useful when you applied to a lot of parties, or a lot of ppl applied to yours etc
+
 Thanks to Annotated for helping me collect Vars/ScriptIds and for helping me extensively test the plugin!
 
