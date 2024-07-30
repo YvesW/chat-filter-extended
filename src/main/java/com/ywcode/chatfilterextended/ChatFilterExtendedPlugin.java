@@ -1,5 +1,6 @@
 package com.ywcode.chatfilterextended;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Provides;
@@ -55,10 +56,13 @@ import net.runelite.client.party.PartyService;
 import net.runelite.client.party.events.UserJoin;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.JagexColors;
+import net.runelite.client.util.ColorUtil;
 import net.runelite.client.util.Text;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -194,6 +198,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         shuttingDown = false; //Maybe it got procced by switching profiles, assuming plugins are all shutdown and started again?
         setConfigFirstStart();
         updateConfig();
+        //todo: put the things below on clientthread lol
         setChatsToPublic(); //Chats are only being set to public if the filter for that chatstone is active!
         addAllInRaidUsernamesVarClientStr(); //Will also add a raid group to the hashset if you are not inside ToB/ToA anymore. This is fine and can be useful in certain situations, e.g. getting a scythe, teleporting to the GE to get the split and then turning on the plugin at the GE. You can still see your raid buddies' messages then. If this is undesired, replace with getToBPlayers() and getToAPlayers()
         setAddPartyMemberStandardizedUsernamesFlag(); //In case the plugin is started while already in a party.
@@ -627,6 +632,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
                         .onClick(this::clearRaidPartyHashsetManually)
                         .setOption("Clear Raid Party members");
             }
+
+            //todo: when adding the FilteredRegions chatmenu, add it here like the clear raid one
         }
 
         //Try to show a Change Sets Menu when the set is completely empty. Otherwise, add the submenu to chatFilterEntry! chatFilterEntry can get pretty long and it's difficult selecting the submenu otherwise due to the wide right click menu and the submenu usually showing up to the right.
@@ -645,7 +652,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //Add the submenus, use enum.values() to loop over the values.
             int submenuIdx = -1;
             for (ChatTabFilterOptions chatTabFilterOption : ChatTabFilterOptions.values()) {
-                final StringBuilder optionBuilder = getSubMenuStringBuilder(set.contains(chatTabFilterOption), chatTabFilterOption.toString());
+                final StringBuilder optionBuilder = getSubMenuAddRemoveStringBuilder(set.contains(chatTabFilterOption), chatTabFilterOption.toString());
                 client.createMenuEntry(submenuIdx--)
                         .setType(MenuAction.RUNELITE)
                         .setParent(chatFilterEntry)
@@ -656,7 +663,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             if (setOH != null) { //Already checks if componentID = public chat (it's null if it's not public)
                 submenuIdx = -1;
                 for (ChatTabFilterOptionsOH chatTabFilterOptionOH : ChatTabFilterOptionsOH.values()) {
-                    final StringBuilder optionBuilder = getSubMenuStringBuilder(setOH.contains(chatTabFilterOptionOH), chatTabFilterOptionOH.toString());
+                    final StringBuilder optionBuilder = getSubMenuAddRemoveStringBuilder(setOH.contains(chatTabFilterOptionOH), chatTabFilterOptionOH.toString());
                     client.createMenuEntry(submenuIdx--)
                             .setType(MenuAction.RUNELITE)
                             .setParent(chatFilterEntry)
@@ -1134,7 +1141,20 @@ public class ChatFilterExtendedPlugin extends Plugin {
         getToBPlayers(); //Checks if player is inside ToB to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToB or old ToA players
         getToAPlayers(); //Checks if player is inside ToA to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToA or old ToB players
         client.refreshChat(); //Refresh chat after manually changing the raid filter set
-        client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Chat Filter Extended: The Raid Party members set has been cleared.", "");
+        client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "[" + getColoredName("Chat Filter Extended") + "] The Raid Party members set has been cleared.", "");
+    }
+
+    //Get the plugin name wrapped in the appropricate color tags to use in chat messages
+    //Value could be inlined, but decided not to in this case so I can also easily use it for other stuff in the future
+    private String getColoredName(String stringToWrap) {
+        //Get the opaque color from chat color plugin or ingame color
+        Color color = MoreObjects.firstNonNull(configManager.getConfiguration("textrecolor", "opaqueFriendsChatChannelName", Color.class), JagexColors.CHAT_FC_NAME_OPAQUE_BACKGROUND);
+        if (client.isResized() && client.getVarbitValue(Varbits.TRANSPARENT_CHATBOX) == 1) {
+            //Replace color if using transparent chatbox
+            color = MoreObjects.firstNonNull(configManager.getConfiguration("textrecolor", "transparentFriendsChatChannelName", Color.class), JagexColors.CHAT_FC_NAME_TRANSPARENT_BACKGROUND);
+        }
+        //Wrap string in color tags and return the value
+        return ColorUtil.wrapWithColorTag(stringToWrap, color);
     }
 
     private boolean isComponentIDChatStone(int componentID) {
@@ -1244,7 +1264,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     //Get the StringBuilder for the submenus.
     //boolean should be set.contains(chatTabFilterOption) or setOH.contains(chatTabFilterOption)
     //String should be chatTabFilterOption.toString() or chatTabFilterOptionOH.toString()
-    private StringBuilder getSubMenuStringBuilder(boolean setContainsChatTabFilterOption, String chatTabFilterOption) {
+    private StringBuilder getSubMenuAddRemoveStringBuilder(boolean setContainsChatTabFilterOption, String chatTabFilterOption) {
         final StringBuilder optionBuilder = new StringBuilder();
         if (setContainsChatTabFilterOption) { //Already in the set, so the option should be "Remove "
             optionBuilder.append("Remove ");
@@ -1275,7 +1295,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Potentially add a chat message when changing the chatSet, but might get too spammy when adding/removing multiple values. One can already confirm it happened by just right-clicking on the chat tab and seeing "Show: Public/Friends/FC/CC" etc.
         if (keyName.equals("privateChatFilterOptions") && !forcePrivateOn) {
             //Notification when people screw with the private filter without forcePrivateOn so they don't complain about it not working properly.
-            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Chat Filter Extended: Private filtering generally only works well when 'force private to on' is enabled in the plugin's config settings.", "");
+            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "[" + getColoredName("Chat Filter Extended") + "] Private filtering generally only works well when 'force private to on' is enabled in the plugin's config settings.", "");
         }
     }
 
