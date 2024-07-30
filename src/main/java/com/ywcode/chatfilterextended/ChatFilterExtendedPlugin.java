@@ -917,8 +917,13 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private void convertCommaSeparatedConfigStringToSet(String configString, HashSet<String> setToConvertTo) {
         //Convert a CSV config string to a set
         setToConvertTo.clear();
-        setToConvertTo.addAll(Text.fromCSV(Text.standardize(configString)));
+        //standardize: removes tags, replace nbsp with space, made lower case, trims technically (but not split yet, so done later)
+        // -> replaceAll("\\R", "") -> remove all unicode linebreak sequences (see https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html)
+        // -> fromCSV: splits on commas, omits empty strings, trims results
+        setToConvertTo.addAll(Text.fromCSV(Text.standardize(configString).replaceAll("\\R", "")));
     }
+
+    //todo: make separate method for future FilteredRegions thing: remove all spaces. maybe amend the current one and create an overloaded method for convertCommaSeparatedConfigStringToSet. alternatively just make a new one since this one is very short
 
     private void getCoXVarbit() {
         if (client.getGameState() == GameState.LOGGED_IN || client.getGameState() == GameState.LOADING) {
