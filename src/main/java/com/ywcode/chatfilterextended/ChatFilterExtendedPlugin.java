@@ -198,17 +198,18 @@ public class ChatFilterExtendedPlugin extends Plugin {
         shuttingDown = false; //Maybe it got procced by switching profiles, assuming plugins are all shutdown and started again?
         setConfigFirstStart();
         updateConfig();
-        //todo: put the things below on clientthread lol
-        setChatsToPublic(); //Chats are only being set to public if the filter for that chatstone is active!
-        addAllInRaidUsernamesVarClientStr(); //Will also add a raid group to the hashset if you are not inside ToB/ToA anymore. This is fine and can be useful in certain situations, e.g. getting a scythe, teleporting to the GE to get the split and then turning on the plugin at the GE. You can still see your raid buddies' messages then. If this is undesired, replace with getToBPlayers() and getToAPlayers()
-        setAddPartyMemberStandardizedUsernamesFlag(); //In case the plugin is started while already in a party.
-        clientThread.invokeLater(this::getCoXVarbit); //Get varbit in case the plugin is started while logged in.
-        clientThread.invokeLater(this::getCoXPlayers); //Get CoX players because it does not trigger onPlayerSpawned while inside a raid if the players have already spawned before the plugin is turned on.
-        clientThread.invokeLater(this::processToBBoard); //User might technically enable plugin and exit the ToB board before the refresh scriptid procs.
-        clientThread.invokeLater(this::processToABoard); //User might technically enable plugin and exit the ToA board before the refresh scriptid procs.
-        clientThread.invokeLater(this::getFCMembers); //In case the plugin is started while already in an FC.
-        clientThread.invokeLater(this::getCCMembers); //In case the plugin is started while already in a CC.
-        clientThread.invokeLater(this::getGuestCCMembers); //In case the plugin is started while already in a guest CC.
+        clientThread.invokeLater(() -> {
+            setChatsToPublic(); //Chats are only being set to public if the filter for that chatstone is active!
+            addAllInRaidUsernamesVarClientStr(); //Will also add a raid group to the hashset if you are not inside ToB/ToA anymore. This is fine and can be useful in certain situations, e.g. getting a scythe, teleporting to the GE to get the split and then turning on the plugin at the GE. You can still see your raid buddies' messages then. If this is undesired, replace with getToBPlayers() and getToAPlayers()
+            setAddPartyMemberStandardizedUsernamesFlag(); //In case the plugin is started while already in a party.
+            getCoXVarbit(); //Get varbit in case the plugin is started while logged in.
+            getCoXPlayers(); //Get CoX players because it does not trigger onPlayerSpawned while inside a raid if the players have already spawned before the plugin is turned on.
+            processToBBoard(); //User might technically enable plugin and exit the ToB board before the refresh scriptid procs.
+            processToABoard(); //User might technically enable plugin and exit the ToA board before the refresh scriptid procs.
+            getFCMembers(); //In case the plugin is started while already in an FC.
+            getCCMembers(); //In case the plugin is started while already in a CC.
+            getGuestCCMembers(); //In case the plugin is started while already in a guest CC.
+        });
 
         //todo: prevent tab from flickering if a message is filtered...
         //todo: add readme including a couple webms like musicreplacer has
