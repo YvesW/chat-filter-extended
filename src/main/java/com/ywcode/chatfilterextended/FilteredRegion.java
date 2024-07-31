@@ -13,16 +13,16 @@ public class FilteredRegion {
 
     private int regionId;
     private boolean publicChatCustomOnly; //Only activate custom, don't check sets
-    private Set<ChatTabFilterOptionsOH> publicChatSetOH = new HashSet<>();
-    private Set<ChatTabFilterOptions> publicChatSet = new HashSet<>();
+    private Set<ChatTabFilterOptionsOH> publicChatSetOH = new HashSet<>(); //Set is always initialized, but empty when it should not be used
+    private Set<ChatTabFilterOptions> publicChatSet = new HashSet<>(); //Set is always initialized, but empty when it should not be used
     private boolean privateChatCustomOnly; //Only activate custom, don't check sets
-    private Set<ChatTabFilterOptions> privateChatSet = new HashSet<>();
+    private Set<ChatTabFilterOptions> privateChatSet = new HashSet<>(); //Set is always initialized, but empty when it should not be used
     private boolean channelChatCustomOnly; //Only activate custom, don't check sets
-    private Set<ChatTabFilterOptions> channelChatSet = new HashSet<>();
+    private Set<ChatTabFilterOptions> channelChatSet = new HashSet<>(); //Set is always initialized, but empty when it should not be used
     private boolean clanChatCustomOnly; //Only activate custom, don't check sets
-    private Set<ChatTabFilterOptions> clanChatSet = new HashSet<>();
+    private Set<ChatTabFilterOptions> clanChatSet = new HashSet<>(); //Set is always initialized, but empty when it should not be used
     private boolean tradeChatCustomOnly; //Only activate custom, don't check sets
-    private Set<ChatTabFilterOptions> tradeChatSet = new HashSet<>();
+    private Set<ChatTabFilterOptions> tradeChatSet = new HashSet<>(); //Set is always initialized, but empty when it should not be used
 
     public FilteredRegion(int regionId) {
         this.regionId = regionId;
