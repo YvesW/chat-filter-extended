@@ -901,8 +901,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
-    //todo: continue evaluating code from here on
-
     @Subscribe
     public void onPlayerSpawned(PlayerSpawned playerSpawned) {
         //Processing the widget inside cox does not work because the data is not transferred if the interface is not opened... Additionally, there is no widget when outside the raid and there is no interesting scriptId that runs while the player is outside.
@@ -918,12 +916,14 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Convert a CSV config string to a set
         setToConvertTo.clear();
         //standardize: removes tags, replace nbsp with space, made lower case, trims technically (but not split yet, so done later)
-        // -> replaceAll("\\R", "") -> remove all unicode linebreak sequences (see https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html)
+        // -> replaceAll("\\R", "") -> remove all unicode linebreak sequences (see https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html). replaceAll is used instead of replace since replaceAll uses regex as input instead of just a regular string.
         // -> fromCSV: splits on commas, omits empty strings, trims results
         setToConvertTo.addAll(Text.fromCSV(Text.standardize(configString).replaceAll("\\R", "")));
     }
 
     //todo: make separate method for future FilteredRegions thing: remove all spaces. maybe amend the current one and create an overloaded method for convertCommaSeparatedConfigStringToSet. alternatively just make a new one since this one is very short
+
+    //todo: continue evaluating code from here on
 
     private void getCoXVarbit() {
         if (client.getGameState() == GameState.LOGGED_IN || client.getGameState() == GameState.LOADING) {
