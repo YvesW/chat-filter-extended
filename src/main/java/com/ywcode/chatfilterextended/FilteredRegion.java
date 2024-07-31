@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.HashSet;
+import java.util.Set;
 
 @Getter(AccessLevel.PACKAGE)
 @Setter(AccessLevel.PACKAGE)
@@ -12,16 +13,16 @@ public class FilteredRegion {
 
     private int regionId;
     private boolean publicChatCustomOnly; //Only activate custom, don't check sets
-    private HashSet<ChatTabFilterOptionsOH> publicChatSetOH;
-    private HashSet<ChatTabFilterOptions> publicChatSet;
+    private Set<ChatTabFilterOptionsOH> publicChatSetOH = new HashSet<>();
+    private Set<ChatTabFilterOptions> publicChatSet = new HashSet<>();
     private boolean privateChatCustomOnly; //Only activate custom, don't check sets
-    private HashSet<ChatTabFilterOptions> privateChatSet;
+    private Set<ChatTabFilterOptions> privateChatSet = new HashSet<>();
     private boolean channelChatCustomOnly; //Only activate custom, don't check sets
-    private HashSet<ChatTabFilterOptions> channelChatSet;
+    private Set<ChatTabFilterOptions> channelChatSet = new HashSet<>();
     private boolean clanChatCustomOnly; //Only activate custom, don't check sets
-    private HashSet<ChatTabFilterOptions> clanChatSet;
+    private Set<ChatTabFilterOptions> clanChatSet = new HashSet<>();
     private boolean tradeChatCustomOnly; //Only activate custom, don't check sets
-    private HashSet<ChatTabFilterOptions> tradeChatSet;
+    private Set<ChatTabFilterOptions> tradeChatSet = new HashSet<>();
 
     public FilteredRegion(int regionId) {
         this.regionId = regionId;

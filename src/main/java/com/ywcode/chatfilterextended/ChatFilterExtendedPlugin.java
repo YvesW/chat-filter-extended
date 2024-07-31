@@ -63,7 +63,6 @@ import net.runelite.client.util.Text;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.awt.Color;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -85,16 +84,16 @@ public class ChatFilterExtendedPlugin extends Plugin {
     // Vars are quite heavily cached so could probably just config.configKey(). However, the best practice behavior in plugins is to have a bunch of variables to store the results of the config methods, and check it in startUp/onConfigChanged. It feels redundant, but it's better than hitting the reflective calls every frame. --LlemonDuck. Additionally, the whitelist strings are actually getting processed.
     private static Set<ChatTabFilterOptions> publicChatFilterOptions = new HashSet<>();
     private static Set<ChatTabFilterOptionsOH> publicChatFilterOptionsOH = new HashSet<>();
-    private static final HashSet<String> publicWhitelist = new HashSet<>();
+    private static final Set<String> publicWhitelist = new HashSet<>();
     private static Set<ChatTabFilterOptions> privateChatFilterOptions = new HashSet<>();
-    private static final HashSet<String> privateWhitelist = new HashSet<>();
+    private static final Set<String> privateWhitelist = new HashSet<>();
     private static boolean forcePrivateOn;
     private static Set<ChatTabFilterOptions> channelChatFilterOptions = new HashSet<>();
-    private static final HashSet<String> channelWhitelist = new HashSet<>();
+    private static final Set<String> channelWhitelist = new HashSet<>();
     private static Set<ChatTabFilterOptions> clanChatFilterOptions = new HashSet<>();
-    private static final HashSet<String> clanWhitelist = new HashSet<>();
+    private static final Set<String> clanWhitelist = new HashSet<>();
     private static Set<ChatTabFilterOptions> tradeChatFilterOptions = new HashSet<>();
-    private static final HashSet<String> tradeWhitelist = new HashSet<>();
+    private static final Set<String> tradeWhitelist = new HashSet<>();
     private static boolean showGuestTrades;
     private static boolean clearChannelSetHop;
     private static boolean clearClanSetHop;
@@ -124,18 +123,18 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static boolean setChatsToPublicFlag; //Default value is false
     private static GameState previousPreviousGameState;
     private static GameState previousGameState;
-    private static final HashSet<String> channelStandardizedUsernames = new HashSet<>();
-    private static final HashSet<String> clanMembersStandardizedUsernames = new HashSet<>();
-    private static final HashSet<String> clanTotalStandardizedUsernames = new HashSet<>();
-    private static final HashSet<String> guestClanMembersStandardizedUsernames = new HashSet<>();
-    private static final HashSet<String> guestClanTotalStandardizedUsernames = new HashSet<>();
-    private static final HashSet<String> raidPartyStandardizedUsernames = new HashSet<>();
-    private static final HashSet<String> runelitePartyStandardizedUsernames = new HashSet<>();
+    private static final Set<String> channelStandardizedUsernames = new HashSet<>();
+    private static final Set<String> clanMembersStandardizedUsernames = new HashSet<>();
+    private static final Set<String> clanTotalStandardizedUsernames = new HashSet<>();
+    private static final Set<String> guestClanMembersStandardizedUsernames = new HashSet<>();
+    private static final Set<String> guestClanTotalStandardizedUsernames = new HashSet<>();
+    private static final Set<String> raidPartyStandardizedUsernames = new HashSet<>();
+    private static final Set<String> runelitePartyStandardizedUsernames = new HashSet<>();
     private static boolean inCoXRaidOrLobby; //Default value is false
     private static int getRLPartyMembersFlag; //Default is 0
     private static boolean shouldRefreshChat; //Default is false
     private static String previousRaidPartyInterfaceText; //null by default
-    private static final HashSet<Long> partyMemberIds = new HashSet<>();
+    private static final Set<Long> partyMemberIds = new HashSet<>();
     private static int getRLPartyUserJoinedMembersFlag; //Default is 0
     private static final Set<FilteredRegion> filteredRegions = new HashSet<>();
     //Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I probably did not fully adhere to lol)
@@ -491,7 +490,12 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //raidPartyStandardizedUsernames.clear(); shouldRefreshChat = true;
         }
         if (commandExecuted.getCommand().equals("test5")) {
-            clearRaidPartyHashset();
+            FilteredRegion test1 = new FilteredRegion(12345);
+            System.out.println(test1.getRegionId());
+            System.out.println(test1.getClanChatSet());
+            System.out.println(test1.isClanChatCustomOnly());
+            test1.setClanChatSet(clanChatFilterOptions);
+            System.out.println(test1.getClanChatSet());
         }
     }
 
@@ -899,7 +903,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
-    private void convertCommaSeparatedConfigStringToSet(String configString, HashSet<String> setToConvertTo) {
+    private void convertCommaSeparatedConfigStringToSet(String configString, Set<String> setToConvertTo) {
         //Convert a CSV config string to a set
         setToConvertTo.clear();
         //standardize: removes tags, replace nbsp with space, made lower case, trims technically (but not split yet, so done later)
@@ -995,7 +999,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         addClanOrGuestClanMembers(clanChannel, clanSettings, guestClanMembersStandardizedUsernames, guestClanTotalStandardizedUsernames);
     }
 
-    private void addClanOrGuestClanMembers(ClanChannel clanChannel, ClanSettings clanSettings, HashSet<String> clanMemberHashSet, HashSet<String> clanTotalHashSet) {
+    private void addClanOrGuestClanMembers(ClanChannel clanChannel, ClanSettings clanSettings, Set<String> clanMemberHashSet, Set<String> clanTotalHashSet) {
         if (clanSettings != null) {
             //Adds all the members to the HashSet (according to the clan settings)
             for (ClanMember clanMember : clanSettings.getMembers()) {
@@ -1528,7 +1532,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		 */
 
     //Get the appropriate clahHashSet based on the ChatFilterOptionSet and if guest trades are shown in config option or not (default: false)
-    private HashSet<String> getClanHashSet(Set<ChatTabFilterOptions> chatTabHashSet) {
+    private Set<String> getClanHashSet(Set<ChatTabFilterOptions> chatTabHashSet) {
         if (chatTabHashSet == tradeChatFilterOptions && !showGuestTrades) {
             return clanMembersStandardizedUsernames;
         }
@@ -1536,7 +1540,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     //Get the appropriate guestClahHashSet based on the ChatFilterOptionSet and if guest trades are shown in config option or not (default: false)
-    private HashSet<String> getGuestClanHashSet(Set<ChatTabFilterOptions> chatTabHashSet) {
+    private Set<String> getGuestClanHashSet(Set<ChatTabFilterOptions> chatTabHashSet) {
         if (chatTabHashSet == tradeChatFilterOptions && !showGuestTrades) {
             return guestClanMembersStandardizedUsernames;
         }
@@ -1559,7 +1563,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private void processBoard(Widget topOrMembersPart, Widget bottomOrApplicantsPart) {
         //Since processing the ToB and ToA boards works the same, this method works for both.
         //Please refer to processToBBoard and processToABoard for more info.
-        final HashSet<String> raidPartyStandardizedUsernamesTemp = new HashSet<>();
+        final Set<String> raidPartyStandardizedUsernamesTemp = new HashSet<>();
         if (topOrMembersPart != null && topOrMembersPart.getDynamicChildren() != null) {
             for (int i = 0; i < topOrMembersPart.getDynamicChildren().length; i++) {
                 //Get child that has type 3 => next one has to be the username
