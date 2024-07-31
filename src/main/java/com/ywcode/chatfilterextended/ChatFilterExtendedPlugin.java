@@ -1145,12 +1145,18 @@ public class ChatFilterExtendedPlugin extends Plugin {
         getToBPlayers(); //Checks if player is inside ToB to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToB or old ToA players
         getToAPlayers(); //Checks if player is inside ToA to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToA or old ToB players
         client.refreshChat(); //Refresh chat after manually changing the raid filter set
-        client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "[" + getColoredName("Chat Filter Extended") + "] The Raid Party members set has been cleared.", "");
+        client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", getColoredPluginName() + "The Raid Party members set has been cleared.", "");
     }
 
-    //Get the plugin name wrapped in the appropricate color tags to use in chat messages
+    //Get the plugin name wrapped in the appropriate color tags, [], and with a space behind it to use in chat messages
+    private String getColoredPluginName() {
+        return "[" + getColorWrappedString("Chat Filter Extended plugin") + "] ";
+    }
+
+    //Get the string wrapped in the appropriate color tags to use in chat messages
     //Value could be inlined, but decided not to in this case so I can also easily use it for other stuff in the future
-    private String getColoredName(String stringToWrap) {
+    @SuppressWarnings("SameParameterValue")
+    private String getColorWrappedString(String stringToWrap) {
         //Get the opaque color from chat color plugin or ingame color
         Color color = MoreObjects.firstNonNull(configManager.getConfiguration("textrecolor", "opaqueFriendsChatChannelName", Color.class), JagexColors.CHAT_FC_NAME_OPAQUE_BACKGROUND);
         if (client.isResized() && client.getVarbitValue(Varbits.TRANSPARENT_CHATBOX) == 1) {
@@ -1298,7 +1304,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Potentially add a chat message when changing the chatSet, but might get too spammy when adding/removing multiple values. One can already confirm it happened by just right-clicking on the chat tab and seeing "Show: Public/Friends/FC/CC" etc.
         if (keyName.equals("privateChatFilterOptions") && !forcePrivateOn) {
             //Notification when people screw with the private filter without forcePrivateOn so they don't complain about it not working properly.
-            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "[" + getColoredName("Chat Filter Extended") + "] Private filtering generally only works well when 'force private to on' is enabled in the plugin's config settings.", "");
+            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", getColoredPluginName() + "Private filtering generally only works well when 'force private to on' is enabled in the plugin's config settings.", "");
         }
     }
 
