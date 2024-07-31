@@ -106,6 +106,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static boolean clearRLPartySetLeave;
     private static boolean fixChatTabAlert;
     private static boolean preventLocalPlayerChatTabAlert; //todo: implement!
+    private static String filteredRegionsData;
     private static ShiftMenuSetting changeChatSetsShiftMenuSetting;
     private static ShiftMenuSetting clearRaidPartyShiftMenuSetting;
 
@@ -309,6 +310,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         clearRLPartySetLeave = config.clearRLPartySetLeave();
         fixChatTabAlert = config.fixChatTabAlert();
         preventLocalPlayerChatTabAlert = config.preventLocalPlayerChatTabAlert();
+        filteredRegionsData = config.filteredRegionsData();
         changeChatSetsShiftMenuSetting = config.changeChatSetsShiftMenuSetting();
         clearRaidPartyShiftMenuSetting = config.clearRaidPartyShiftMenuSetting();
 

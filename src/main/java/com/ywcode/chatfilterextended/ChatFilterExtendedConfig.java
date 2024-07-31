@@ -380,6 +380,21 @@ public interface ChatFilterExtendedConfig extends Config
 	}
 
 	@ConfigItem(
+			keyName = "filteredRegionsData",
+			name = "Automatically enabled regions",
+			description = "String that contains the data for the regions in which you enabled automatic custom filtering.<br>"
+					+ "It's recommended to use the menu options to modify this string (shift + right click a chat stone by default).<br>"
+					+ "Do NOT modify this string manually. It's only exposed to easily copy and paste it between profiles,<br>"
+					+ "or to remove ALL the regions in which you enabled automatic custom filtering.",
+			position = 11,
+			section = advancedSettings
+	)
+	default String filteredRegionsData()
+	{
+		return "";
+	}
+
+	@ConfigItem(
 			keyName = "changeChatSetsShiftMenuSetting",
 			name = "Show Change Chat Sets menu option",
 			description = "When to show the Change Sets menu option.<br>"
