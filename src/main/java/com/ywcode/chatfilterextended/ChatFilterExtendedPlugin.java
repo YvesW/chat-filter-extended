@@ -1304,7 +1304,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Potentially add a chat message when changing the chatSet, but might get too spammy when adding/removing multiple values. One can already confirm it happened by just right-clicking on the chat tab and seeing "Show: Public/Friends/FC/CC" etc.
         if (keyName.equals("privateChatFilterOptions") && !forcePrivateOn) {
             //Notification when people screw with the private filter without forcePrivateOn so they don't complain about it not working properly.
-            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", getColoredPluginName() + "Private filtering generally only works well when 'force private to on' is enabled in the plugin's config settings.", "");
+            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", getColoredPluginName() + "<col=FF0000>Private filtering generally only works well when 'force private to on' is enabled in the plugin's config settings.", "");
         }
     }
 
