@@ -137,8 +137,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static String previousRaidPartyInterfaceText; //null by default
     private static final HashSet<Long> partyMemberIds = new HashSet<>();
     private static int getRLPartyUserJoinedMembersFlag; //Default is 0
-    private static final List<ChatTabAlert> chatTabAlerts = new ArrayList<>(); //todo: potentially remove if switching to other alert solution
-
     //Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I probably did not fully adhere to lol)
 
     //Constants
@@ -477,11 +475,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
             });
         }
         if (commandExecuted.getCommand().equals("test2")) {
-            System.out.println(this.chatTabAlerts.get(1).isFiltered());
-            System.out.println(this.chatTabAlerts.get(1).isOwnMessage());
-            System.out.println(this.chatTabAlerts.get(1).getChatTabNumber());
-            System.out.println(this.chatTabAlerts.get(1).getVarcIntCountdownValue());
-            System.out.println("total entries: "+this.chatTabAlerts.size());
+            //System.out.println(this.chatTabAlerts.get(1).isFiltered());
+            //System.out.println(this.chatTabAlerts.get(1).isOwnMessage());
+            //System.out.println(this.chatTabAlerts.get(1).getChatTabNumber());
+            //System.out.println(this.chatTabAlerts.get(1).getVarcIntCountdownValue());
+            //System.out.println("total entries: "+this.chatTabAlerts.size());
         }
         if (commandExecuted.getCommand().equals("test3")) {
             System.out.println(publicFilterEnabled);
@@ -759,10 +757,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 processToABoard();
                 break;
             case CHAT_ALERT_ENABLE_SCRIPTID:
-                if (!chatTabAlerts.isEmpty()) { //todo: potentially remove if switching to other alert solution
-                    chatTabAlerts.remove(0);
-                }
-                //todo: add code with switch based on currentChatTabAlertTab, has to take the advanced config boolean into account, has to take the filterTriggered boolean into account and has to take the own name thingy and it's advanced config setting into account!
+                //todo: this todo is quite old and might be incorrect, but might still contain some useful info. add code with switch based on currentChatTabAlertTab, has to take the advanced config boolean into account, has to take the filterTriggered boolean into account and has to take the own name thingy and it's advanced config setting into account!
                 break;
         }
     }
@@ -789,13 +784,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
                     //tradeVarcIntCountdownValue = client.getVarcIntValue(TRADE_VARC_INT_COUNTDOWN_ID); //todo: fix this, probs with the solution in calendar note that you thought of months ago. Probs want to keep the notes around though.
                     break;
             }
-            if (!chatTabAlerts.isEmpty()) { //todo: potentially remove if switching to other alert solution
-                if (chatTabAlerts.get(0).getChatTabNumber() == currentChatTabAlertTab) {
-                    //System.out.println("this.chatTabAlerts.get(0).getChatTabNumber() == currentChatTabAlertTab"); //todo: remove
-                } else {
-                    //System.out.println("NUMBER DOES NOT MATCH: "+this.chatTabAlerts.get(0).getChatTabNumber()+" vs currentChatTabAlertTab: "+currentChatTabAlertTab);
-                } //todo: see stuff calendar!
-            }
         }
     }
 
@@ -816,32 +804,30 @@ public class ChatFilterExtendedPlugin extends Plugin {
         final boolean ownMessage = playerName.equals(client.getLocalPlayer().getName());
 
         //todo: potentially revert this to the old approach, not using a custom class
-        ChatTabAlert alert = new ChatTabAlert(shouldFilter, ownMessage);
+        //ChatTabAlert alert = new ChatTabAlert(shouldFilter, ownMessage);
         switch (chatMessageType) {
             //AUTOTYPER	is filtered on public = on anyway
             case PUBLICCHAT:
             case MODCHAT:
-                alert.setChatTabNumber(2);
+                //alert.setChatTabNumber(2);
                 break;
             case PRIVATECHAT:
             case MODPRIVATECHAT:
-                alert.setChatTabNumber(3);
+                //alert.setChatTabNumber(3);
                 break;
             case FRIENDSCHAT:
-                alert.setChatTabNumber(4);
+                //alert.setChatTabNumber(4);
                 break;
             case CLAN_CHAT:
             case CLAN_GIM_CHAT:
             case CLAN_GUEST_CHAT:
-                alert.setChatTabNumber(5);
+                //alert.setChatTabNumber(5);
                 break;
             case TRADEREQ:
                 //TRADE and TRADE_SENT are not received when someone tries to trade you, only TRADEREQ
-                alert.setChatTabNumber(6);
+                //alert.setChatTabNumber(6);
                 break;
         }
-
-        chatTabAlerts.add(alert);
 
         //todo: check if this also works for the chatfilter plugin with nothing filtered here (so if this fixes both chatfilter and chat filter extended).
         //todo: If so, either make it an advanced config option to only work when the chat is filtered by chat filter extended (via dropdown: always, only chat filter extended messages, never)
