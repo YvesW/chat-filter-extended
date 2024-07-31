@@ -137,6 +137,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static String previousRaidPartyInterfaceText; //null by default
     private static final HashSet<Long> partyMemberIds = new HashSet<>();
     private static int getRLPartyUserJoinedMembersFlag; //Default is 0
+    private static final Set<FilteredRegion> filteredRegions = new HashSet<>();
     //Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I probably did not fully adhere to lol)
 
     //Constants
