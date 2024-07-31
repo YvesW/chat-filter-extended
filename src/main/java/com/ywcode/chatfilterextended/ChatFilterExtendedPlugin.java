@@ -923,8 +923,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     //todo: make separate method for future FilteredRegions thing: remove all spaces. maybe amend the current one and create an overloaded method for convertCommaSeparatedConfigStringToSet. alternatively just make a new one since this one is very short
 
-    //todo: continue evaluating code from here on
-
     private void getCoXVarbit() {
         if (client.getGameState() == GameState.LOGGED_IN || client.getGameState() == GameState.LOADING) {
             inCoXRaidOrLobby = client.getVarbitValue(Varbits.IN_RAID) > 0; //Convert the int to boolean. 0 = false, 1 = true.
@@ -959,13 +957,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
-    //TOA_IN_RAID_VARPID Very likely the in raid ToA varp. Can't find anything about it in CS2 scripts and Cook has not updated chisel's varbs to see it.
-    //It changes to e.g. 1001 when entering ToA, then when leaving it does: 1001 -> 1000 -> 1200 -> 0.
-    //Could not find any other good alternatives. 3603 does change from -1 to random value that keeps changing when entering the raid and entering rooms, but it already changes from -1 to some random value while in the ToA lobby (after joining a party).
     private void getToAPlayers() {
         //Adds the ToA players to the Raid hashset. Useful when resetting the list and updating it again so the old ToB players don't join.
         //The varcs do not get cleared if the player leaves, so check if the player is inside ToA first.
         //However, when joining a new raid, the varcStrings get updated. E.g. first do a raid with 4 people, then a duo ToA => upon entering, player 3 and 4 strings will be emptied.
+        //For an explanation about the varps, check the comment when they are declared at the top
         if (client.getVarpValue(IN_A_RAID_VARPID) > 0 && client.getVarpValue(TOA_PARTY_VARPID) > -1) {
             for (int i = 0; i < 8; i++) {
                 addInRaidUsernamesVarClientStr(TOA_IN_RAID_VARCSTR_PLAYER1_INDEX + i);
@@ -1544,6 +1540,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 		Thus, I've specifically opted to not use this.
 		 */
 
+    //Get the appropriate clahHashSet based on the ChatFilterOptionSet and if guest trades are shown in config option or not (default: false)
     private HashSet<String> getClanHashSet(Set<ChatTabFilterOptions> chatTabHashSet) {
         if (chatTabHashSet == tradeChatFilterOptions && !showGuestTrades) {
             return clanMembersStandardizedUsernames;
@@ -1551,6 +1548,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         return clanTotalStandardizedUsernames;
     }
 
+    //Get the appropriate guestClahHashSet based on the ChatFilterOptionSet and if guest trades are shown in config option or not (default: false)
     private HashSet<String> getGuestClanHashSet(Set<ChatTabFilterOptions> chatTabHashSet) {
         if (chatTabHashSet == tradeChatFilterOptions && !showGuestTrades) {
             return guestClanMembersStandardizedUsernames;
@@ -1558,9 +1556,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         return guestClanTotalStandardizedUsernames;
     }
 
-    //private static final int TOB_BOARD_ID = 50; //N50.0
-    //private static final int TOP_HALF_TOB_BOARD_CHILDID = 27; //S50.27
-    //private static final int BOTTOM_HALF_TOB_BOARD_CHILDID = 42; //S50.42
     //Top part of the ToB board names are dynamic children of 50.27, e.g. D50.27[0], D50.27[1], D50.27[2] etc.
     //[0], [11], [22] etc is the whole line; these are useless for info but always type 3.
     //[1], [12], [23] etc are the usernames. These are type 4. (The levels etc. are also type 4; thus it's type 3 followed by a lot of type 4s of which the first is a username)
@@ -1617,7 +1612,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
-    //private static final int TOB_PARTY_INTERFACE_NAMES_CHILDID = 12; //S28.12
     //No party text = -<br>-<br>-<br>-<br>-
     //Party text = Username<br>Username2<br>-<br>-<br>-
     private void processToBPartyInterface() {
@@ -1686,9 +1680,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
-    //private static final int TOA_BOARD_ID = 774; //S774.32
-    //private static final int MEMBERS_TOA_BOARD_CHILDID = 32; //S774.32
-    //private static final int APPLICANTS_TOA_BOARD_CHILDID = 48; //S774.48
     //Member tab of the ToA board names are dynamic children of S774.32, e.g. D774.32[0], D774.32[1], D774.32[2] etc.
     //[0], [13], [26], [39] etc is the whole line; these are useless for info but always type 3.
     //[1], [14], [27], [40] etc are the usernames. These are type 4. (The levels etc. are also type 4; thus it's type 3 followed by a lot of type 4s of which the first is a username)
@@ -1702,7 +1693,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         processBoard(membersToABoardWidget, applicantsToABoardWidget);
     }
 
-    //private static final int TOA_PARTY_INTERFACE_NAMES_CHILDID = 5; //S773.5
     //No party text = -<br>-<br>-<br>-<br>-<br>-<br>-<br>-
     //Party text = Username<br>Username2<br>-<br>-<br>-<br>-<br>-<br>-
     private void processToAPartyInterface() {
