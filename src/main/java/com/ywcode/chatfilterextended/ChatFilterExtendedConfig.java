@@ -5,9 +5,7 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
 
-import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.Set;
 
 @ConfigGroup("ChatFilterExtended")
@@ -71,7 +69,7 @@ public interface ChatFilterExtendedConfig extends Config
 	)
 	default Set<ChatTabFilterOptions> publicChatFilterOptions()
 	{
-		Set<ChatTabFilterOptions> Default = new HashSet<>(EnumSet.allOf(ChatTabFilterOptions.class));
+		Set<ChatTabFilterOptions> Default = EnumSet.allOf(ChatTabFilterOptions.class);
 		Default.remove(ChatTabFilterOptions.PUBLIC);
 		return Default;
 	}
@@ -87,7 +85,7 @@ public interface ChatFilterExtendedConfig extends Config
 	)
 	default Set<ChatTabFilterOptionsOH> publicChatFilterOptionsOH()
 	{
-		return Collections.emptySet(); //Empty set since otherwise the default is only showing OH (overhead text) instead of also chatbox text.
+		return EnumSet.noneOf(ChatTabFilterOptionsOH.class); //Empty set since otherwise the default is only showing OH (overhead text) instead of also chatbox text.
 	}
 
 	@ConfigItem(
@@ -113,7 +111,7 @@ public interface ChatFilterExtendedConfig extends Config
 	)
 	default Set<ChatTabFilterOptions> privateChatFilterOptions()
 	{
-		return Collections.emptySet(); //Empty set since forcePrivateOn is disabled by default anyway
+		return EnumSet.noneOf(ChatTabFilterOptions.class); //Empty set since forcePrivateOn is disabled by default anyway
 	}
 
 	@ConfigItem(
@@ -152,7 +150,7 @@ public interface ChatFilterExtendedConfig extends Config
 	)
 	default Set<ChatTabFilterOptions> channelChatFilterOptions()
 	{
-		Set<ChatTabFilterOptions> Default = new HashSet<>(EnumSet.allOf(ChatTabFilterOptions.class));
+		Set<ChatTabFilterOptions> Default = EnumSet.allOf(ChatTabFilterOptions.class);
 		Default.remove(ChatTabFilterOptions.PUBLIC);
 		return Default;
 	}
@@ -179,7 +177,7 @@ public interface ChatFilterExtendedConfig extends Config
 	)
 	default Set<ChatTabFilterOptions> clanChatFilterOptions()
 	{
-		Set<ChatTabFilterOptions> Default = new HashSet<>(EnumSet.allOf(ChatTabFilterOptions.class));
+		Set<ChatTabFilterOptions> Default = EnumSet.allOf(ChatTabFilterOptions.class);
 		Default.remove(ChatTabFilterOptions.PUBLIC);
 		return Default;
 	}
@@ -206,12 +204,7 @@ public interface ChatFilterExtendedConfig extends Config
 	)
 	default Set<ChatTabFilterOptions> tradeChatFilterOptions()
 	{
-		Set<ChatTabFilterOptions> Default = new HashSet<>(Collections.emptySet());
-		Default.add(ChatTabFilterOptions.FRIENDS);
-		Default.add(ChatTabFilterOptions.CC);
-		Default.add(ChatTabFilterOptions.GUEST_CC);
-		Default.add(ChatTabFilterOptions.WHITELIST);
-		return Default;
+		return EnumSet.of(ChatTabFilterOptions.FRIENDS, ChatTabFilterOptions.CC, ChatTabFilterOptions.GUEST_CC, ChatTabFilterOptions.WHITELIST);
 		//Public is randoms, FCs are often open, raid party applying is easy, RL party can be joined freely if you have the pass
 		//You hate to add friends, cc & guest cc have guests disabled by default, custom whitelist has to be set manually
 	}

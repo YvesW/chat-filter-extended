@@ -63,6 +63,7 @@ import net.runelite.client.util.Text;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.awt.Color;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -82,17 +83,17 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     // ------------- Wall of config vars -------------
     // Vars are quite heavily cached so could probably just config.configKey(). However, the best practice behavior in plugins is to have a bunch of variables to store the results of the config methods, and check it in startUp/onConfigChanged. It feels redundant, but it's better than hitting the reflective calls every frame. --LlemonDuck. Additionally, the whitelist strings are actually getting processed.
-    private static Set<ChatTabFilterOptions> publicChatFilterOptions = new HashSet<>();
-    private static Set<ChatTabFilterOptionsOH> publicChatFilterOptionsOH = new HashSet<>();
+    private static Set<ChatTabFilterOptions> publicChatFilterOptions;
+    private static Set<ChatTabFilterOptionsOH> publicChatFilterOptionsOH;
     private static final Set<String> publicWhitelist = new HashSet<>();
-    private static Set<ChatTabFilterOptions> privateChatFilterOptions = new HashSet<>();
+    private static Set<ChatTabFilterOptions> privateChatFilterOptions;
     private static final Set<String> privateWhitelist = new HashSet<>();
     private static boolean forcePrivateOn;
-    private static Set<ChatTabFilterOptions> channelChatFilterOptions = new HashSet<>();
+    private static Set<ChatTabFilterOptions> channelChatFilterOptions;
     private static final Set<String> channelWhitelist = new HashSet<>();
-    private static Set<ChatTabFilterOptions> clanChatFilterOptions = new HashSet<>();
+    private static Set<ChatTabFilterOptions> clanChatFilterOptions;
     private static final Set<String> clanWhitelist = new HashSet<>();
-    private static Set<ChatTabFilterOptions> tradeChatFilterOptions = new HashSet<>();
+    private static Set<ChatTabFilterOptions> tradeChatFilterOptions;
     private static final Set<String> tradeWhitelist = new HashSet<>();
     private static boolean showGuestTrades;
     private static boolean clearChannelSetHop;
