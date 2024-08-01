@@ -68,6 +68,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 @Slf4j
 @PluginDescriptor(
@@ -146,6 +147,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static final String configGroup = "ChatFilterExtended";
     private static final List<Integer> chatboxComponentIDs = ImmutableList.of(ComponentID.CHATBOX_TAB_PUBLIC, ComponentID.CHATBOX_TAB_PRIVATE, ComponentID.CHATBOX_TAB_CHANNEL, ComponentID.CHATBOX_TAB_CLAN, ComponentID.CHATBOX_TAB_TRADE);
     private static final List<String> filtersEnabledStringList = ImmutableList.of("publicFilterEnabled", "privateFilterEnabled", "channelFilterEnabled", "clanFilterEnabled", "tradeFilterEnabled");
+    private static final Pattern NUMERIC_PATTERN = Pattern.compile("-?\\d+(\\.\\d+)?");
     private static final String TAB_CUSTOM_TEXT_STRING = "<br><col=ffff00>Custom</col>";
     private static final int TOA_LOBBY_REGION_ID = 13454; //Region id of ToA lobby (which has the bank)
     private static final int COX_BANK_REGION_ID = 4919; //Region id of CoX bank
@@ -499,6 +501,50 @@ public class ChatFilterExtendedPlugin extends Plugin {
             System.out.println(test1.isClanChatCustomOnly());
             test1.setClanChatSet(clanChatFilterOptions);
             System.out.println(test1.getClanChatSet());
+
+            String testString1 = "1234:pu;puoh/ccoh/pu/fc/cc";
+            String testString2 = "1234:pu;puoh/ccoh/pu/fc/cc,5678:ch;fr/fc/cc/wh";
+            String testString3 = "1234:pu;puoh/ccoh/pu/fc/cc,5678:ch;fr/fc/cc/wh,1337:pr;cu/;,1234:tr;cc/gu"; //todo: remove
+
+            final Set<String> filteredRegionsDataSet = new HashSet<>();
+            convertCommaSeparatedConfigStringToSet(testString1, filteredRegionsDataSet);
+            //todo: test if this works since it's a local variable...
+            System.out.println("filteredRegionsDataSet = " + filteredRegionsDataSet);
+
+            for (String filteredRegionData : filteredRegionsDataSet) {
+                final int colonIdx = filteredRegionData.indexOf(':');
+
+                //Continue if colon can't be found
+                if (colonIdx == -1) {
+                    continue;
+                }
+
+                final String regionIdString = filteredRegionData.substring(0, colonIdx-1);
+                System.out.println("regionIdString = " + regionIdString);
+
+                //Continue is regionId is not numeric
+                if (!isNumeric(regionIdString)) {
+                    continue;
+                }
+
+                final int regionIdInt = Integer.parseInt(regionIdString); //Convert string to int
+                boolean regionAlreadyExists = false; //Used to determine if filteredRegion already exists
+                for (FilteredRegion filteredRegion : filteredRegions) {
+                    if (filteredRegion.getRegionId() == regionIdInt) {
+                        regionAlreadyExists = true; //Set boolean so we know below to not create a new filteredRegion
+                        setFilteredRegionAttributes(filteredRegionData);
+                        //todo: add code to convert string
+                    }
+                }
+
+                if (!regionAlreadyExists) {
+                    //filteredRegion with this regionId does not exist yet -> create it, set attributes and add it to HashSet
+                    //todo: add code to create filteredRegion, convert string, add it to set
+                }
+            }
+
+            //todo: also guard against not using int etc
+            //todo: when disabling or switching from custom to set specific or set specific to custom -> probs do the following: convert string to hashset, loop through it and do startsWith "1234:pu", remove that from hashset. then at the end toCSV, amend the String, then set it with configmanager -> procs onConfigChanged
         }
     }
 
@@ -610,7 +656,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //So I'm just looping over the enum values here
             for (ChatTabFilterOptions enumValue : ChatTabFilterOptions.values()) {
                 if (set.contains(enumValue)) {
-                    optionBuilder.append(enumValue.toAbbreviationString()).append("/"); //alternatively just use the getter
+                    optionBuilder.append(enumValue.getAbbreviation()).append("/");
                 }
             }
             //At this point the name/option is e.g. "<col>Public:</col> Show Friends/FC/CC/"
@@ -621,7 +667,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //Order does not matter since I'm just replacing, so just iterate over the HashSet
             if (setOH != null) { //Already checks if componentID = public chat by returning null if it's not public.
                 for (ChatTabFilterOptionsOH chatTabFilterOptionOH : setOH) {
-                    menuEntryOption = menuEntryOption.replace(chatTabFilterOptionOH.toNonOHAbbreviationString() + "/", chatTabFilterOptionOH.toAbbreviationString() + "/"); //A slash is added, so it does not result in: "Public OH: Show Public OH/Friends/CC OH
+                    menuEntryOption = menuEntryOption.replace(chatTabFilterOptionOH.toNonOHAbbreviationString() + "/", chatTabFilterOptionOH.getAbbreviation() + "/"); //A slash is added, so it does not result in: "Public OH: Show Public OH/Friends/CC OH
                 }
             }
             //At this point the name/option is e.g. "<col>Public:</col> Show Friends/FC/CC OH/"
@@ -693,7 +739,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 menuOption = menuOption.substring(idx);
             }
             for (ChatTabFilterOptions enumValue : ChatTabFilterOptions.values()) { //All the abbreviations from ChatTabFilterOptionsOH contain the non-OH abbreviation so contains still matches
-                if (menuOption.contains(enumValue.toAbbreviationString())) { //Plugin uses Friends instead of friends (osrs game)
+                if (menuOption.contains(enumValue.getAbbreviation())) { //Plugin uses Friends instead of friends (osrs game)
                     //return in case it is the menu entry/option we added ourselves! We do not want to turn off the filter when clicking on our menu entry/option.
                     return;
                 }
@@ -915,7 +961,51 @@ public class ChatFilterExtendedPlugin extends Plugin {
         setToConvertTo.addAll(Text.fromCSV(Text.standardize(configString).replaceAll("\\R", "")));
     }
 
-    //todo: make separate method for future FilteredRegions thing: remove all spaces. maybe amend the current one and create an overloaded method for convertCommaSeparatedConfigStringToSet. alternatively just make a new one since this one is very short
+    private boolean isNumeric(String inputString) {
+        if (inputString == null) {
+            return false;
+        }
+        return NUMERIC_PATTERN.matcher(inputString).matches();
+    }
+
+    private void setFilteredRegionAttributes(String filteredRegionData) {
+        String testString1 = "1234:pu;puoh/ccoh/pu/fc/cc";
+        String testString2 = "1234:pu;puoh/ccoh/pu/fc/cc,5678:ch;fr/fc/cc/wh";
+        String testString3 = "1234:pu;puoh/ccoh/pu/fc/cc,5678:ch;fr/fc/cc/wh,1337:pr;cu/;,1234:tr;cc/gu"; //todo: remove
+
+        final int colonIdx = filteredRegionData.indexOf(':');
+        final int semicolonIdx = filteredRegionData.indexOf(';');
+
+        //colonIdx is already -1 at this point since it was checked before this method was called
+        if (semicolonIdx == -1) {
+            //return if it does not contain a semicolon
+            return;
+        }
+
+        //Get the chattype/chatstone part of the string, e.g. pu or pr (first 2 letters of what it's called ingame)
+        final String chatTypeString = filteredRegionData.substring(colonIdx, semicolonIdx-1);
+        System.out.println("chatTypeString = " + chatTypeString);
+        //Should maybe use an enum instead of using the raw string values
+        AutoFilterChatType autoFilterChatType = AutoFilterChatType.valueOf(chatTypeString);
+        switch (autoFilterChatType) {
+            case PUBLIC:
+                //todo: add code
+                break;
+            case PRIVATE:
+                //todo: add code
+                break;
+            case CHANNEL:
+                //todo: add code
+                break;
+            case CLAN:
+                //todo: add code
+                break;
+            case TRADE:
+                //todo: add code
+                break;
+        }
+
+    }
 
     private void getCoXVarbit() {
         if (client.getGameState() == GameState.LOGGED_IN || client.getGameState() == GameState.LOADING) {
@@ -1302,7 +1392,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private String componentIDToChatTabFilterKeyName(int componentID) {
         //Returns the ChatFilterOptions keyname based on the componentID, because reflection bad so can't get the name that way.
         //Returns null when componentID != chatstone componentID
-        //Specifically opted to use a Switch instead of a for loop+list combo because the performance is a bit better. In the end both approaches are meh and don't differ that much in performance probs.
+        //Specifically opted to use a Switch instead of a for loop + map because the performance should be a bit better. In the end both approaches are meh and don't differ that much in performance probs.
+        //Alternatively used an enum and loop through that till you have a match
         switch (componentID) {
             case ComponentID.CHATBOX_TAB_PUBLIC:
                 return "publicChatFilterOptions";
