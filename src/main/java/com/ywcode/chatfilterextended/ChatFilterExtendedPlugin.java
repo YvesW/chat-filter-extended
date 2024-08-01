@@ -84,17 +84,17 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     // ------------- Wall of config vars -------------
     // Vars are quite heavily cached so could probably just config.configKey(). However, the best practice behavior in plugins is to have a bunch of variables to store the results of the config methods, and check it in startUp/onConfigChanged. It feels redundant, but it's better than hitting the reflective calls every frame. --LlemonDuck. Additionally, the whitelist strings are actually getting processed.
-    private static Set<ChatTabFilterOptions> publicChatFilterOptions;
-    private static Set<ChatTabFilterOptionsOH> publicChatFilterOptionsOH;
+    private static Set<ChatTabFilterOptions> publicChatFilterOptions; //Defined as an EnumSet in updateConfig()
+    private static Set<ChatTabFilterOptionsOH> publicChatFilterOptionsOH; //Defined as an EnumSet in updateConfig()
     private static final Set<String> publicWhitelist = new HashSet<>();
-    private static Set<ChatTabFilterOptions> privateChatFilterOptions;
+    private static Set<ChatTabFilterOptions> privateChatFilterOptions; //Defined as an EnumSet in updateConfig()
     private static final Set<String> privateWhitelist = new HashSet<>();
     private static boolean forcePrivateOn;
-    private static Set<ChatTabFilterOptions> channelChatFilterOptions;
+    private static Set<ChatTabFilterOptions> channelChatFilterOptions; //Defined as an EnumSet in updateConfig()
     private static final Set<String> channelWhitelist = new HashSet<>();
-    private static Set<ChatTabFilterOptions> clanChatFilterOptions;
+    private static Set<ChatTabFilterOptions> clanChatFilterOptions; //Defined as an EnumSet in updateConfig()
     private static final Set<String> clanWhitelist = new HashSet<>();
-    private static Set<ChatTabFilterOptions> tradeChatFilterOptions;
+    private static Set<ChatTabFilterOptions> tradeChatFilterOptions; //Defined as an EnumSet in updateConfig()
     private static final Set<String> tradeWhitelist = new HashSet<>();
     private static boolean showGuestTrades;
     private static boolean clearChannelSetHop;
@@ -289,17 +289,17 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void updateConfig() {
-        publicChatFilterOptions = config.publicChatFilterOptions();
-        publicChatFilterOptionsOH = config.publicChatFilterOptionsOH();
+        publicChatFilterOptions = getEnumSet(config.publicChatFilterOptions()); //This is a LinkedHashSet if the method to convert it is not used
+        publicChatFilterOptionsOH = getEnumSetOH(config.publicChatFilterOptionsOH());
         convertCommaSeparatedConfigStringToSet(config.publicWhitelist(), publicWhitelist);
-        privateChatFilterOptions = config.privateChatFilterOptions();
+        privateChatFilterOptions = getEnumSet(config.privateChatFilterOptions());
         convertCommaSeparatedConfigStringToSet(config.privateWhitelist(), privateWhitelist);
         forcePrivateOn = config.forcePrivateOn();
-        channelChatFilterOptions = config.channelChatFilterOptions();
+        channelChatFilterOptions = getEnumSet(config.channelChatFilterOptions());
         convertCommaSeparatedConfigStringToSet(config.channelWhitelist(), channelWhitelist);
-        clanChatFilterOptions = config.clanChatFilterOptions();
+        clanChatFilterOptions = getEnumSet(config.clanChatFilterOptions());
         convertCommaSeparatedConfigStringToSet(config.clanWhitelist(), clanWhitelist);
-        tradeChatFilterOptions = config.tradeChatFilterOptions();
+        tradeChatFilterOptions = getEnumSet(config.tradeChatFilterOptions());
         convertCommaSeparatedConfigStringToSet(config.tradeWhitelist(), tradeWhitelist);
         showGuestTrades = config.showGuestTrades();
         clearChannelSetHop = config.clearChannelSetHop();
@@ -652,19 +652,16 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //At this point the </col> tag has been closed and "Show " has been added, e.g. "<col>Public:</col> Show "
 
             //Grab the abbreviations from the enum based on the selected config
-            //Although maybe not the most optimal, I did not want to convert the HashSet to a List that I could order according to the enum at onConfigChanged
-            //So I'm just looping over the enum values here
-            for (ChatTabFilterOptions enumValue : ChatTabFilterOptions.values()) {
-                if (set.contains(enumValue)) {
-                    optionBuilder.append(enumValue.getAbbreviation()).append("/");
-                }
+            //Elements in an EnumSet are stored following the order in which they are declared in the enum, so we don't have to loop the enum and check if the set contains the value
+            for (ChatTabFilterOptions chatTabFilterOption : set) {
+                optionBuilder.append(chatTabFilterOption.getAbbreviation()).append("/");
             }
             //At this point the name/option is e.g. "<col>Public:</col> Show Friends/FC/CC/"
             menuEntryOption = optionBuilder.toString();
 
             //Replace entries with their OH equivalent if OH is added to the OH set
             //This is because I made the design decision that the chat filter (e.g. CC) needs to be enabled (visible) AND the OH chat filter (e.g. CC OH) needs to be active to only show CC OH
-            //Order does not matter since I'm just replacing, so just iterate over the HashSet
+            //Order does not matter since I'm just replacing, so just iterate over the Set -> EnumSet is in order of declaration of the enum anyway
             if (setOH != null) { //Already checks if componentID = public chat by returning null if it's not public.
                 for (ChatTabFilterOptionsOH chatTabFilterOptionOH : setOH) {
                     menuEntryOption = menuEntryOption.replace(chatTabFilterOptionOH.toNonOHAbbreviationString() + "/", chatTabFilterOptionOH.getAbbreviation() + "/"); //A slash is added, so it does not result in: "Public OH: Show Public OH/Friends/CC OH
@@ -950,6 +947,22 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 && raidPartyStandardizedUsernames.add(Text.standardize(playerSpawned.getPlayer().getName()))) { //Standardize playername that joined cox lobby / cox raid and add to hashset.
             shouldRefreshChat = true;
         }
+    }
+
+    //copyOf tries to get the type of enum from the value, but it can't if the set is empty
+    private EnumSet<ChatTabFilterOptions> getEnumSet(Set<ChatTabFilterOptions> set) {
+        if (set.isEmpty()) {
+            return EnumSet.noneOf(ChatTabFilterOptions.class);
+        }
+        return EnumSet.copyOf(set);
+    }
+
+    //copyOf tries to get the type of enum from the value, but it can't if the set is empty
+    private EnumSet<ChatTabFilterOptionsOH> getEnumSetOH(Set<ChatTabFilterOptionsOH> set) {
+        if (set.isEmpty()) {
+            return EnumSet.noneOf(ChatTabFilterOptionsOH.class);
+        }
+        return EnumSet.copyOf(set);
     }
 
     private void convertCommaSeparatedConfigStringToSet(String configString, Set<String> setToConvertTo) {
