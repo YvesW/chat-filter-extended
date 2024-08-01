@@ -18,4 +18,14 @@ public enum AutoFilterChatType {
     public String toString() {
         return abbreviation;
     }
+
+    //Convert abbreviation to enum element by looping through enum.values()
+    static AutoFilterChatType abbreviationToEnum(String input) {
+        for (AutoFilterChatType autoFilterChatType : AutoFilterChatType.values()) {
+            if (autoFilterChatType.getAbbreviation().equals(input)) {
+                return autoFilterChatType;
+            }
+        }
+        return null;
+    }
 }

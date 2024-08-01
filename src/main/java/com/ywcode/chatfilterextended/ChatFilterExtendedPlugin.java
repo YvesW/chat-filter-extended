@@ -242,7 +242,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //todo: check if config should be changed: e.g. location, defaults, names, descriptions
         //todo: maybe prevent chat notifications from filtered people but idk
         //todo: als je ooit regionid activatie wil doen, Wrt regionid: maak right click option per tab (idx na clear raids, default shift click only?) met submenu of je custom of custom met opties wil. Check devtools of je dit ook via world map kan maar betwijfel dit, m.n. bij sub regions
-
+        //todo: maak mss nog wat variables final?
+        //todo: kijk for loops nog na of je niet meer breaks, continues, of returns toe kan voegen
 
         shuttingDown = true; //Might not be necessary but just to be sure it doesn't set it back to custom text since the script procs
         channelStandardizedUsernames.clear();
@@ -506,45 +507,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
             String testString2 = "1234:pu;puoh/ccoh/pu/fc/cc,5678:ch;fr/fc/cc/wh";
             String testString3 = "1234:pu;puoh/ccoh/pu/fc/cc,5678:ch;fr/fc/cc/wh,1337:pr;cu/;,1234:tr;cc/gu"; //todo: remove
 
-            final Set<String> filteredRegionsDataSet = new HashSet<>();
-            convertCommaSeparatedConfigStringToSet(testString1, filteredRegionsDataSet);
-            //todo: test if this works since it's a local variable...
-            System.out.println("filteredRegionsDataSet = " + filteredRegionsDataSet);
+            convertStringToFilteredRegion(testString3);
 
-            for (String filteredRegionData : filteredRegionsDataSet) {
-                final int colonIdx = filteredRegionData.indexOf(':');
-
-                //Continue if colon can't be found
-                if (colonIdx == -1) {
-                    continue;
-                }
-
-                final String regionIdString = filteredRegionData.substring(0, colonIdx-1);
-                System.out.println("regionIdString = " + regionIdString);
-
-                //Continue is regionId is not numeric
-                if (!isNumeric(regionIdString)) {
-                    continue;
-                }
-
-                final int regionIdInt = Integer.parseInt(regionIdString); //Convert string to int
-                boolean regionAlreadyExists = false; //Used to determine if filteredRegion already exists
-                for (FilteredRegion filteredRegion : filteredRegions) {
-                    if (filteredRegion.getRegionId() == regionIdInt) {
-                        regionAlreadyExists = true; //Set boolean so we know below to not create a new filteredRegion
-                        setFilteredRegionAttributes(filteredRegionData);
-                        //todo: add code to convert string
-                    }
-                }
-
-                if (!regionAlreadyExists) {
-                    //filteredRegion with this regionId does not exist yet -> create it, set attributes and add it to HashSet
-                    //todo: add code to create filteredRegion, convert string, add it to set
-                }
-            }
-
-            //todo: also guard against not using int etc
-            //todo: when disabling or switching from custom to set specific or set specific to custom -> probs do the following: convert string to hashset, loop through it and do startsWith "1234:pu", remove that from hashset. then at the end toCSV, amend the String, then set it with configmanager -> procs onConfigChanged
+            //todo: when disabling or switching from custom to set specific or set specific to custom -> probs do the following: convert string to hashset, loop through it and do startsWith "1234:pu", remove that entry from hashset. then at the end toCSV, amend the String, then set it with configmanager -> procs onConfigChanged
         }
     }
 
@@ -974,6 +939,49 @@ public class ChatFilterExtendedPlugin extends Plugin {
         setToConvertTo.addAll(Text.fromCSV(Text.standardize(configString).replaceAll("\\R", "")));
     }
 
+    private void convertStringToFilteredRegion(String configString) {
+        //First convert String to a HashSet
+        final Set<String> filteredRegionsDataSet = new HashSet<>();
+        convertCommaSeparatedConfigStringToSet(configString, filteredRegionsDataSet);
+
+        //Loop over the string per region/chattab combination
+        for (String filteredRegionData : filteredRegionsDataSet) {
+            final int colonIdx = filteredRegionData.indexOf(':');
+
+            //Continue if colon can't be found
+            if (colonIdx == -1) {
+                continue;
+            }
+
+            //Get everything before the ":"
+            final String regionIdString = filteredRegionData.substring(0, colonIdx);
+
+            //Continue if regionId is not numeric
+            if (!isNumeric(regionIdString)) {
+                continue;
+            }
+
+            final int regionIdInt = Integer.parseInt(regionIdString); //Convert string to int
+            boolean regionAlreadyExists = false; //Used to determine if filteredRegion already exists
+
+            //Check if FilteredRegion for this id already exists
+            for (FilteredRegion filteredRegion : filteredRegions) {
+                if (filteredRegion.getRegionId() == regionIdInt) {
+                    regionAlreadyExists = true; //Set boolean so we know below to not create a new filteredRegion
+                    setFilteredRegionAttributes(filteredRegionData, filteredRegion); //Set the attributes for the region
+                    break; //We've found the matching FilteredRegion, can break the for loop now
+                }
+            }
+
+            if (!regionAlreadyExists) {
+                //filteredRegion with this regionId does not exist yet -> create it, set attributes and add it to HashSet
+                final FilteredRegion filteredRegion = new FilteredRegion(regionIdInt);
+                setFilteredRegionAttributes(filteredRegionData, filteredRegion);
+                filteredRegions.add(filteredRegion);
+            }
+        }
+    }
+
     private boolean isNumeric(String inputString) {
         if (inputString == null) {
             return false;
@@ -981,7 +989,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
         return NUMERIC_PATTERN.matcher(inputString).matches();
     }
 
-    private void setFilteredRegionAttributes(String filteredRegionData) {
+    private void setFilteredRegionAttributes(String filteredRegionData, FilteredRegion filteredRegion) {
+        //Sets the attributes for the specific FilteredRegion based on the FilteredRegion string data in the hashset
         String testString1 = "1234:pu;puoh/ccoh/pu/fc/cc";
         String testString2 = "1234:pu;puoh/ccoh/pu/fc/cc,5678:ch;fr/fc/cc/wh";
         String testString3 = "1234:pu;puoh/ccoh/pu/fc/cc,5678:ch;fr/fc/cc/wh,1337:pr;cu/;,1234:tr;cc/gu"; //todo: remove
@@ -996,28 +1005,32 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
 
         //Get the chattype/chatstone part of the string, e.g. pu or pr (first 2 letters of what it's called ingame)
-        final String chatTypeString = filteredRegionData.substring(colonIdx, semicolonIdx-1);
-        System.out.println("chatTypeString = " + chatTypeString);
-        //Should maybe use an enum instead of using the raw string values
-        AutoFilterChatType autoFilterChatType = AutoFilterChatType.valueOf(chatTypeString);
-        switch (autoFilterChatType) {
-            case PUBLIC:
-                //todo: add code
-                break;
-            case PRIVATE:
-                //todo: add code
-                break;
-            case CHANNEL:
-                //todo: add code
-                break;
-            case CLAN:
-                //todo: add code
-                break;
-            case TRADE:
-                //todo: add code
-                break;
+        final String chatTypeString = filteredRegionData.substring(colonIdx + 1, semicolonIdx);
+        //Get enum element from value
+        AutoFilterChatType autoFilterChatType = AutoFilterChatType.abbreviationToEnum(chatTypeString);
+
+        if (autoFilterChatType == null) {
+            //We're not using java 18, so you have to null check before switch and can't use case null:
+            return;
         }
 
+        switch (autoFilterChatType) {
+            case PUBLIC:
+                //todo: add code, think about oh sets (potentially use size/length of the substring), cu/ only
+                break;
+            case PRIVATE:
+                //todo: add code, think about cu/ only
+                break;
+            case CHANNEL:
+                //todo: add code, think about cu/ only
+                break;
+            case CLAN:
+                //todo: add code, think about cu/only
+                break;
+            case TRADE:
+                //todo: add code, think about cu/only
+                break;
+        }
     }
 
     private void getCoXVarbit() {
