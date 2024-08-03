@@ -84,17 +84,17 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     // ------------- Wall of config vars -------------
     // Vars are quite heavily cached so could probably just config.configKey(). However, the best practice behavior in plugins is to have a bunch of variables to store the results of the config methods, and check it in startUp/onConfigChanged. It feels redundant, but it's better than hitting the reflective calls every frame. --LlemonDuck. Additionally, the whitelist strings are actually getting processed.
-    private static Set<ChatTabFilterOptions> publicChatFilterOptions; //Defined as an EnumSet in updateConfig()
-    private static Set<ChatTabFilterOptionsOH> publicChatFilterOptionsOH; //Defined as an EnumSet in updateConfig()
+    private static final Set<ChatTabFilterOptions> publicChatFilterOptions = EnumSet.noneOf(ChatTabFilterOptions.class);
+    private static final Set<ChatTabFilterOptionsOH> publicChatFilterOptionsOH = EnumSet.noneOf(ChatTabFilterOptionsOH.class);
     private static final Set<String> publicWhitelist = new HashSet<>();
-    private static Set<ChatTabFilterOptions> privateChatFilterOptions; //Defined as an EnumSet in updateConfig()
+    private static final Set<ChatTabFilterOptions> privateChatFilterOptions = EnumSet.noneOf(ChatTabFilterOptions.class);
     private static final Set<String> privateWhitelist = new HashSet<>();
     private static boolean forcePrivateOn;
-    private static Set<ChatTabFilterOptions> channelChatFilterOptions; //Defined as an EnumSet in updateConfig()
+    private static final Set<ChatTabFilterOptions> channelChatFilterOptions = EnumSet.noneOf(ChatTabFilterOptions.class);
     private static final Set<String> channelWhitelist = new HashSet<>();
-    private static Set<ChatTabFilterOptions> clanChatFilterOptions; //Defined as an EnumSet in updateConfig()
+    private static final Set<ChatTabFilterOptions> clanChatFilterOptions = EnumSet.noneOf(ChatTabFilterOptions.class);
     private static final Set<String> clanWhitelist = new HashSet<>();
-    private static Set<ChatTabFilterOptions> tradeChatFilterOptions; //Defined as an EnumSet in updateConfig()
+    private static final Set<ChatTabFilterOptions> tradeChatFilterOptions = EnumSet.noneOf(ChatTabFilterOptions.class);
     private static final Set<String> tradeWhitelist = new HashSet<>();
     private static boolean showGuestTrades;
     private static boolean clearChannelSetHop;
@@ -290,17 +290,17 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void updateConfig() {
-        publicChatFilterOptions = getEnumSet(config.publicChatFilterOptions()); //This is a LinkedHashSet if the method to convert it is not used
-        publicChatFilterOptionsOH = getEnumSetOH(config.publicChatFilterOptionsOH());
+        convertSetToEnumSet(config.publicChatFilterOptions(), publicChatFilterOptions); //This is a LinkedHashSet if the method to convert it is not used
+        convertSetToEnumSetOH(config.publicChatFilterOptionsOH(), publicChatFilterOptionsOH);
         convertCommaSeparatedConfigStringToSet(config.publicWhitelist(), publicWhitelist);
-        privateChatFilterOptions = getEnumSet(config.privateChatFilterOptions());
+        convertSetToEnumSet(config.privateChatFilterOptions(), privateChatFilterOptions);
         convertCommaSeparatedConfigStringToSet(config.privateWhitelist(), privateWhitelist);
         forcePrivateOn = config.forcePrivateOn();
-        channelChatFilterOptions = getEnumSet(config.channelChatFilterOptions());
+        convertSetToEnumSet(config.channelChatFilterOptions(), channelChatFilterOptions);
         convertCommaSeparatedConfigStringToSet(config.channelWhitelist(), channelWhitelist);
-        clanChatFilterOptions = getEnumSet(config.clanChatFilterOptions());
+        convertSetToEnumSet(config.clanChatFilterOptions(), clanChatFilterOptions);
         convertCommaSeparatedConfigStringToSet(config.clanWhitelist(), clanWhitelist);
-        tradeChatFilterOptions = getEnumSet(config.tradeChatFilterOptions());
+        convertSetToEnumSet(config.tradeChatFilterOptions(), tradeChatFilterOptions);
         convertCommaSeparatedConfigStringToSet(config.tradeWhitelist(), tradeWhitelist);
         showGuestTrades = config.showGuestTrades();
         clearChannelSetHop = config.clearChannelSetHop();
@@ -914,6 +914,27 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
+    //config.SetNameHere() returns a LinkedHashset, even if you set the default as e.g. return EnumSet.noneOf(EnumClassName.class)
+    //Thus, clear the already created final EnumSet and add all the elements to it
+    private void convertSetToEnumSet(Set<ChatTabFilterOptions> configSet, Set<ChatTabFilterOptions> setToConvertTo) {
+        setToConvertTo.clear();
+        setToConvertTo.addAll(configSet);
+    }
+
+    //config.SetNameHere() returns a LinkedHashset, even if you set the default as e.g. return EnumSet.noneOf(EnumClassName.class)
+    //Thus, clear the already created final EnumSet and add all the elements to it
+    //Could potentially combine this with convertSetToEnumSet and then make overloaded methods for both but meh
+    //Can't really get the type during runtime because of type erasure, and checking if Object instance of Set<?> ->
+    // looping through set and using instanceof does also not really work because the Set can be empty (in fact, it always is on plugin start)
+    //You'd have to use reflection or write some wrapper probs so meh
+    @SuppressWarnings("SameParameterValue")
+    private void convertSetToEnumSetOH(Set<ChatTabFilterOptionsOH> configSet, Set<ChatTabFilterOptionsOH> setToConvertTo) {
+        setToConvertTo.clear();
+        setToConvertTo.addAll(configSet);
+    }
+
+    /*
+    Altenatively make set not final and then use this, but I dislike that the implementation of the set can change to another type of set if I'm not careful
     //copyOf tries to get the type of enum from the value, but it can't if the set is empty
     private EnumSet<ChatTabFilterOptions> getEnumSet(Set<ChatTabFilterOptions> set) {
         if (set.isEmpty()) {
@@ -921,14 +942,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
         return EnumSet.copyOf(set);
     }
-
-    //copyOf tries to get the type of enum from the value, but it can't if the set is empty
-    private EnumSet<ChatTabFilterOptionsOH> getEnumSetOH(Set<ChatTabFilterOptionsOH> set) {
-        if (set.isEmpty()) {
-            return EnumSet.noneOf(ChatTabFilterOptionsOH.class);
-        }
-        return EnumSet.copyOf(set);
-    }
+     */
 
     private void convertCommaSeparatedConfigStringToSet(String configString, Set<String> setToConvertTo) {
         //Convert a CSV config string to a set
