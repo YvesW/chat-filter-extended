@@ -629,7 +629,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //Order does not matter since I'm just replacing, so just iterate over the Set -> EnumSet is in order of declaration of the enum anyway
             if (setOH != null) { //Already checks if componentID = public chat by returning null if it's not public.
                 for (ChatTabFilterOptionsOH chatTabFilterOptionOH : setOH) {
-                    menuEntryOption = menuEntryOption.replace(chatTabFilterOptionOH.toNonOHAbbreviationString() + "/", chatTabFilterOptionOH.getAbbreviation() + "/"); //A slash is added, so it does not result in: "Public OH: Show Public OH/Friends/CC OH
+                    menuEntryOption = menuEntryOption.replace(chatTabFilterOptionOH.getNonOHAbbreviation() + "/", chatTabFilterOptionOH.getAbbreviation() + "/"); //A slash is added, so it does not result in: "Public OH: Show Public OH/Friends/CC OH
                 }
             }
             //At this point the name/option is e.g. "<col>Public:</col> Show Friends/FC/CC OH/"
@@ -1016,6 +1016,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
         switch (autoFilterChatType) {
             case PUBLIC:
+                //todo: probs use splitter like text does; check this (and alternatives) out and which options it has
                 //todo: add code, think about oh sets (potentially use size/length of the substring), cu/ only
                 break;
             case PRIVATE:
