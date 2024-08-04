@@ -3,7 +3,7 @@ An example greeter plugin
 
 PLUGIN IS NOT FINISHED YET AND README HAS NOT BEEN MADE YET
 
-GIM chat support has not been tested since I don't have a GIM. It should likely behave like the CC filter.
+GIM chat support has not been tested since I don't have a GIM. It should behave like the CC filter.
 
 add info somewhere on OH works: this is already added to the config item, but since the user does not need to interact with it, also add it to the readme  
 excerpt from config: "Allowed chat senders when the custom filter is active (overhead text). Needs to also be active in the set above.<br>"+  
@@ -26,7 +26,7 @@ Public?: everything that is not part of the above categories probs -> //Public =
 //Thus, public = the randoms
 //It's not the local player, so don't have to check for that.
 whitelist??  
-probably ctrl+f "standardizedusernames.clear()" and "clearRaidPartyHashset()"  
+probably ctrl+f "standardizedusernames.clear()" and "clearRaidPartySet()" (including the manual variant)  
 
 Also everything 2d for public (overhead)
 

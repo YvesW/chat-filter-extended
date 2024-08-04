@@ -3,6 +3,8 @@ package com.ywcode.chatfilterextended;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+import javax.annotation.Nullable;
+
 @RequiredArgsConstructor
 @Getter
 public enum AutoFilterChatType {
@@ -20,6 +22,7 @@ public enum AutoFilterChatType {
     }
 
     //Convert abbreviation to enum element by looping through enum.values()
+    @Nullable
     static AutoFilterChatType abbreviationToEnum(String input) {
         for (AutoFilterChatType autoFilterChatType : AutoFilterChatType.values()) {
             if (autoFilterChatType.getAbbreviation().equals(input)) {
