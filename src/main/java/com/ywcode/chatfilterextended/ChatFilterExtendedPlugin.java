@@ -959,6 +959,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void convertStringToFilteredRegions(String configString) {
+        //Convert the (config) string to FilteredRegions
         //First convert String to a HashSet
         final Set<String> filteredRegionsDataSet = new HashSet<>();
         convertCommaSeparatedStringToSet(configString, filteredRegionsDataSet);
@@ -1002,6 +1003,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private boolean isNumeric(String inputString) {
+        //Check if string is numeric or not
         if (inputString == null) {
             return false;
         }
@@ -1054,6 +1056,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void getCoXVarbit() {
+        //Converts the IN_RAID varbitvalue to boolean. Useful in case the plugin starts with the player already logged in.
         if (client.getGameState() == GameState.LOGGED_IN || client.getGameState() == GameState.LOADING) {
             inCoXRaidOrLobby = client.getVarbitValue(Varbits.IN_RAID) > 0; //Convert the int to boolean. 0 = false, 1 = true.
         }
@@ -1131,10 +1134,12 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void addClanMembers(ClanChannel clanChannel, ClanSettings clanSettings) {
+        //Add clan members to the appropriate sets
         addClanOrGuestClanMembers(clanChannel, clanSettings, clanMembersStandardizedUsernames, clanTotalStandardizedUsernames);
     }
 
     private void addGuestClanMembers(ClanChannel clanChannel, ClanSettings clanSettings) {
+        //Add guest clan members to the appropriate sets
         addClanOrGuestClanMembers(clanChannel, clanSettings, guestClanMembersStandardizedUsernames, guestClanTotalStandardizedUsernames);
     }
 
@@ -1219,6 +1224,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void redrawChatButtons() {
+        //Run [proc,redraw_chat_buttons]
         if (client.getGameState() == GameState.LOGGED_IN || client.getGameState() == GameState.LOADING) {
             clientThread.invokeLater(() -> {
                 client.runScript(REDRAW_CHAT_BUTTONS_SCRIPTID); //[proc,redraw_chat_buttons]
@@ -1256,6 +1262,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void clearRaidPartySet() {
+        //Clears the raid party sets. Also clears the string so the plugin will process the party interface if needed
         previousRaidPartyInterfaceText = "";
         raidPartyStandardizedUsernames.clear();
         shouldRefreshChat = true;
@@ -1263,6 +1270,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     private void clearRaidPartySetManually(MenuEntry menuEntry) {
         //Yes, MenuEntry menuEntry is required here for it to work afaik
+        //Clears the raid party set and also rebuilds it if it's applicable (e.g. when inside tob)
         clearRaidPartySet();
         //Rebuild the raid party hashset by adding the current people to it. Events that run every gametick (either via onGameTick or e.g. via a script that runs every gametick, are excluded here since they'll run anyway).
         //Thus, CoX bank is excluded, ToB/ToA lobby party interface is excluded.
@@ -1295,6 +1303,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private boolean isChatStone(int componentID) {
+        //Check if the componentID is the componentID of a chatstone
         return CHATBOX_COMPONENT_IDS.contains(componentID);
     }
 
@@ -1375,9 +1384,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void setChatStoneWidgetText(int componentID) {
+        //Sets the WidgetText for the specific chat to Custom, based on componentID. Usage of this already has GameState check.
         //Could be inlined in setChatStoneWidgetTextAll
         //todo: check if you don't want to inline this
-        //Sets the WidgetText for the specific chat to Custom, based on componentID. Usage of this already has GameState check.
         final Widget chatWidget = client.getWidget(componentID);
         if (chatWidget != null && isChatFiltered(componentID)) {
             chatWidget.getStaticChildren()[2].setText(TAB_CUSTOM_TEXT_STRING); //or e.g. chatWidget.getStaticChildren().length-1 but that might change more often idk
@@ -1848,6 +1857,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     Does get changed from e.g. -1 to a value if a user walks up the stairs to the cox bank area, or teleports in or out (tele out = set to -1 again).
      */
     private void addCoXBankPlayers() {
+        //Add people to the appropriate set in the cox bank area if they are in the FC
         //Procs every gametick while in the cox bank regionId. Check varp so it only procs in the bank area.
         //Cox bank people can technically not be in the FC yet when spawning or run up the CoX stairs with you so execute every gametick instead of onplayerspawned
         if (client.getVarpValue(VarPlayer.IN_RAID_PARTY) == -1) {
@@ -1877,7 +1887,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void addPartyMembers() {
-        //Add all the rl party members to the appropriate set
+        //Add all the RL party members to the appropriate set
         //Opted to use this so party members would remain until hopping.
         //Alternatively just use partyService.isInParty() && partyService.getMemberByDisplayName(player.getName()) != null in the shouldFilter code if you only want it to be when they are in the party.
         if (!partyService.isInParty()) {
