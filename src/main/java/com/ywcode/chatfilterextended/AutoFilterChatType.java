@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import javax.annotation.Nullable;
+import java.util.HashMap;
+import java.util.Map;
 
 @RequiredArgsConstructor
 @Getter
@@ -15,20 +17,23 @@ public enum AutoFilterChatType {
     TRADE("tr");
 
     private final String abbreviation;
+    private static final Map<String, AutoFilterChatType> BY_ABBREVIATION = new HashMap<>();
+
+    //Cache abbreviation to enum element map
+    static {
+        for (AutoFilterChatType autoFilterChatType: values()) {
+            BY_ABBREVIATION.put(autoFilterChatType.abbreviation, autoFilterChatType);
+        }
+    }
 
     @Override
     public String toString() {
         return abbreviation;
     }
 
-    //Convert abbreviation to enum element by looping through enum.values()
+    //Get enum element based on abbreviation
     @Nullable
-    static AutoFilterChatType abbreviationToEnum(String input) {
-        for (AutoFilterChatType autoFilterChatType : AutoFilterChatType.values()) {
-            if (autoFilterChatType.getAbbreviation().equals(input)) {
-                return autoFilterChatType;
-            }
-        }
-        return null;
+    public static AutoFilterChatType getEnumElement(String abbreviation) {
+        return BY_ABBREVIATION.get(abbreviation);
     }
 }

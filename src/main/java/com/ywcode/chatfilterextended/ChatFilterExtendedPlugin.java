@@ -1028,7 +1028,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Get the chattype/chatstone part of the string, e.g. pu or pr (first 2 letters of what it's called ingame)
         final String chatTypeString = filteredRegionData.substring(colonIdx + 1, semicolonIdx);
         //Get enum element from value
-        AutoFilterChatType autoFilterChatType = AutoFilterChatType.abbreviationToEnum(chatTypeString);
+        AutoFilterChatType autoFilterChatType = AutoFilterChatType.getEnumElement(chatTypeString);
 
         if (autoFilterChatType == null) {
             //We're not using java 18, so you have to null check before switch and can't use case null:
@@ -1039,18 +1039,23 @@ public class ChatFilterExtendedPlugin extends Plugin {
             case PUBLIC:
                 //todo: probs use splitter like text does; check this (and alternatives) out and which options it has
                 //todo: add code, think about oh sets (potentially use size/length of the substring), cu/ only
+                //todo: probs if it gets to empty set code, delete the filtered region from the set (if both normal and oh are empty)?
                 break;
             case PRIVATE:
                 //todo: add code, think about cu/ only
+                //todo: probs if it gets to empty set code, delete the filtered region from the set?
                 break;
             case CHANNEL:
                 //todo: add code, think about cu/ only
+                //todo: probs if it gets to empty set code, delete the filtered region from the set?
                 break;
             case CLAN:
                 //todo: add code, think about cu/only
+                //todo: probs if it gets to empty set code, delete the filtered region from the set?
                 break;
             case TRADE:
                 //todo: add code, think about cu/only
+                //todo: probs if it gets to empty set code, delete the filtered region from the set?
                 break;
         }
     }
