@@ -244,7 +244,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //todo: maybe prevent chat notifications from filtered people but idk
         //todo: als je ooit regionid activatie wil doen, Wrt regionid: maak right click option per tab (idx na clear raids, default shift click only?) met submenu of je custom of custom met opties wil. Check devtools of je dit ook via world map kan maar betwijfel dit, m.n. bij sub regions
         //todo: ctrl+shift+f return null en check of je het met @Nullable annotated hebt
-        //todo: check if you should inline some methods or not
         //todo: maak mss nog wat variables final?
         //todo: kijk for loops nog na of je niet meer breaks, continues, of returns toe kan voegen
 
@@ -276,7 +275,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
                     setChatsToPublic();
                 } else { //if (!forcePrivateOn)
                     //Set friends status to non filtered and redraw chat buttons to show the current state of friends -> also sets the other chats to custom again if needed because redrawChatButtons procs a script that triggers the code setting the text of the chat buttons.
-                    executeSetChatFilterConfig(ComponentID.CHATBOX_TAB_PRIVATE, false);
+                    setChatFilterConfig(ComponentID.CHATBOX_TAB_PRIVATE, false);
                     redrawChatButtons();
                 }
             }
@@ -705,6 +704,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 menuOption = menuOption.substring(idx);
             }
             for (ChatTabFilterOptions enumValue : ChatTabFilterOptions.values()) { //All the abbreviations from ChatTabFilterOptionsOH contain the non-OH abbreviation so contains still matches
+                //Alternatively get the set and setOH, then loop through the abbreviation but meh
                 if (menuOption.contains(enumValue.getAbbreviation())) { //Plugin uses Friends instead of friends (osrs game)
                     //return in case it is the menu entry/option we added ourselves! We do not want to turn off the filter when clicking on our menu entry/option.
                     return;
@@ -1241,7 +1241,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Iterate through all chat filter enabled booleans and check if they should be active according to the config or not
         for (int i = 0; i < filtersEnabled.length; i++) {
             if (filtersEnabled[i] && !shouldFilterChatType(CHATBOX_COMPONENT_IDS.get(i))) {
-                executeSetChatFilterConfig(CHATBOX_COMPONENT_IDS.get(i), false);
+                setChatFilterConfig(CHATBOX_COMPONENT_IDS.get(i), false);
                 shouldRedraw = true;
             }
         }
@@ -1314,21 +1314,13 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void setChatFilterConfig(int componentID, boolean enableFilter) {
-        //Set the RL config value for a chat: is the filter enabled or disabled?
-        if (isChatStone(componentID)) {
-            executeSetChatFilterConfig(componentID, enableFilter);
-            //todo: check why this is a separate method and not just incorporated in executeSetChatFilterConfig (that then can be renamed); probs some old reason that's no longer valid
-        }
-    }
-
-    private void executeSetChatFilterConfig(int componentID, boolean enableFilter) {
-        //Separate method, so it can be easily run by putting in the componentID instead having to enter a MenuEntry
+        //Set the RL config value for a chat based on the componentID. Boolean enableFilter: enable or disable a filter
         //publicFilterEnabled = enableFilter is not necessary since ConfigManager does trigger updateConfig() if the config value actually gets changed from false to true or vice versa
         //Alternatively use a switch (componentID) statement like you did before. It's probably more efficient execution wise, but we got these lists anyway and this is more compact
         for (int i = 0; i < CHATBOX_COMPONENT_IDS.size(); i++) {
             if (CHATBOX_COMPONENT_IDS.get(i) == componentID) {
                 configManager.setConfiguration(CONFIG_GROUP, FILTERS_ENABLED_STRING_LIST.get(i), enableFilter);
-                //todo: add break or even replace fully with enum
+                break;
             }
         }
     }
@@ -1348,6 +1340,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Public, private, trade remember between hops.
         //Channel, Clan don't remember between hopping; potentially related to varbits as described here https://discord.com/channels/301497432909414422/301497432909414422/1086022946633547867 (i.e. I suspect when hopping it reads the state from the varbits and then sets the chat filters according to those values)
         clientThread.invoke(() -> {
+            //todo: make this into an enum or private static final ints probs with the 2-6 and the 0. Also make client.runScript(CHAT_SET_FILTER_SCRIPTID, x, x) a separate method probs so you can easily call it when setting from filteredRegion back to unfilteredRegion?
             //Could potentially put this nicely in an enum at some point. Should probably also document what other arguments do then. 1 might be game, but it's not listed in script 184 proc,chat_set_filter. Regarding 2nd argument it's just always +1 to get the next MenuOption and if you enter a value that's too high, it goes to show all/on (for some chat tabs?)
             if (publicFilterEnabled) {
                 client.runScript(CHAT_SET_FILTER_SCRIPTID, 2, 0);
@@ -1385,8 +1378,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     private void setChatStoneWidgetText(int componentID) {
         //Sets the WidgetText for the specific chat to Custom, based on componentID. Usage of this already has GameState check.
-        //Could be inlined in setChatStoneWidgetTextAll
-        //todo: check if you don't want to inline this
         final Widget chatWidget = client.getWidget(componentID);
         if (chatWidget != null && isChatFiltered(componentID)) {
             chatWidget.getStaticChildren()[2].setText(TAB_CUSTOM_TEXT_STRING); //or e.g. chatWidget.getStaticChildren().length-1 but that might change more often idk
