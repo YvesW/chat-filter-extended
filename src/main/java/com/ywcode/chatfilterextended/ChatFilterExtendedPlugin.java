@@ -1716,7 +1716,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
         if (topOrMembersPart != null && topOrMembersPart.getDynamicChildren() != null) {
             for (int i = 0; i < topOrMembersPart.getDynamicChildren().length; i++) {
                 //Get child that has type 3 => next one has to be the username
-                if (Objects.requireNonNull(topOrMembersPart.getChild(i)).getType() == 3) {
+                Widget child = topOrMembersPart.getChild(i);
+                if (child != null && child.getType() == 3) {
                     //Index of the one that has name is type 3 index + 1
                     final Widget nameWidget = topOrMembersPart.getChild(i + 1);
                     if (nameWidget != null && nameWidget.getType() == 4) {
@@ -1732,7 +1733,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
         if (bottomOrApplicantsPart != null && bottomOrApplicantsPart.getDynamicChildren() != null) {
             for (int i = 0; i < bottomOrApplicantsPart.getDynamicChildren().length; i++) {
                 //Get child that has type 3 => next one has to be username
-                if (Objects.requireNonNull(bottomOrApplicantsPart.getChild(i)).getType() == 3) {
+                Widget child = bottomOrApplicantsPart.getChild(i);
+                if (child != null && child.getType() == 3) {
                     //Index of the one that has name is type 3 index + 1
                     final Widget nameWidget = bottomOrApplicantsPart.getChild(i + 1);
                     if (nameWidget != null && nameWidget.getType() == 4) {
