@@ -9,7 +9,7 @@ import java.util.Map;
 
 @RequiredArgsConstructor
 @Getter
-public enum AutoFilterChatType {
+public enum ChatTabs {
     PUBLIC("pu"),
     PRIVATE("pr"),
     CHANNEL("ch"),
@@ -17,12 +17,12 @@ public enum AutoFilterChatType {
     TRADE("tr");
 
     private final String abbreviation;
-    private static final Map<String, AutoFilterChatType> BY_ABBREVIATION = new HashMap<>();
+    private static final Map<String, ChatTabs> BY_ABBREVIATION = new HashMap<>();
 
     //Cache abbreviation to enum element map
     static {
-        for (AutoFilterChatType autoFilterChatType: values()) {
-            BY_ABBREVIATION.put(autoFilterChatType.abbreviation, autoFilterChatType);
+        for (ChatTabs chatTab: values()) {
+            BY_ABBREVIATION.put(chatTab.abbreviation, chatTab);
         }
     }
 
@@ -33,7 +33,7 @@ public enum AutoFilterChatType {
 
     //Get enum element based on abbreviation
     @Nullable
-    public static AutoFilterChatType getEnumElement(String abbreviation) {
+    public static ChatTabs getEnumElement(String abbreviation) {
         return BY_ABBREVIATION.get(abbreviation);
     }
 }

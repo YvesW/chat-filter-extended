@@ -1030,14 +1030,14 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Get the chattype/chatstone part of the string, e.g. pu or pr (first 2 letters of what it's called ingame)
         final String chatTypeString = filteredRegionData.substring(colonIdx + 1, semicolonIdx);
         //Get enum element from value
-        AutoFilterChatType autoFilterChatType = AutoFilterChatType.getEnumElement(chatTypeString);
+        ChatTabs chatTab = ChatTabs.getEnumElement(chatTypeString);
 
-        if (autoFilterChatType == null) {
+        if (chatTab == null) {
             //We're not using java 18, so you have to null check before switch and can't use case null:
             return;
         }
 
-        switch (autoFilterChatType) {
+        switch (chatTab) {
             case PUBLIC:
                 //todo: probs use splitter like text does; check this (and alternatives) out and which options it has
                 //todo: add code, think about oh sets (potentially use size/length of the substring), cu/ only
