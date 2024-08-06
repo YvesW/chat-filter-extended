@@ -146,7 +146,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
     //todo: probably sort these
     private static final String CONFIG_GROUP = "ChatFilterExtended";
     private static final List<Integer> CHATBOX_COMPONENT_IDS = ImmutableList.of(ComponentID.CHATBOX_TAB_PUBLIC, ComponentID.CHATBOX_TAB_PRIVATE, ComponentID.CHATBOX_TAB_CHANNEL, ComponentID.CHATBOX_TAB_CLAN, ComponentID.CHATBOX_TAB_TRADE);
-    private static final List<String> FILTERS_ENABLED_STRING_LIST = ImmutableList.of("publicFilterEnabled", "privateFilterEnabled", "channelFilterEnabled", "clanFilterEnabled", "tradeFilterEnabled");
     private static final Pattern NUMERIC_PATTERN = Pattern.compile("-?\\d+(\\.\\d+)?");
     private static final String TAB_CUSTOM_TEXT_STRING = "<br><col=ffff00>Custom</col>";
     private static final int TOA_LOBBY_REGION_ID = 13454; //Region id of ToA lobby (which has the bank)
@@ -1262,9 +1261,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private void setConfigFirstStart() {
         //todo: if changing config stuff that's not in ChatFilterExtendedConfig (but only set by configmanager), change this as well
         //Config keys that are not part of ChatFilterExtendedConfig are still empty on first startup. Prevent them being null by setting them before other code checks the config keys.
-        for (String filtersEnabledString : FILTERS_ENABLED_STRING_LIST) {
-            if (configManager.getConfiguration(CONFIG_GROUP, filtersEnabledString) == null) {
-                configManager.setConfiguration(CONFIG_GROUP, filtersEnabledString, false);
+        //Alternatively add them to ChatFilterExtendedConfig but use hidden = true
+        for (ChatTabs chatTab : ChatTabs.values()) {
+            String keyName = chatTab.getFilterEnabledKeyName();
+            if (configManager.getConfiguration(CONFIG_GROUP, keyName) == null) {
+                configManager.setConfiguration(CONFIG_GROUP, keyName, false);
             }
         }
     }
