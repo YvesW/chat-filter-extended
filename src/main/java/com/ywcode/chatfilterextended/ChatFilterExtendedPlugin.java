@@ -248,6 +248,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //todo: kijk for loops nog na of je niet meer breaks, continues, of returns toe kan voegen
 
         shuttingDown = true; //Might not be necessary but just to be sure it doesn't set it back to custom text since the script procs
+        partyMemberIds.clear();
+        filteredRegions.clear();
         channelStandardizedUsernames.clear();
         clanMembersStandardizedUsernames.clear();
         clanTotalStandardizedUsernames.clear();
@@ -1191,6 +1193,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private Set<ChatTabFilterOptions> getChatTabFilterSet(int componentID) {
         //Returns the Set<ChatTabFilterOptions> based on the componentID. Originally had it in an Object with also OH, but it's kind of annoying to use so screw that.
         //Returns null when componentID != chatstone componentID
+        //Alternatively just getChatTab enum element -> return set you put in the enum
         switch (componentID) {
             case ComponentID.CHATBOX_TAB_PUBLIC:
                 return publicChatFilterOptions;
@@ -1391,6 +1394,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     private boolean isChatFiltered(int componentID) {
         //Returns true if the chat is filtered based on ComponentId.
+        //Alternatively just getChatTab enum element -> return boolean you put in the enum
         switch (componentID) {
             case ComponentID.CHATBOX_TAB_PUBLIC:
                 return publicFilterEnabled;
@@ -1584,6 +1588,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private Set<String> getWhitelist(Set<ChatTabFilterOptions> chatTabFilterOptionsSet) {
         //Translate the ChatTabFilterOptionsSet to the whitelist.
         //Switch statement is not compatible with this type, so if statements it is.
+        //Alternatively probably getChatTab enum element -> return set you put in the enum
         if (chatTabFilterOptionsSet != null) {
             if (chatTabFilterOptionsSet == publicChatFilterOptions) {
                 return publicWhitelist;
