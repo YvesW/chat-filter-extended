@@ -1450,24 +1450,14 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     @Nullable
     private String getChatTabFilterKeyName(int componentID) {
-        //Returns the ChatFilterOptions keyname based on the componentID, because reflection bad so can't get the name that way.
+        //Returns the ChatFilterOptions keyname based on the componentID
         //Returns null when componentID != chatstone componentID
-        //Specifically opted to use a Switch instead of a for loop + map because the performance should be a bit better. In the end both approaches are meh and don't differ that much in performance probs.
-        //Alternatively used an enum and loop through that till you have a match
-        switch (componentID) {
-            case ComponentID.CHATBOX_TAB_PUBLIC:
-                return "publicChatFilterOptions";
-            case ComponentID.CHATBOX_TAB_PRIVATE:
-                return "privateChatFilterOptions";
-            case ComponentID.CHATBOX_TAB_CHANNEL:
-                return "channelChatFilterOptions";
-            case ComponentID.CHATBOX_TAB_CLAN:
-                return "clanChatFilterOptions";
-            case ComponentID.CHATBOX_TAB_TRADE:
-                return "tradeChatFilterOptions";
+        //Used a switch statement before. That might be more performant, but this is fine.
+        ChatTabs chatTab = ChatTabs.getEnumElement(componentID);
+        if (chatTab == null) {
+            return null;
         }
-        //todo: check if this (and other stuff) should not just be added to an enum
-        return null;
+        return chatTab.getChatFilterOptionsKeyName();
     }
 
     private void addRemoveValueFromChatSetOH(Set<ChatTabFilterOptionsOH> chatSet, ChatTabFilterOptionsOH filterOption) {
