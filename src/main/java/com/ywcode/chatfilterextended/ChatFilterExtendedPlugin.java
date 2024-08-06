@@ -1324,13 +1324,14 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private void setChatFilterConfig(int componentID, boolean enableFilter) {
         //Set the RL config value for a chat based on the componentID. Boolean enableFilter: enable or disable a filter
         //publicFilterEnabled = enableFilter is not necessary since ConfigManager does trigger updateConfig() if the config value actually gets changed from false to true or vice versa
-        //Alternatively use a switch (componentID) statement like you did before. It's probably more efficient execution wise, but we got these lists anyway and this is more compact
-        for (int i = 0; i < CHATBOX_COMPONENT_IDS.size(); i++) {
-            if (CHATBOX_COMPONENT_IDS.get(i) == componentID) {
-                configManager.setConfiguration(CONFIG_GROUP, FILTERS_ENABLED_STRING_LIST.get(i), enableFilter);
-                break;
-            }
+        //Alternatively use a switch (componentID) statement like you did before.
+        ChatTabs chatTab = ChatTabs.getEnumElement(componentID);
+
+        if (chatTab == null) {
+            return;
         }
+
+        configManager.setConfiguration(CONFIG_GROUP, chatTab.getFilterEnabledKeyName(), enableFilter);
     }
 
     private void setChatsToPublic() {

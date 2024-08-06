@@ -11,15 +11,16 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Getter
 public enum ChatTabs {
-    PUBLIC(ComponentID.CHATBOX_TAB_PUBLIC, "pu", "publicChatFilterOptions"),
-    PRIVATE(ComponentID.CHATBOX_TAB_PRIVATE, "pr", "privateChatFilterOptions"),
-    CHANNEL(ComponentID.CHATBOX_TAB_CHANNEL, "ch", "channelChatFilterOptions"),
-    CLAN(ComponentID.CHATBOX_TAB_CLAN, "cl", "clanChatFilterOptions"),
-    TRADE(ComponentID.CHATBOX_TAB_TRADE, "tr", "tradeChatFilterOptions");
+    PUBLIC(ComponentID.CHATBOX_TAB_PUBLIC, "pu", "publicChatFilterOptions", "publicFilterEnabled"),
+    PRIVATE(ComponentID.CHATBOX_TAB_PRIVATE, "pr", "privateChatFilterOptions", "privateFilterEnabled"),
+    CHANNEL(ComponentID.CHATBOX_TAB_CHANNEL, "ch", "channelChatFilterOptions", "channelFilterEnabled"),
+    CLAN(ComponentID.CHATBOX_TAB_CLAN, "cl", "clanChatFilterOptions", "clanFilterEnabled"),
+    TRADE(ComponentID.CHATBOX_TAB_TRADE, "tr", "tradeChatFilterOptions", "tradeFilterEnabled");
 
     private final int componentID;
     private final String abbreviation;
     private final String chatFilterOptionsKeyName;
+    private final String filterEnabledKeyName;
 
     private static final Map<Integer, ChatTabs> BY_COMPONENT_ID = new HashMap<>();
     private static final Map<String, ChatTabs> BY_ABBREVIATION = new HashMap<>();
