@@ -122,7 +122,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     //Variables
     //todo: probably sort these
-    private static boolean shuttingDown; //Default value is false
     private static boolean setChatsToPublicFlag; //Default value is false
     private static GameState previousPreviousGameState;
     private static GameState previousGameState;
@@ -196,9 +195,12 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     @Override
     public void startUp() {
-        shuttingDown = false; //Maybe it got procced by switching profiles, assuming plugins are all shutdown and started again?
         setConfigFirstStart();
         updateConfig();
+        //PM Config keys that are not part of ChatFilterExtendedConfig are still empty on first startup ->
+        // in case you readd those types of keys, prevent them being null by setting them before other code checks the
+        // config keys. Do this both on startUp AND ProfileChanged!
+
         //todo: add convertfilteredregions thing here
         clientThread.invokeLater(() -> {
             setChatsToPublic(); //Chats are only being set to public if the filter for that chatstone is active!
@@ -246,7 +248,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //todo: maak mss nog wat variables final?
         //todo: kijk for loops nog na of je niet meer breaks, continues, of returns toe kan voegen
 
-        shuttingDown = true; //Might not be necessary but just to be sure it doesn't set it back to custom text since the script procs
         partyMemberIds.clear();
         filteredRegions.clear();
         channelStandardizedUsernames.clear();
@@ -285,14 +286,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
-    @Subscribe
-    public void onProfileChanged(ProfileChanged profileChanged) {
-        setConfigFirstStart();
-        shuttingDown = false;
-        setChatsToPublic();
-        redrawChatButtons();
-    }
-
     private void updateConfig() {
         convertSetToEnumSet(config.publicChatFilterOptions(), publicChatFilterOptions); //This is a LinkedHashSet if the method to convert it is not used
         convertSetToEnumSetOH(config.publicChatFilterOptionsOH(), publicChatFilterOptionsOH);
@@ -329,6 +322,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
         channelFilterEnabled = configManager.getConfiguration(CONFIG_GROUP, "channelFilterEnabled", boolean.class);
         clanFilterEnabled = configManager.getConfiguration(CONFIG_GROUP, "clanFilterEnabled", boolean.class);
         tradeFilterEnabled = configManager.getConfiguration(CONFIG_GROUP, "tradeFilterEnabled", boolean.class);
+    }
+
+    @Subscribe
+    public void onProfileChanged(ProfileChanged profileChanged) {
+        setConfigFirstStart(); //todo: remove this if you swap to rsprofile and don't have any of those configkeys anymore
     }
 
     @Subscribe
@@ -760,10 +758,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
         switch (scriptPostFired.getScriptId()) {
             case REDRAW_CHAT_BUTTONS_SCRIPTID:
                 //178 = [proc,redraw_chat_buttons]
-                if (!shuttingDown) {
-                    //Set the WidgetText for enabled chats to Custom if not shutting down
-                    setChatStoneWidgetTextAll();
-                }
+                //Set the WidgetText for enabled chats to Custom
+                setChatStoneWidgetTextAll();
                 break;
             case TOB_PARTYDETAILS_BACK_BUTTON_SCRIPTID:
                 //[proc,tob_partydetails_back_button].cs2 seems to trigger when opening party and when applying at the end, after 2317 has procced multiple times to add all the info (2317 proccs once per potential team member to add them to the board interface iirc)
