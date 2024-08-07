@@ -655,6 +655,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
             }
 
             //todo: when adding the FilteredRegions chatmenu, add it here like the clear raid one
+            //todo: addi regionid to auto enable menu option
+            //todo: make add/change/remove option (potentially all 1 menu item, maybe ux of first having to do change => then being able to remove is weird though, so then removed would be a separate option? so add/change custom, add/change fc/cc/raids, remove)
         }
 
         //Try to show a Change Sets Menu when the set is completely empty. Otherwise, add the submenu to chatFilterEntry! chatFilterEntry can get pretty long and it's difficult selecting the submenu otherwise due to the wide right click menu and the submenu usually showing up to the right.
@@ -729,6 +731,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //If regionid changed, or when previousRegionID is default (0)
         if (previousRegionID != currentRegionID) {
             isInFilteredRegion = filteredRegionIDs.contains(currentRegionID);
+            if (isInFilteredRegion) { //todo: potentially clean this up if variable get inline, maybe add some comments
+                //todo: setting chat back to e.g. public, private etc. For fc and cc maybe just rebuilding after turning off is enough? (see next line)
+                // => Put the scriptargs in an enum
+            }
         }
 
         if (setChatsToPublicFlag) {
@@ -1279,6 +1285,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 configManager.setConfiguration(CONFIG_GROUP, keyName, false);
             }
         }
+        //todo: move stuff in config but not cfeconfig to rsprofile probs. Check on startup and rsprofilechanged: if rsrpofile is null, if key is null => set defaults, get values and assign. Check first what happens if you don't do these checks (nulls?)
+        //todo: remove profilechanged probs then
+        //todo: add to readme that all values are rl config profile bound, except if a custom filter is enabled for a tab and the filter that you had when you entered a filteredregion is bound to rsprofile (basically to your osrs account, but also differs when going to leagues world, qsr, emir's arena etc)
     }
 
     private void clearRaidPartySet() {
