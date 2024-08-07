@@ -138,7 +138,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static String previousRaidPartyInterfaceText; //null by default
     private static final Set<Long> partyMemberIds = new HashSet<>();
     private static int getRLPartyUserJoinedMembersFlag; //Default is 0
+    private static final HashSet<Integer> filteredRegionIDs = new HashSet<>(); //HashSet is created so that a isInFilteredRegions = filteredRegionIDs.contains(regionID) check can be done in GameTick, which is O(1) instead of looping through the filteredRegions HashSet which is O(n). This is less efficient when entering a FilteredRegion though (have to do both contains + loop) and in ConfigChanged (have to also add to this set).
     private static final Set<FilteredRegion> filteredRegions = new HashSet<>();
+    private static int previousRegionID; //todo: potentially convert to local variable
+    private static int currentRegionID; //todo: potentially convert to local variable
+    private static boolean isInFilteredRegion; //todo: potentially convert to local variable
     //Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I probably did not fully adhere to lol)
 
     //Constants
@@ -249,6 +253,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //todo: kijk for loops nog na of je niet meer breaks, continues, of returns toe kan voegen
 
         partyMemberIds.clear();
+        filteredRegionIDs.clear();
         filteredRegions.clear();
         channelStandardizedUsernames.clear();
         clanMembersStandardizedUsernames.clear();
@@ -341,6 +346,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 }
                 break;
             case LOGIN_SCREEN:
+                previousRegionID = 0; //Reset cause people can log out, move on a different client and log back in
                 channelStandardizedUsernames.clear();
                 clanMembersStandardizedUsernames.clear();
                 clanTotalStandardizedUsernames.clear();
@@ -718,14 +724,20 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     @Subscribe
     public void onGameTick(GameTick gameTick) {
+        currentRegionID = WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()).getRegionID();
+
+        //If regionid changed, or when previousRegionID is default (0)
+        if (previousRegionID != currentRegionID) {
+            isInFilteredRegion = filteredRegionIDs.contains(currentRegionID);
+        }
+
         if (setChatsToPublicFlag) {
             executeSetChatsToPublic();
             setChatStoneWidgetTextAll(); //Also executed in setChatsToPublic() (not to be confused with executeSetChatsToPublic) to improve the feeling (makes it feel snappier)
             setChatsToPublicFlag = false;
         }
 
-        final int regionId = WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()).getRegionID();
-        switch (regionId) {
+        switch (currentRegionID) {
             case TOA_LOBBY_REGION_ID:
                 //Couldn't find any ScriptID/Varbit/Varp/VarCString that updated when the text from the toa party interface updates (besides script 6612 and 6613 / varbit 14345 changing the No party/Party/Step inside now! header when first joining a party). Let's check if the widget is not null and not hidden every game tick when inside the toa lobby aka region id 13454.
                 processToAPartyInterface();
@@ -751,6 +763,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
             client.refreshChat();
             shouldRefreshChat = false; //Reset flag
         }
+
+        previousRegionID = currentRegionID;
     }
 
     @Subscribe
@@ -979,6 +993,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             }
 
             final int regionIdInt = Integer.parseInt(regionIdString); //Convert string to int
+            filteredRegionIDs.add(regionIdInt);
             boolean regionAlreadyExists = false; //Used to determine if filteredRegion already exists
 
             //Check if FilteredRegion for this id already exists
