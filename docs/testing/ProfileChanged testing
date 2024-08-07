@@ -1,0 +1,37 @@
+Always swapping from oldProfile to newProfile:
+
+Plugin enabled on both profiles, settings are the same:
+- ProfileChanged: fires
+- StartUp, ShutDown, ConfigChanged: do not fire
+
+Plugin disabled on oldProfile, enabled on newProfile, settings are the same:
+- StartUp: fires
+- ShutDown, ConfigChanged, ProfileChanged: do not fire
+
+Plugin enabled on oldProfile, disabled on newProfile, settings are the same:
+- ProfileChanged: fires
+- ShutDown: fires after ProfileChanged
+- ConfigChanged, Startup: do not fire
+
+Plugin disabled on both profiles, settings are the same:
+- StartUp, ShutDown, ProfileChanged, ConfigChanged: do not fire
+
+
+
+Plugin enabled on both profiles, settings differ:
+- ConfigChanged fires, getKey oldValue and newValue are correct. getProfile = null
+- ProfileChanged fires after ConfigChanged
+- StartUp & ShutDown: do not fire
+
+Plugin disabled on oldProfile, enabled on newProfile, settings differ:
+- StartUp: fires
+- ShutDown, ConfigChanged, ProfileChanged: do not fire
+
+Plugin enabled on oldProfile, disabled on newProfile, settings differ:
+- ConfigChanged: fires. getKey, oldValue, newValue are correct, but the plugin is disabled on the other profile! getProfile is null.
+- ProfileChanged: fires after ConfigChanged
+- ShutDown: fires after ProfileChanged
+- StartUp: does not fire
+
+Plugin disabled on both profiles, settings differ:
+- StartUp, ShutDown, ProfileChanged, ConfigChanged: do not fire
