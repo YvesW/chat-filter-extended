@@ -66,7 +66,6 @@ import java.awt.Color;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -150,6 +149,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static final String CONFIG_GROUP = "ChatFilterExtended";
     private static final List<Integer> CHATBOX_COMPONENT_IDS = ImmutableList.of(ComponentID.CHATBOX_TAB_PUBLIC, ComponentID.CHATBOX_TAB_PRIVATE, ComponentID.CHATBOX_TAB_CHANNEL, ComponentID.CHATBOX_TAB_CLAN, ComponentID.CHATBOX_TAB_TRADE);
     private static final Pattern NUMERIC_PATTERN = Pattern.compile("-?\\d+(\\.\\d+)?");
+    private static final String CUSTOM_FILTERED_REGION_ABBREVIATION = "cu";
     private static final String TAB_CUSTOM_TEXT_STRING = "<br><col=ffff00>Custom</col>";
     private static final int TOA_LOBBY_REGION_ID = 13454; //Region id of ToA lobby (which has the bank)
     private static final int COX_BANK_REGION_ID = 4919; //Region id of CoX bank
@@ -976,6 +976,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void convertStringToFilteredRegions(String configString) {
+        //todo: check if you can improve this code
         //Convert the (config) string to FilteredRegions
         //First convert String to a HashSet
         final Set<String> filteredRegionsDataSet = new HashSet<>();
@@ -999,7 +1000,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             }
 
             final int regionIdInt = Integer.parseInt(regionIdString); //Convert string to int
-            filteredRegionIDs.add(regionIdInt);
+            filteredRegionIDs.add(regionIdInt); //Add to filteredRegionIDs to be used in GameTick; check variable declaration for the reasoning
             boolean regionAlreadyExists = false; //Used to determine if filteredRegion already exists
 
             //Check if FilteredRegion for this id already exists
@@ -1014,8 +1015,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
             if (!regionAlreadyExists) {
                 //filteredRegion with this regionId does not exist yet -> create it, set attributes and add it to HashSet
                 final FilteredRegion filteredRegion = new FilteredRegion(regionIdInt);
-                setFilteredRegionAttributes(filteredRegionData, filteredRegion);
                 filteredRegions.add(filteredRegion);
+                setFilteredRegionAttributes(filteredRegionData, filteredRegion);
             }
         }
     }
@@ -1029,6 +1030,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void setFilteredRegionAttributes(String filteredRegionData, FilteredRegion filteredRegion) {
+        //todo: check if you can improve this code
         //Sets the attributes for the specific FilteredRegion based on the FilteredRegion string data in the hashset
         String testString1 = "1234:pu;puoh/ccoh/pu/fc/cc";
         String testString2 = "1234:pu;puoh/ccoh/pu/fc/cc,5678:ch;fr/fc/cc/wh";
@@ -1046,34 +1048,117 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Get the chattype/chatstone part of the string, e.g. pu or pr (first 2 letters of what it's called ingame)
         final String chatTypeString = filteredRegionData.substring(colonIdx + 1, semicolonIdx);
         //Get enum element from value
-        ChatTabs chatTab = ChatTabs.getEnumElement(chatTypeString);
+        final ChatTab chatTab = ChatTab.getEnumElement(chatTypeString);
 
         if (chatTab == null) {
             //We're not using java 18, so you have to null check before switch and can't use case null:
             return;
         }
 
+        //Get everything after ';', e.g. puoh/ccoh/pu/fc/cc
+        final String chatSetString = filteredRegionData.substring(semicolonIdx+1);
+        final Set<String> chatSetStringHashSet = new HashSet<>(); //declare here so you can use it later
+        final Set<ChatTabFilterOptions> chatSetEnumSet = EnumSet.noneOf(ChatTabFilterOptions.class); //declare here so you can use it later
+        boolean justCustom = false; //Only set the chat to custom, don't use a specific set
+
+        //Check if it's just custom or if it should be set to a specific set
+        if (chatSetString.contains(CUSTOM_FILTERED_REGION_ABBREVIATION + "/")) {
+            justCustom = true;
+        } else {
+            //Not just custom
+            //I should use split or guava splitter like Text.fromCSV but I can also do lazy jank like this
+            convertCommaSeparatedStringToSet(chatSetString.replace("/", ","), chatSetStringHashSet);
+
+            //Convert HashSet<String> to EnumSet
+            //Loop over set and getEnumElement based on the String
+            for (String chatSetStringElement : chatSetStringHashSet) {
+                ChatTabFilterOptions chatTabFilterOption = ChatTabFilterOptions.getEnumElement(chatSetStringElement);
+                if (chatTabFilterOption == null) {
+                    //If value is not found, e.g. puoh -> continue
+                    continue;
+                }
+                //Add Enum element to EnumSet
+                chatSetEnumSet.add(chatTabFilterOption);
+            }
+        }
+
         switch (chatTab) {
             case PUBLIC:
-                //todo: probs use splitter like text does; check this (and alternatives) out and which options it has
-                //todo: add code, think about oh sets (potentially use size/length of the substring), cu/ only
-                //todo: probs if it gets to empty set code, delete the filtered region from the set (if both normal and oh are empty)?
+                filteredRegion.setPublicChatCustomOnly(justCustom); //false if not just custom
+                if (!justCustom) {
+                    //if the non-OH set is empty, custom chat is disabled. These sets are invalid for a filteredRegion
+                    if (chatSetEnumSet.isEmpty()) {
+                        //Remove an invalid FilteredRegion from the config
+                        //todo: probs if it gets to empty set code, amend the config to delete this
+                    } else {
+                        //also process HashSet<String> to retrieve the OH set
+                        final Set<ChatTabFilterOptionsOH> chatSetOHEnumSet = EnumSet.noneOf(ChatTabFilterOptionsOH.class);
+                        for (String chatSetStringElement : chatSetStringHashSet) {
+                            ChatTabFilterOptionsOH chatTabFilterOptionOH = ChatTabFilterOptionsOH.getEnumElement(chatSetStringElement);
+                            if (chatTabFilterOptionOH == null) {
+                                //If value is not found, e.g. pu -> continue
+                                continue;
+                            }
+                            //Add Enum element to EnumSet
+                            chatSetOHEnumSet.add(chatTabFilterOptionOH);
+                        }
+                        //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
+                        filteredRegion.setPublicChatSetOH(chatSetOHEnumSet);
+                        filteredRegion.setPublicChatSet(chatSetEnumSet);
+                    }
+                }
                 break;
             case PRIVATE:
-                //todo: add code, think about cu/ only
-                //todo: probs if it gets to empty set code, delete the filtered region from the set?
+                filteredRegion.setPrivateChatCustomOnly(justCustom); //false if not just custom
+                if (!justCustom) {
+                    //if the non-OH set is empty, custom chat is disabled. These sets are invalid for a filteredRegion
+                    if (chatSetEnumSet.isEmpty()) {
+                        //Remove an invalid FilteredRegion from the config
+                        //todo: probs if it gets to empty set code, amend the config to delete this
+                    } else {
+                        //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
+                        filteredRegion.setPrivateChatSet(chatSetEnumSet);
+                    }
+                }
                 break;
             case CHANNEL:
-                //todo: add code, think about cu/ only
-                //todo: probs if it gets to empty set code, delete the filtered region from the set?
+                filteredRegion.setChannelChatCustomOnly(justCustom); //false if not just custom
+                if (!justCustom) {
+                    //if the non-OH set is empty, custom chat is disabled. These sets are invalid for a filteredRegion
+                    if (chatSetEnumSet.isEmpty()) {
+                        //Remove an invalid FilteredRegion from the config
+                        //todo: probs if it gets to empty set code, amend the config to delete this
+                    } else {
+                        //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
+                        filteredRegion.setChannelChatSet(chatSetEnumSet);
+                    }
+                }
                 break;
             case CLAN:
-                //todo: add code, think about cu/only
-                //todo: probs if it gets to empty set code, delete the filtered region from the set?
+                filteredRegion.setClanChatCustomOnly(justCustom); //false if not just custom
+                if (!justCustom) {
+                    //if the non-OH set is empty, custom chat is disabled. These sets are invalid for a filteredRegion
+                    if (chatSetEnumSet.isEmpty()) {
+                        //Remove an invalid FilteredRegion from the config
+                        //todo: probs if it gets to empty set code, amend the config to delete this
+                    } else {
+                        //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
+                        filteredRegion.setClanChatSet(chatSetEnumSet);
+                    }
+                }
                 break;
             case TRADE:
-                //todo: add code, think about cu/only
-                //todo: probs if it gets to empty set code, delete the filtered region from the set?
+                filteredRegion.setTradeChatCustomOnly(justCustom); //false if not just custom
+                if (!justCustom) {
+                    //if the non-OH set is empty, custom chat is disabled. These sets are invalid for a filteredRegion
+                    if (chatSetEnumSet.isEmpty()) {
+                        //Remove an invalid FilteredRegion from the config
+                        //todo: probs if it gets to empty set code, amend the config to delete this
+                    } else {
+                        //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
+                        filteredRegion.setTradeChatSet(chatSetEnumSet);
+                    }
+                }
                 break;
         }
     }
@@ -1279,7 +1364,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //todo: if changing config stuff that's not in ChatFilterExtendedConfig (but only set by configmanager), change this as well
         //Config keys that are not part of ChatFilterExtendedConfig are still empty on first startup. Prevent them being null by setting them before other code checks the config keys.
         //Alternatively add them to ChatFilterExtendedConfig but use hidden = true
-        for (ChatTabs chatTab : ChatTabs.values()) {
+        for (ChatTab chatTab : ChatTab.values()) {
             String keyName = chatTab.getFilterEnabledKeyName();
             if (configManager.getConfiguration(CONFIG_GROUP, keyName) == null) {
                 configManager.setConfiguration(CONFIG_GROUP, keyName, false);
@@ -1346,7 +1431,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Set the RL config value for a chat based on the componentID. Boolean enableFilter: enable or disable a filter
         //publicFilterEnabled = enableFilter is not necessary since ConfigManager does trigger updateConfig() if the config value actually gets changed from false to true or vice versa
         //Alternatively use a switch (componentID) statement like you did before.
-        ChatTabs chatTab = ChatTabs.getEnumElement(componentID);
+        ChatTab chatTab = ChatTab.getEnumElement(componentID);
 
         if (chatTab == null) {
             return;
@@ -1475,7 +1560,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Returns the ChatFilterOptions keyname based on the componentID
         //Returns null when componentID != chatstone componentID
         //Used a switch statement before. That might be more performant, but this is fine.
-        ChatTabs chatTab = ChatTabs.getEnumElement(componentID);
+        ChatTab chatTab = ChatTab.getEnumElement(componentID);
         if (chatTab == null) {
             return null;
         }
