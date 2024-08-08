@@ -982,6 +982,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
         final Set<String> filteredRegionsDataSet = new HashSet<>();
         convertCommaSeparatedStringToSet(configString, filteredRegionsDataSet);
 
+        //Clear the old filteredRegions sets before adding the new regions
+        filteredRegions.clear();
+        filteredRegionIDs.clear();
+
         //Loop over the string per region/chattab combination
         for (String filteredRegionData : filteredRegionsDataSet) {
             final int colonIdx = filteredRegionData.indexOf(':');
@@ -1080,84 +1084,62 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 //Add Enum element to EnumSet
                 chatSetEnumSet.add(chatTabFilterOption);
             }
+
+            //if the non-OH set is empty, custom chat is disabled. These sets are invalid for a filteredRegion
+            if (chatSetEnumSet.isEmpty()) {
+                //Remove an invalid FilteredRegion from the config
+                //todo: probs if it gets to empty set code, amend the config to delete this
+                //This proc onConfigChanged -> procs convertStringToFilteredRegions -> clears filteredRegions and filteredRegionIDs sets
+                return;
+            }
         }
 
         switch (chatTab) {
             case PUBLIC:
                 filteredRegion.setPublicChatCustomOnly(justCustom); //false if not just custom
                 if (!justCustom) {
-                    //if the non-OH set is empty, custom chat is disabled. These sets are invalid for a filteredRegion
-                    if (chatSetEnumSet.isEmpty()) {
-                        //Remove an invalid FilteredRegion from the config
-                        //todo: probs if it gets to empty set code, amend the config to delete this
-                    } else {
-                        //also process HashSet<String> to retrieve the OH set
-                        final Set<ChatTabFilterOptionsOH> chatSetOHEnumSet = EnumSet.noneOf(ChatTabFilterOptionsOH.class);
-                        for (String chatSetStringElement : chatSetStringHashSet) {
-                            ChatTabFilterOptionsOH chatTabFilterOptionOH = ChatTabFilterOptionsOH.getEnumElement(chatSetStringElement);
-                            if (chatTabFilterOptionOH == null) {
-                                //If value is not found, e.g. pu -> continue
-                                continue;
-                            }
-                            //Add Enum element to EnumSet
-                            chatSetOHEnumSet.add(chatTabFilterOptionOH);
+                    //also process HashSet<String> to retrieve the OH set
+                    final Set<ChatTabFilterOptionsOH> chatSetOHEnumSet = EnumSet.noneOf(ChatTabFilterOptionsOH.class);
+                    for (String chatSetStringElement : chatSetStringHashSet) {
+                        ChatTabFilterOptionsOH chatTabFilterOptionOH = ChatTabFilterOptionsOH.getEnumElement(chatSetStringElement);
+                        if (chatTabFilterOptionOH == null) {
+                            //If value is not found, e.g. pu -> continue
+                            continue;
                         }
-                        //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
-                        filteredRegion.setPublicChatSetOH(chatSetOHEnumSet);
-                        filteredRegion.setPublicChatSet(chatSetEnumSet);
+                        //Add Enum element to EnumSet
+                        chatSetOHEnumSet.add(chatTabFilterOptionOH);
                     }
+                    //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
+                    filteredRegion.setPublicChatSetOH(chatSetOHEnumSet);
+                    filteredRegion.setPublicChatSet(chatSetEnumSet);
                 }
                 break;
             case PRIVATE:
                 filteredRegion.setPrivateChatCustomOnly(justCustom); //false if not just custom
                 if (!justCustom) {
-                    //if the non-OH set is empty, custom chat is disabled. These sets are invalid for a filteredRegion
-                    if (chatSetEnumSet.isEmpty()) {
-                        //Remove an invalid FilteredRegion from the config
-                        //todo: probs if it gets to empty set code, amend the config to delete this
-                    } else {
-                        //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
-                        filteredRegion.setPrivateChatSet(chatSetEnumSet);
-                    }
+                    //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
+                    filteredRegion.setPrivateChatSet(chatSetEnumSet);
                 }
                 break;
             case CHANNEL:
                 filteredRegion.setChannelChatCustomOnly(justCustom); //false if not just custom
                 if (!justCustom) {
-                    //if the non-OH set is empty, custom chat is disabled. These sets are invalid for a filteredRegion
-                    if (chatSetEnumSet.isEmpty()) {
-                        //Remove an invalid FilteredRegion from the config
-                        //todo: probs if it gets to empty set code, amend the config to delete this
-                    } else {
-                        //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
-                        filteredRegion.setChannelChatSet(chatSetEnumSet);
-                    }
+                    //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
+                    filteredRegion.setChannelChatSet(chatSetEnumSet);
                 }
                 break;
             case CLAN:
                 filteredRegion.setClanChatCustomOnly(justCustom); //false if not just custom
                 if (!justCustom) {
-                    //if the non-OH set is empty, custom chat is disabled. These sets are invalid for a filteredRegion
-                    if (chatSetEnumSet.isEmpty()) {
-                        //Remove an invalid FilteredRegion from the config
-                        //todo: probs if it gets to empty set code, amend the config to delete this
-                    } else {
-                        //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
-                        filteredRegion.setClanChatSet(chatSetEnumSet);
-                    }
+                    //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
+                    filteredRegion.setClanChatSet(chatSetEnumSet);
                 }
                 break;
             case TRADE:
                 filteredRegion.setTradeChatCustomOnly(justCustom); //false if not just custom
                 if (!justCustom) {
-                    //if the non-OH set is empty, custom chat is disabled. These sets are invalid for a filteredRegion
-                    if (chatSetEnumSet.isEmpty()) {
-                        //Remove an invalid FilteredRegion from the config
-                        //todo: probs if it gets to empty set code, amend the config to delete this
-                    } else {
-                        //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
-                        filteredRegion.setTradeChatSet(chatSetEnumSet);
-                    }
+                    //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
+                    filteredRegion.setTradeChatSet(chatSetEnumSet);
                 }
                 break;
         }
