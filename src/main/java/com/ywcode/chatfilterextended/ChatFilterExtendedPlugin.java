@@ -1111,36 +1111,24 @@ public class ChatFilterExtendedPlugin extends Plugin {
                     }
                     //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
                     filteredRegion.setPublicChatSetOH(chatSetOHEnumSet);
-                    filteredRegion.setPublicChatSet(chatSetEnumSet);
                 }
+                filteredRegion.setPublicChatSet(chatSetEnumSet); //Empty set anyway when justCustom
                 break;
             case PRIVATE:
                 filteredRegion.setPrivateChatCustomOnly(justCustom); //false if not just custom
-                if (!justCustom) {
-                    //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
-                    filteredRegion.setPrivateChatSet(chatSetEnumSet);
-                }
+                filteredRegion.setPrivateChatSet(chatSetEnumSet); //Set the EnumSets for filteredRegion. Empty anyway if justCustom
                 break;
             case CHANNEL:
                 filteredRegion.setChannelChatCustomOnly(justCustom); //false if not just custom
-                if (!justCustom) {
-                    //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
-                    filteredRegion.setChannelChatSet(chatSetEnumSet);
-                }
+                filteredRegion.setChannelChatSet(chatSetEnumSet); //Set the EnumSets for filteredRegion. Empty anyway if justCustom
                 break;
             case CLAN:
                 filteredRegion.setClanChatCustomOnly(justCustom); //false if not just custom
-                if (!justCustom) {
-                    //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
-                    filteredRegion.setClanChatSet(chatSetEnumSet);
-                }
+                filteredRegion.setClanChatSet(chatSetEnumSet); //Set the EnumSets for filteredRegion. Empty anyway if justCustom
                 break;
             case TRADE:
                 filteredRegion.setTradeChatCustomOnly(justCustom); //false if not just custom
-                if (!justCustom) {
-                    //Set the EnumSets for filteredRegion. Alternatively make it final, getSet -> clear -> addAll
-                    filteredRegion.setTradeChatSet(chatSetEnumSet);
-                }
+                filteredRegion.setTradeChatSet(chatSetEnumSet); //Set the EnumSets for filteredRegion. Empty anyway if justCustom
                 break;
         }
     }
