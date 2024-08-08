@@ -64,8 +64,10 @@ import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.awt.Color;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -137,8 +139,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static String previousRaidPartyInterfaceText; //null by default
     private static final Set<Long> partyMemberIds = new HashSet<>();
     private static int getRLPartyUserJoinedMembersFlag; //Default is 0
-    private static final HashSet<Integer> filteredRegionIDs = new HashSet<>(); //HashSet is created so that a isInFilteredRegions = filteredRegionIDs.contains(regionID) check can be done in GameTick, which is O(1) instead of looping through the filteredRegions HashSet which is O(n). This is less efficient when entering a FilteredRegion though (have to do both contains + loop) and in ConfigChanged (have to also add to this set).
-    private static final Set<FilteredRegion> filteredRegions = new HashSet<>();
+    private static final Map<Integer, FilteredRegion> filteredRegions = new HashMap<>();
     private static int previousRegionID; //todo: potentially convert to local variable
     private static int currentRegionID; //todo: potentially convert to local variable
     private static boolean isInFilteredRegion; //todo: potentially convert to local variable
@@ -253,7 +254,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //todo: kijk for loops nog na of je niet meer breaks, continues, of returns toe kan voegen
 
         partyMemberIds.clear();
-        filteredRegionIDs.clear();
         filteredRegions.clear();
         channelStandardizedUsernames.clear();
         clanMembersStandardizedUsernames.clear();
@@ -729,9 +729,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
         currentRegionID = WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()).getRegionID();
 
         //If regionid changed, or when previousRegionID is default (0)
-        if (previousRegionID != currentRegionID) {
-            isInFilteredRegion = filteredRegionIDs.contains(currentRegionID);
-            if (isInFilteredRegion) { //todo: potentially clean this up if variable get inline, maybe add some comments
+        if (currentRegionID != previousRegionID) {
+            isInFilteredRegion = filteredRegions.containsKey(currentRegionID);
+            if (isInFilteredRegion) { //todo: potentially clean this up if variable just becomes a local variable, maybe add some comments
                 //todo: setting chat back to e.g. public, private etc. For fc and cc maybe just rebuilding after turning off is enough? (see next line)
                 // => Put the scriptargs in an enum
             }
@@ -978,13 +978,13 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private void convertStringToFilteredRegions(String configString) {
         //todo: check if you can improve this code
         //Convert the (config) string to FilteredRegions
+
+        //Clear the old filteredRegions map before adding the new regions
+        filteredRegions.clear();
+
         //First convert String to a HashSet
         final Set<String> filteredRegionsDataSet = new HashSet<>();
         convertCommaSeparatedStringToSet(configString, filteredRegionsDataSet);
-
-        //Clear the old filteredRegions sets before adding the new regions
-        filteredRegions.clear();
-        filteredRegionIDs.clear();
 
         //Loop over the string per region/chattab combination
         for (String filteredRegionData : filteredRegionsDataSet) {
@@ -1004,24 +1004,17 @@ public class ChatFilterExtendedPlugin extends Plugin {
             }
 
             final int regionIdInt = Integer.parseInt(regionIdString); //Convert string to int
-            filteredRegionIDs.add(regionIdInt); //Add to filteredRegionIDs to be used in GameTick; check variable declaration for the reasoning
-            boolean regionAlreadyExists = false; //Used to determine if filteredRegion already exists
+            //Get FilteredRegion for this id
+            FilteredRegion filteredRegion = filteredRegions.get(regionIdInt);
 
-            //Check if FilteredRegion for this id already exists
-            for (FilteredRegion filteredRegion : filteredRegions) {
-                if (filteredRegion.getRegionId() == regionIdInt) {
-                    regionAlreadyExists = true; //Set boolean so we know below to not create a new filteredRegion
-                    setFilteredRegionAttributes(filteredRegionData, filteredRegion); //Set the attributes for the region
-                    break; //We've found the matching FilteredRegion, can break the for loop now
-                }
+            //if FilteredRegion does not exist yet, create a new one
+            if (filteredRegion == null) {
+                filteredRegion = new FilteredRegion(regionIdInt);
             }
 
-            if (!regionAlreadyExists) {
-                //filteredRegion with this regionId does not exist yet -> create it, set attributes and add it to HashSet
-                final FilteredRegion filteredRegion = new FilteredRegion(regionIdInt);
-                filteredRegions.add(filteredRegion);
-                setFilteredRegionAttributes(filteredRegionData, filteredRegion);
-            }
+            //Set the attributes for the region and put it on the map
+            setFilteredRegionAttributes(filteredRegionData, filteredRegion);
+            filteredRegions.put(regionIdInt, filteredRegion); //If the map previously contained a mapping for the key, the old value is replaced. -> this is fine since we've retrieved the old value from the map and modified it if it already existed
         }
     }
 
@@ -1059,15 +1052,15 @@ public class ChatFilterExtendedPlugin extends Plugin {
             return;
         }
 
-        //Get everything after ';', e.g. puoh/ccoh/pu/fc/cc
-        final String chatSetString = filteredRegionData.substring(semicolonIdx+1);
+        final String chatSetString = filteredRegionData.substring(semicolonIdx+1); //Get everything after ';', e.g. puoh/ccoh/pu/fc/cc
+        boolean justCustom = false; //Only set the chat to custom, don't use a specific set
         final Set<String> chatSetStringHashSet = new HashSet<>(); //declare here so you can use it later
         final Set<ChatTabFilterOptions> chatSetEnumSet = EnumSet.noneOf(ChatTabFilterOptions.class); //declare here so you can use it later
-        boolean justCustom = false; //Only set the chat to custom, don't use a specific set
 
         //Check if it's just custom or if it should be set to a specific set
         if (chatSetString.contains(CUSTOM_FILTERED_REGION_ABBREVIATION + "/")) {
             justCustom = true;
+            //chatSetEnumSet will remain empty if justCustom
         } else {
             //Not just custom
             //I should use split or guava splitter like Text.fromCSV but I can also do lazy jank like this
@@ -1089,7 +1082,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             if (chatSetEnumSet.isEmpty()) {
                 //Remove an invalid FilteredRegion from the config
                 //todo: probs if it gets to empty set code, amend the config to delete this
-                //This proc onConfigChanged -> procs convertStringToFilteredRegions -> clears filteredRegions and filteredRegionIDs sets
+                //This proc onConfigChanged -> procs convertStringToFilteredRegions -> clears filteredRegions
                 return;
             }
         }
