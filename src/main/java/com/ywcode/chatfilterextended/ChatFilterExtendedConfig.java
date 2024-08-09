@@ -410,4 +410,16 @@ public interface ChatFilterExtendedConfig extends Config
 	{
 		return ShiftMenuSetting.HOLD_SHIFT;
 	}
+
+	@ConfigItem(
+			keyName = "autoEnableFilteredRegionShiftMenuSetting",
+			name = "Show Auto-enable Custom menu option",
+			description = "When to show the Auto-enable Custom for current region menu option.<br>"
+					+ "Disabled: never. Holding shift: when holding shift and right clicking on a chat stone. Always: when right clicking on a chat stone.",
+			position = 101
+	)
+	default ShiftMenuSetting autoEnableFilteredRegionShiftMenuSetting()
+	{
+		return ShiftMenuSetting.HOLD_SHIFT;
+	}
 }

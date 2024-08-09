@@ -112,6 +112,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static String filteredRegionsData; //todo: implement!
     private static ShiftMenuSetting changeChatSetsShiftMenuSetting;
     private static ShiftMenuSetting clearRaidPartyShiftMenuSetting;
+    private static ShiftMenuSetting autoEnableFilteredRegionShiftMenuSetting;
 
     //The config values below are only set through ConfigManager and are not part of ChatFilterExtendedConfig.java
     private static boolean publicFilterEnabled; //i.e. if the user set the chat tab/stone to custom. So we can re-enable it on startup. Maybe swap this to RSProfile instead of config profile in the future?
@@ -286,7 +287,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
                     redrawChatButtons();
                 }
             }
-            //todo: add if (configChanged.getKey().equals("filteredRegionsData")) { convertfilteredregions thing here. Only update it when this value changes because maybe some people have an insane amount of regions?
+            if (configChanged.getKey().equals("filteredRegionsData")) {
+                //Only update it when this value changes because maybe some people have an insane amount of regions?
+                filteredRegionsData = config.filteredRegionsData();
+                convertStringToFilteredRegions(filteredRegionsData);
+            }
             client.refreshChat(); //Refresh chat when the config changes (enabling/disabling filter, changing filter settings).
         }
     }
@@ -319,6 +324,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         filteredRegionsData = config.filteredRegionsData();
         changeChatSetsShiftMenuSetting = config.changeChatSetsShiftMenuSetting();
         clearRaidPartyShiftMenuSetting = config.clearRaidPartyShiftMenuSetting();
+        autoEnableFilteredRegionShiftMenuSetting = config.autoEnableFilteredRegionShiftMenuSetting();
 
         //The config values below are only set through ConfigManager and are not part of ChatFilterExtendedConfig.java
         //PS Probs don't try to refactor this; did not go well (on plugin start) the last time I tried that...
@@ -579,6 +585,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     @Subscribe(priority = -2) //Run after ChatHistory plugin etc. Probably not necessary but can't hurt
     public void onMenuEntryAdded(MenuEntryAdded menuEntryAdded) {
+        //todo: ctrl+f client.createMenuEntry with the new API once available
+        //todo: check with the new api if the too long menu entry bug is still a thing with all of public + public oh enable -> if so, fix this!
         //Add right-click option(s) and potentially submenus to the chatstones
         if (menuEntryAdded.getType() != MenuAction.CC_OP.getId()) {
             return;
@@ -654,9 +662,36 @@ public class ChatFilterExtendedPlugin extends Plugin {
                         .setOption("Clear Raid Party members");
             }
 
-            //todo: when adding the FilteredRegions chatmenu, add it here like the clear raid one
-            //todo: addi regionid to auto enable menu option
-            //todo: make add/change/remove option (potentially all 1 menu item, maybe ux of first having to do change => then being able to remove is weird though, so then removed would be a separate option? so add/change custom, add/change fc/cc/raids, remove)
+            //If the autoEnableFilteredRegion should be shown, based on the advanced setting and shift state & only add if that chat is currently filtered
+            if (shouldShowShiftMenuSetting(autoEnableFilteredRegionShiftMenuSetting) && isChatFiltered(menuEntryAddedParam1)) { //If you also want to display this when the custom filter is not enabled but the show custom option is shown for the tab, remove " && isChatFiltered(menuEntryAddedParam1)"
+                int regionID = currentRegionID; //Maybe not necessary but currentRegionID can change while moving, while regionID will not
+                MenuEntry autoEnableFilteredRegionEntry = client.createMenuEntry(mainMenuIdx--)
+                        .setType(MenuAction.RUNELITE_SUBMENU)
+                        .setParam1(menuEntryAddedParam1)
+                        .setOption("Auto-enable custom (region " + regionID + ")");
+
+                //Add the submenus, first justCustom, then the specific set, then remove
+                int submenuIdx = -1;
+                client.createMenuEntry(submenuIdx--)
+                        .setType(MenuAction.RUNELITE)
+                        .setParent(autoEnableFilteredRegionEntry)
+                        .setOption("Set to Custom"); //todo: add onClick, first do getReducedFilteredRegionsData
+                        //.onClick(e -> addRemoveValueFromChatSet(set, chatTabFilterOption, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
+
+                client.createMenuEntry(submenuIdx--)
+                        .setType(MenuAction.RUNELITE)
+                        .setParent(autoEnableFilteredRegionEntry)
+                        .setOption("Set to current Custom set"); //todo: add onClick, first do getReducedFilteredRegionsData
+                        //.onClick(e -> addRemoveValueFromChatSet(set, chatTabFilterOption, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
+
+                if (isChatTabFilteredRegion(regionID, menuEntryAddedParam1)) {
+                    client.createMenuEntry(submenuIdx--)
+                            .setType(MenuAction.RUNELITE)
+                            .setParent(autoEnableFilteredRegionEntry)
+                            .setOption("Remove auto-enable")
+                            .onClick(e -> removeRegionFromConfigString(regionID, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
+                }
+            }
         }
 
         //Try to show a Change Sets Menu when the set is completely empty. Otherwise, add the submenu to chatFilterEntry! chatFilterEntry can get pretty long and it's difficult selecting the submenu otherwise due to the wide right click menu and the submenu usually showing up to the right.
@@ -1028,6 +1063,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     private void setFilteredRegionAttributes(String filteredRegionData, FilteredRegion filteredRegion) {
         //todo: check if you can improve this code
+        //todo: check if you can inline this code at the end so regionIdString and regionIdInt don't have to be defined here again etc + can remove some other things and comments then
         //Sets the attributes for the specific FilteredRegion based on the FilteredRegion string data in the hashset
         String testString1 = "1234:pu;puoh/ccoh/pu/fc/cc";
         String testString2 = "1234:pu;puoh/ccoh/pu/fc/cc,5678:ch;fr/fc/cc/wh";
@@ -1052,6 +1088,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
             return;
         }
 
+        //Get everything before the ":"
+        final String regionIdString = filteredRegionData.substring(0, colonIdx); //Already checked if this is numeric in the method that called this
+        final int regionIdInt = Integer.parseInt(regionIdString); //Convert string to int
+
         final String chatSetString = filteredRegionData.substring(semicolonIdx+1); //Get everything after ';', e.g. puoh/ccoh/pu/fc/cc
         boolean justCustom = false; //Only set the chat to custom, don't use a specific set
         final Set<String> chatSetStringHashSet = new HashSet<>(); //declare here so you can use it later
@@ -1063,7 +1103,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //chatSetEnumSet will remain empty if justCustom
         } else {
             //Not just custom
-            //I should use split or guava splitter like Text.fromCSV but I can also do lazy jank like this
+            //I should use split or google commons splitter like Text.fromCSV but I can also do lazy jank like this
             convertCommaSeparatedStringToSet(chatSetString.replace("/", ","), chatSetStringHashSet);
 
             //Convert HashSet<String> to EnumSet
@@ -1081,7 +1121,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //if the non-OH set is empty, custom chat is disabled. These sets are invalid for a filteredRegion
             if (chatSetEnumSet.isEmpty()) {
                 //Remove an invalid FilteredRegion from the config
-                //todo: probs if it gets to empty set code, amend the config to delete this
+                removeRegionFromConfigString(regionIdInt, chatTab.getComponentID());
                 //This proc onConfigChanged -> procs convertStringToFilteredRegions -> clears filteredRegions
                 return;
             }
@@ -1478,6 +1518,71 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 return tradeFilterEnabled;
         }
         return false;
+    }
+
+    private boolean isChatTabFilteredRegion(int regionID, int componentID) {
+        //Is the current chat tab (e.g. private) filtered for the specific region?
+        ChatTab chatTab = ChatTab.getEnumElement(componentID);
+        if (chatTab == null) {
+            //if componentID is not actually from a chattab, return false
+            return false;
+        }
+
+        FilteredRegion filteredRegion = filteredRegions.get(regionID);
+        if (filteredRegion == null) {
+            //This region is not a filtered region, based on the regionID
+            return false;
+        }
+
+        switch (chatTab) {
+            case PUBLIC:
+                return isRegionFilteredForChat(filteredRegion.isPublicChatCustomOnly(), filteredRegion.getPublicChatSet());
+            case PRIVATE:
+                return isRegionFilteredForChat(filteredRegion.isPrivateChatCustomOnly(), filteredRegion.getPrivateChatSet());
+            case CHANNEL:
+                return isRegionFilteredForChat(filteredRegion.isChannelChatCustomOnly(), filteredRegion.getChannelChatSet());
+            case CLAN:
+                return isRegionFilteredForChat(filteredRegion.isClanChatCustomOnly(), filteredRegion.getClanChatSet());
+            case TRADE:
+                return isRegionFilteredForChat(filteredRegion.isTradeChatCustomOnly(), filteredRegion.getTradeChatSet());
+        }
+        return false;
+    }
+
+    private boolean isRegionFilteredForChat(boolean justCustom, Set<ChatTabFilterOptions> ChatSet) {
+        //Is the specific region auto-enabled for some chat? To be used in switch statement
+        //Check if justCustom is true or ChatSet is not empty
+        //Does not have to check OH because it does not allow only setting SetOH since then the custom filter is not active
+        return justCustom || !ChatSet.isEmpty();
+    }
+
+    private void removeRegionFromConfigString(int regionID, int componentID) {
+        //Remove the regionid + chat tab combination from the filtered regions ConfigString
+        ChatTab chatTab = ChatTab.getEnumElement(componentID);
+        if (chatTab == null) {
+            //if componentID is not actually from a chattab, return false
+            return;
+        }
+
+        //Get the set with the removed region+chattab combo -> convert toCSV -> set config value -> ConfigChanged procs
+        String configString = Text.toCSV(getReducedFilteredRegionsData(regionID, chatTab));
+        configManager.setConfiguration(CONFIG_GROUP, filteredRegionsData, configString);
+    }
+
+    private Set<String> getReducedFilteredRegionsData(int regionID, ChatTab chatTab) {
+        //Return a Set<String> with the specific regionid + chattab combination removed from it
+        //To be used to convert back to String to then be set in config
+        //Separate method so e.g. adding a new region does not do:
+        // remove region from string -> set config -> ConfigChanged -> (procs all the crap it does) -> add new region -> set config -> ConfigChanged
+
+        //Converted filteredRegionData String to set so we can loop over and remove
+        Set<String> filteredRegionsDataSet = new HashSet<>();
+        convertCommaSeparatedStringToSet(filteredRegionsData, filteredRegionsDataSet);
+
+        //Remove if string starts with "regionid:chatAbbreviation;"
+        //Sometimes I do actually use features introduced after Java 7. I should do that more often, since half this plugin could be replaced with Streams and Lambdas...
+        filteredRegionsDataSet.removeIf(string -> string.startsWith(regionID + ":" + chatTab.getAbbreviation() + ";"));
+        return filteredRegionsDataSet;
     }
 
     //Get the StringBuilder for the submenus.
