@@ -12,6 +12,7 @@ import net.runelite.api.FriendsChatManager;
 import net.runelite.api.FriendsChatMember;
 import net.runelite.api.GameState;
 import net.runelite.api.KeyCode;
+import net.runelite.api.Menu;
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.MessageNode;
@@ -585,8 +586,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     @Subscribe(priority = -2) //Run after ChatHistory plugin etc. Probably not necessary but can't hurt
     public void onMenuEntryAdded(MenuEntryAdded menuEntryAdded) {
-        //todo: ctrl+f client.createMenuEntry with the new API once available
-        //todo: check with the new api if the too long menu entry bug is still a thing with all of public + public oh enable -> if so, fix this!
+        //todo: fix the too long menu entry bug is still a thing with all of public + public oh enable
         //Add right-click option(s) and potentially submenus to the chatstones
         if (menuEntryAdded.getType() != MenuAction.CC_OP.getId()) {
             return;
@@ -616,13 +616,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Determine if the chatstone (e.g. private) should be filtered based on the componentID and the config set
         //shouldFilterChatType already has a ComponentID check build in that checks if it's a chatstone or not + checks if the filter option is enabled or not (if set is empty or not)
         if (shouldFilterChatType(menuEntryAddedParam1)) {
-            //create MenuEntry and set its params
-            chatFilterEntry = client.createMenuEntry(mainMenuIdx--)
-                    .setType(MenuAction.RUNELITE)
-                    .setParam1(menuEntryAddedParam1)
-                    .onClick(e -> enableChatFilter(menuEntryAddedParam1));
-
-            //Set name (option) of menuEntry
+            //Prepare the name (option) of the main/parent MenuEntry
             final StringBuilder optionBuilder = new StringBuilder();
             //Pull tab name from menu since Trade/Group is variable + set Option based on config settings
             final int colonIdx = menuEntryOption.indexOf(':');
@@ -650,8 +644,15 @@ public class ChatFilterExtendedPlugin extends Plugin {
             }
             //At this point the name/option is e.g. "<col>Public:</col> Show Friends/FC/CC OH/"
             menuEntryOption = menuEntryOption.substring(0, menuEntryOption.length() - 1); //Remove the trailing "/". If deleted earlier, the final option is not properly replaced by its OH variant.
-            chatFilterEntry.setOption(menuEntryOption);
             //At this point the name/option is e.g. "<col>Public:</col> Show Friends/FC/CC OH"
+
+            //Option is completed at this point. Create the main MenuEntry and set its params
+            //client.createMenuEntry deprecation does not matter I think, since e.g. GroundItemsPlugin, InventoryTagsPlugin, NPCIndicators, MES etc still uses it to create the parent/main MenuEntry
+            chatFilterEntry = client.createMenuEntry(mainMenuIdx--)
+                    .setType(MenuAction.RUNELITE)
+                    .setParam1(menuEntryAddedParam1)
+                    .onClick(e -> enableChatFilter(menuEntryAddedParam1))
+                    .setOption(menuEntryOption);
 
             //If the ClearRaidPartyMenu should be shown, based on the advanced setting and shift state & only add if that chat is currently filtered
             if (shouldShowShiftMenuSetting(clearRaidPartyShiftMenuSetting) && isChatFiltered(menuEntryAddedParam1)) { //If you also want to display this when the custom filter is not enabled but the show custom option is shown for the tab, remove " && isChatFiltered(menuEntryAddedParam1)"
@@ -665,29 +666,28 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //If the autoEnableFilteredRegion should be shown, based on the advanced setting and shift state & only add if that chat is currently filtered
             if (shouldShowShiftMenuSetting(autoEnableFilteredRegionShiftMenuSetting) && isChatFiltered(menuEntryAddedParam1)) { //If you also want to display this when the custom filter is not enabled but the show custom option is shown for the tab, remove " && isChatFiltered(menuEntryAddedParam1)"
                 int regionID = currentRegionID; //Maybe not necessary but currentRegionID can change while moving, while regionID will not
-                MenuEntry autoEnableFilteredRegionEntry = client.createMenuEntry(mainMenuIdx--)
-                        .setType(MenuAction.RUNELITE_SUBMENU)
+                final MenuEntry autoEnableFilteredRegionEntry = client.createMenuEntry(mainMenuIdx--)
+                        .setType(MenuAction.RUNELITE)
                         .setParam1(menuEntryAddedParam1)
                         .setOption("Auto-enable custom (region " + regionID + ")");
 
-                //Add the submenus, first justCustom, then the specific set, then remove
+                //Create the submenu, add the submenu entries, first justCustom, then the specific set, then remove
+                final Menu autoEnableFilteredRegionEntrySubMenu = autoEnableFilteredRegionEntry.createSubMenu();
+                //Add the submenu entries
                 int submenuIdx = -1;
-                client.createMenuEntry(submenuIdx--)
+                autoEnableFilteredRegionEntrySubMenu.createMenuEntry(submenuIdx--)
                         .setType(MenuAction.RUNELITE)
-                        .setParent(autoEnableFilteredRegionEntry)
                         .setOption("Set to Custom"); //todo: add onClick, first do getReducedFilteredRegionsData
                         //.onClick(e -> addRemoveValueFromChatSet(set, chatTabFilterOption, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
 
-                client.createMenuEntry(submenuIdx--)
+                autoEnableFilteredRegionEntrySubMenu.createMenuEntry(submenuIdx--)
                         .setType(MenuAction.RUNELITE)
-                        .setParent(autoEnableFilteredRegionEntry)
                         .setOption("Set to current Custom set"); //todo: add onClick, first do getReducedFilteredRegionsData
                         //.onClick(e -> addRemoveValueFromChatSet(set, chatTabFilterOption, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
 
                 if (isChatTabFilteredRegion(regionID, menuEntryAddedParam1)) {
-                    client.createMenuEntry(submenuIdx--)
+                    autoEnableFilteredRegionEntrySubMenu.createMenuEntry(submenuIdx--)
                             .setType(MenuAction.RUNELITE)
-                            .setParent(autoEnableFilteredRegionEntry)
                             .setOption("Remove auto-enable")
                             .onClick(e -> removeRegionFromConfigString(regionID, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
                 }
@@ -700,31 +700,31 @@ public class ChatFilterExtendedPlugin extends Plugin {
             if (chatFilterEntry == null) { //aka if (!shouldFilterChatType(menuEntryAddedParam1))
                 //Create parent menu
                 chatFilterEntry = client.createMenuEntry(mainMenuIdx--)
+                        .setType(MenuAction.RUNELITE)
                         .setParam1(menuEntryAddedParam1)
                         .setOption("Change Chat Sets");
             }
-            //If the set with chats is not empty, we can change the menuEntry we added in the beginning (chatFilterEntry) into a RUNELITE_SUBMENU
-            //If the set is empty, we just created it and still need to set the type.
-            chatFilterEntry.setType(MenuAction.RUNELITE_SUBMENU);
+            //If the set with chats is not empty, we can create a submenu and add it to the MenuEntry we added in the beginning (chatFilterEntry)
+            //If the set is empty, we just created it and also haven't created a submenu yet.
+            final Menu chatFilterEntrySubMenu = chatFilterEntry.createSubMenu();
 
-            //Add the submenus, use enum.values() to loop over the values.
+            //Add the submenu entries, use enum.values() to loop over the values.
             int submenuIdx = -1;
             for (ChatTabFilterOptions chatTabFilterOption : ChatTabFilterOptions.values()) {
                 final StringBuilder optionBuilder = getSubMenuAddRemoveStringBuilder(set.contains(chatTabFilterOption), chatTabFilterOption.toString());
-                client.createMenuEntry(submenuIdx--)
+                chatFilterEntrySubMenu.createMenuEntry(submenuIdx--)
                         .setType(MenuAction.RUNELITE)
-                        .setParent(chatFilterEntry)
                         .setOption(optionBuilder.toString())
                         .onClick(e -> addRemoveValueFromChatSet(set, chatTabFilterOption, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
             }
 
+            //Add the OH set to the public submenu if it's the public ComponentID
             if (setOH != null) { //Already checks if componentID = public chat (it's null if it's not public)
                 submenuIdx = -1;
                 for (ChatTabFilterOptionsOH chatTabFilterOptionOH : ChatTabFilterOptionsOH.values()) {
                     final StringBuilder optionBuilder = getSubMenuAddRemoveStringBuilder(setOH.contains(chatTabFilterOptionOH), chatTabFilterOptionOH.toString());
-                    client.createMenuEntry(submenuIdx--)
+                    chatFilterEntrySubMenu.createMenuEntry(submenuIdx--)
                             .setType(MenuAction.RUNELITE)
-                            .setParent(chatFilterEntry)
                             .setOption(optionBuilder.toString())
                             .onClick(e -> addRemoveValueFromChatSetOH(setOH, chatTabFilterOptionOH)); //Adds or removes to/from the set, based on if the value is already in the set or not.
                 }
