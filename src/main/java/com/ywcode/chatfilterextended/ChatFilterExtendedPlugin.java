@@ -682,11 +682,13 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 autoEnableFilteredRegionEntrySubMenu.createMenuEntry(submenuIdx--)
                         .setType(MenuAction.RUNELITE)
                         .setOption("Set to Custom"); //todo: add onClick, first do getReducedFilteredRegionsData
+                //todo: add something like         actuallySendMessage(getColoredPluginName() + "Region " + regionID + "has been removed from the filtered regions string for the " + chatTab + " chat tab.");
                         //.onClick(e -> addRemoveValueFromChatSet(set, chatTabFilterOption, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
 
                 autoEnableFilteredRegionEntrySubMenu.createMenuEntry(submenuIdx--)
                         .setType(MenuAction.RUNELITE)
                         .setOption("Set to current Custom set"); //todo: add onClick, first do getReducedFilteredRegionsData
+                //todo: add something like         actuallySendMessage(getColoredPluginName() + "Region " + regionID + "has been removed from the filtered regions string for the " + chatTab + " chat tab.");
                         //.onClick(e -> addRemoveValueFromChatSet(set, chatTabFilterOption, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
 
                 if (isChatTabFilteredRegion(regionID, menuEntryAddedParam1)) {
@@ -773,6 +775,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
             if (isInFilteredRegion) { //todo: potentially clean this up if variable just becomes a local variable, maybe add some comments
                 //todo: setting chat back to e.g. public, private etc. For fc and cc maybe just rebuilding after turning off is enough? (see next line)
                 // => Put the scriptargs in an enum
+
+
+                //todo: add advanced config option, enabled by default, regarding a chat message for enabling/disabling for automatic stuff in filteredregion
             }
         }
 
@@ -1408,7 +1413,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         addToBPlayers(); //Checks if player is inside ToB to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToB or old ToA players
         addToAPlayers(); //Checks if player is inside ToA to only add them then. Use addAllInRaidUsernamesVarClientStr() if you also want to add when outside ToA or old ToB players
         client.refreshChat(); //Refresh chat after manually changing the raid filter set
-        client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", getColoredPluginName() + "The Raid Party members set has been cleared.", "");
+        actuallySendMessage(getColoredPluginName() + "The Raid Party members set has been cleared.");
     }
 
     //Get the plugin name wrapped in the appropriate color tags, [], and with a space behind it to use in chat messages
@@ -1578,6 +1583,17 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Get the set with the removed region+chattab combo -> convert toCSV -> set config value -> ConfigChanged procs
         String configString = Text.toCSV(getReducedFilteredRegionsData(regionID, chatTab));
         configManager.setConfiguration(CONFIG_GROUP, filteredRegionsData, configString);
+        //This message cannot be procced while logged out, so don't need to check gamestate and/or set a flag
+        actuallySendMessage(getColoredPluginName() + "Region " + regionID + "has been removed from the filtered regions string for the " + chatTab + " chat tab.");
+    }
+
+    private void actuallySendMessage(String message) {
+        //If this can be procced while logged out, check for GameState.LOGGED_IN/LOADING before calling this and otherwise set a flag to be consumed in onGameTick
+        //client.addChatMessage has to be called on clientThread -> invoking in case I want to use this on e.g. startUp in the future
+        //Doesn't cause any error if not called on client.getGameState() == GameState.LOGGED_IN
+        clientThread.invokeLater(() -> {
+            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", message, "");
+        });
     }
 
     private Set<String> getReducedFilteredRegionsData(int regionID, ChatTab chatTab) {
@@ -1630,7 +1646,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //Potentially add a chat message when changing the chatSet, but might get too spammy when adding/removing multiple values. One can already confirm it happened by just right-clicking on the chat tab and seeing "Show: Public/Friends/FC/CC" etc.
         if (keyName.equals("privateChatFilterOptions") && !forcePrivateOn) {
             //Notification when people screw with the private filter without forcePrivateOn so they don't complain about it not working properly.
-            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", getColoredPluginName() + "<col=FF0000>Private filtering generally only works well when 'force private to on' is enabled in the plugin's config settings.", "");
+            actuallySendMessage(getColoredPluginName() + "<col=FF0000>Private filtering generally only works well when 'force private to on' is enabled in the plugin's config settings.");
         }
     }
 
