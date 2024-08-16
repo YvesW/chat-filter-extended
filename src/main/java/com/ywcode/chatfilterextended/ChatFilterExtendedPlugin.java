@@ -204,11 +204,11 @@ public class ChatFilterExtendedPlugin extends Plugin {
     public void startUp() {
         setConfigFirstStart();
         updateConfig();
+        updateFilteredRegions();
         //PM Config keys that are not part of ChatFilterExtendedConfig are still empty on first startup ->
         // in case you readd those types of keys, prevent them being null by setting them before other code checks the
         // config keys. Do this both on startUp AND ProfileChanged!
 
-        //todo: add convertfilteredregions thing here
         clientThread.invokeLater(() -> {
             setChatsToPublic(); //Chats are only being set to public if the filter for that chatstone is active!
             addAllInRaidUsernamesVarClientStr(); //Will also add a raid group to the hashset if you are not inside ToB/ToA anymore. This is fine and can be useful in certain situations, e.g. getting a scythe, teleporting to the GE to get the split and then turning on the plugin at the GE. You can still see your raid buddies' messages then. If this is undesired, replace with addToBPlayers() and addToAPlayers()
@@ -255,6 +255,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         //todo: maak mss nog wat variables final?
         //todo: kijk for loops nog na of je niet meer breaks, continues, of returns toe kan voegen
 
+        //todo: probs clear some more sets and maps here
         partyMemberIds.clear();
         filteredRegions.clear();
         channelStandardizedUsernames.clear();
@@ -290,8 +291,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             }
             if (configChanged.getKey().equals("filteredRegionsData")) {
                 //Only update it when this value changes because maybe some people have an insane amount of regions?
-                filteredRegionsData = config.filteredRegionsData();
-                convertStringToFilteredRegions(filteredRegionsData);
+                updateFilteredRegions();
             }
             client.refreshChat(); //Refresh chat when the config changes (enabling/disabling filter, changing filter settings).
         }
@@ -1383,6 +1383,12 @@ public class ChatFilterExtendedPlugin extends Plugin {
         previousRaidPartyInterfaceText = "";
         raidPartyStandardizedUsernames.clear();
         shouldRefreshChat = true;
+    }
+
+    private void updateFilteredRegions() {
+        filteredRegionsData = config.filteredRegionsData();
+        convertStringToFilteredRegions(filteredRegionsData);
+        previousRegionID = 0; //Set to 0 so it triggers a recheck in GameTick, in case the region is not filtered anymore/is now filtered/specific filter changed
     }
 
     private void clearRaidPartySetManually(MenuEntry menuEntry) {
