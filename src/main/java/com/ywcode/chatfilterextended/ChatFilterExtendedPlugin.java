@@ -273,6 +273,18 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 client.runScript(REDRAW_CHAT_BUTTONS_SCRIPTID); //[proc,redraw_chat_buttons]
             });
         }
+        //Clearing these probably doesn't matter that much; at least the EnumSets are limited based on the relatively small total number of enum elements, but clearing can't hurt.
+        publicChatFilterOptions.clear();
+        publicChatFilterOptionsOH.clear();
+        publicWhitelist.clear();
+        privateChatFilterOptions.clear();
+        privateWhitelist.clear();
+        channelChatFilterOptions.clear();
+        channelWhitelist.clear();
+        clanChatFilterOptions.clear();
+        clanWhitelist.clear();
+        tradeChatFilterOptions.clear();
+        tradeWhitelist.clear();
     }
 
     @Subscribe
