@@ -141,7 +141,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static String previousRaidPartyInterfaceText; //null by default
     private static final Set<Long> partyMemberIds = new HashSet<>();
     private static int getRLPartyUserJoinedMembersFlag; //Default is 0
-    private static final Map<Integer, FilteredRegion> filteredRegions = new HashMap<>();
+    private static final Map<Integer, FilteredRegion> filteredRegions = new HashMap<>(); //Using map so I don't have to loop through a Set to get a FilteredRegion based on its regionId
     private static int previousRegionID; //todo: potentially convert to local variable
     private static int currentRegionID; //todo: potentially convert to local variable
     private static boolean isInFilteredRegion; //todo: potentially convert to local variable
