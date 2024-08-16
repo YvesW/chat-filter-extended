@@ -144,7 +144,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static final Map<Integer, FilteredRegion> filteredRegions = new HashMap<>(); //Using map so I don't have to loop through a Set to get a FilteredRegion based on its regionId
     private static int previousRegionID; //todo: potentially convert to local variable
     private static int currentRegionID; //todo: potentially convert to local variable
-    private static boolean isInFilteredRegion; //todo: potentially convert to local variable
+    private static boolean isInFilteredRegion; //Class-wide static variable so I don't have to recheck if filteredRegions contains the regionId in case currentRegionID = previousRegionID //todo: potentially convert to local variable
+    private static boolean wasInFilteredRegion; //todo: potentially convert to local variable
     //Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I probably did not fully adhere to lol)
 
     //Constants
@@ -806,6 +807,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
 
         previousRegionID = currentRegionID;
+        wasInFilteredRegion = isInFilteredRegion;
     }
 
     @Subscribe
