@@ -76,9 +76,9 @@ import java.util.regex.Pattern;
 @PluginDescriptor(
         name = "Chat Filter Extended",
         description = "Extends the functionality of the chat tabs/stones to filter chat messages not from friends/FC members/clan members/Guest CC members/raid members/RL party members/whitelisted people.",
-        tags = {"chat,chat filter,public,public OH,friends,friends OH,fc,fc OH,cc,cc OH,guest,guest OH,raid,raid OH,party,party OH,whitelist,whitelist OH,custom,clanchat,clan,filter,friends chat,private,trade,raids,tob,toa,cox,spam,show,chat tab,chat stone"}
+        tags = {"chat,chat filter,CFE,public,public OH,friends,friends OH,fc,fc OH,cc,cc OH,guest,guest OH,raid,raid OH,party,party OH,whitelist,whitelist OH,custom,clanchat,clan,filter,friends chat,private,trade,raids,tob,toa,cox,spam,show,chat tab,chat stone"}
 )
-//Alternative (bad) names: Custom Chat Filter, Custom Chat View, Chat View Extended, Chat Show Custom, Chat tabs extended, Chatstones extended
+//Alternative (bad) names: Custom Chat Filter/Custom Chat Filters, Custom Chat View, Chat View Extended, Chat Show Custom, Chat tabs extended, Chatstones extended
 //My goal was not to make one of these "abc improved" or "better abc" plugins, but the menuOptions like "Show friends" or "Show none" are just called chat filters, and I can't come up with a better name. At least Polar calls them that in e.g. script 152 (chat_set_filter)
 //It's just unlucky that the chat filter plugin (which is a perfectly valid name for its function) is also called chat filter, I guess.
 
