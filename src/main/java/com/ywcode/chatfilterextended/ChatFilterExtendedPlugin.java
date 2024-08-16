@@ -141,10 +141,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static String previousRaidPartyInterfaceText; //null by default
     private static final Set<Long> partyMemberIds = new HashSet<>();
     private static int getRLPartyUserJoinedMembersFlag; //Default is 0
-    private static final Map<Integer, FilteredRegion> filteredRegions = new HashMap<>(); //Using map so I don't have to loop through a Set to get a FilteredRegion based on its regionId
+    private static final Map<Integer, FilteredRegion> filteredRegions = new HashMap<>(); //Using map so I don't have to loop through a Set to get a FilteredRegion based on its regionID
     private static int previousRegionID; //todo: potentially convert to local variable
     private static int currentRegionID; //todo: potentially convert to local variable
-    private static boolean isInFilteredRegion; //Class-wide static variable so I don't have to recheck if filteredRegions contains the regionId in case currentRegionID = previousRegionID //todo: potentially convert to local variable
+    private static boolean isInFilteredRegion; //Class-wide static variable so I don't have to recheck if filteredRegions contains the regionID in case currentRegionID = previousRegionID //todo: potentially convert to local variable
     private static boolean wasInFilteredRegion; //todo: potentially convert to local variable
     //Collection cheat sheet: https://i.stack.imgur.com/POTek.gif (that I probably did not fully adhere to lol)
 
@@ -693,21 +693,19 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 int submenuIdx = -1;
                 autoEnableFilteredRegionEntrySubMenu.createMenuEntry(submenuIdx--)
                         .setType(MenuAction.RUNELITE)
-                        .setOption("Set to Custom"); //todo: add onClick, first do getReducedFilteredRegionsData
-                //todo: add something like         actuallySendMessage(getColoredPluginName() + "Region " + regionID + "has been removed from the filtered regions string for the " + chatTab + " chat tab.");
-                        //.onClick(e -> addRemoveValueFromChatSet(set, chatTabFilterOption, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
+                        .setOption("Set to Custom")
+                        .onClick(e -> addRegionToConfigString(regionID, menuEntryAddedParam1)); //Adds/updates the filtered region to the config string (justCustom)
 
                 autoEnableFilteredRegionEntrySubMenu.createMenuEntry(submenuIdx--)
                         .setType(MenuAction.RUNELITE)
-                        .setOption("Set to current Custom set"); //todo: add onClick, first do getReducedFilteredRegionsData
-                //todo: add something like         actuallySendMessage(getColoredPluginName() + "Region " + regionID + "has been removed from the filtered regions string for the " + chatTab + " chat tab.");
-                        //.onClick(e -> addRemoveValueFromChatSet(set, chatTabFilterOption, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
+                        .setOption("Set to current Custom set")
+                        .onClick(e -> addRegionToConfigString(regionID, menuEntryAddedParam1, set, setOH)); //Adds/updates the filtered region to the config string (!justCustom, so the actual sets)
 
                 if (isChatTabFilteredRegion(regionID, menuEntryAddedParam1)) {
                     autoEnableFilteredRegionEntrySubMenu.createMenuEntry(submenuIdx--)
                             .setType(MenuAction.RUNELITE)
                             .setOption("Remove auto-enable")
-                            .onClick(e -> removeRegionFromConfigString(regionID, menuEntryAddedParam1)); //Adds or removes to/from the set, based on if the value is already in the set or not.
+                            .onClick(e -> removeRegionFromConfigString(regionID, menuEntryAddedParam1)); //Removes the filtered region from the config string
                 }
             }
         }
@@ -1053,25 +1051,25 @@ public class ChatFilterExtendedPlugin extends Plugin {
             }
 
             //Get everything before the ":"
-            final String regionIdString = filteredRegionData.substring(0, colonIdx);
+            final String regionIDString = filteredRegionData.substring(0, colonIdx);
 
-            //Continue if regionId is not numeric
-            if (!isNumeric(regionIdString)) {
+            //Continue if regionID is not numeric
+            if (!isNumeric(regionIDString)) {
                 continue;
             }
 
-            final int regionIdInt = Integer.parseInt(regionIdString); //Convert string to int
+            final int regionIDInt = Integer.parseInt(regionIDString); //Convert string to int
             //Get FilteredRegion for this id
-            FilteredRegion filteredRegion = filteredRegions.get(regionIdInt);
+            FilteredRegion filteredRegion = filteredRegions.get(regionIDInt);
 
             //if FilteredRegion does not exist yet, create a new one
             if (filteredRegion == null) {
-                filteredRegion = new FilteredRegion(regionIdInt);
+                filteredRegion = new FilteredRegion(regionIDInt);
             }
 
             //Set the attributes for the region and put it on the map
             setFilteredRegionAttributes(filteredRegionData, filteredRegion);
-            filteredRegions.put(regionIdInt, filteredRegion); //If the map previously contained a mapping for the key, the old value is replaced. -> this is fine since we've retrieved the old value from the map and modified it if it already existed
+            filteredRegions.put(regionIDInt, filteredRegion); //If the map previously contained a mapping for the key, the old value is replaced. -> this is fine since we've retrieved the old value from the map and modified it if it already existed
         }
     }
 
@@ -1085,7 +1083,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     private void setFilteredRegionAttributes(String filteredRegionData, FilteredRegion filteredRegion) {
         //todo: check if you can improve this code
-        //todo: check if you can inline this code at the end so regionIdString and regionIdInt don't have to be defined here again etc + can remove some other things and comments then
+        //todo: check if you can inline this code at the end so regionIDString and regionIDInt don't have to be defined here again etc + can remove some other things and comments then
         //Sets the attributes for the specific FilteredRegion based on the FilteredRegion string data in the hashset
         String testString1 = "1234:pu;puoh/ccoh/pu/fc/cc";
         String testString2 = "1234:pu;puoh/ccoh/pu/fc/cc,5678:ch;fr/fc/cc/wh";
@@ -1111,8 +1109,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
 
         //Get everything before the ":"
-        final String regionIdString = filteredRegionData.substring(0, colonIdx); //Already checked if this is numeric in the method that called this
-        final int regionIdInt = Integer.parseInt(regionIdString); //Convert string to int
+        final String regionIDString = filteredRegionData.substring(0, colonIdx); //Already checked if this is numeric in the method that called this
+        final int regionIDInt = Integer.parseInt(regionIDString); //Convert string to int
 
         final String chatSetString = filteredRegionData.substring(semicolonIdx+1); //Get everything after ';', e.g. puoh/ccoh/pu/fc/cc
         boolean justCustom = false; //Only set the chat to custom, don't use a specific set
@@ -1143,7 +1141,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //if the non-OH set is empty, custom chat is disabled. These sets are invalid for a filteredRegion
             if (chatSetEnumSet.isEmpty()) {
                 //Remove an invalid FilteredRegion from the config
-                removeRegionFromConfigString(regionIdInt, chatTab.getComponentID());
+                removeRegionFromConfigString(regionIDInt, chatTab.getComponentID());
                 //This proc onConfigChanged -> procs convertStringToFilteredRegions -> clears filteredRegions
                 return;
             }
@@ -1584,16 +1582,97 @@ public class ChatFilterExtendedPlugin extends Plugin {
         return justCustom || !ChatSet.isEmpty();
     }
 
+    private void addRegionToConfigString(int regionID, int componentID) {
+        //Adds the regionid + chat tab combination to the filtered regions ConfigString (with justCustom == true)
+        addRegionToConfigString(regionID, componentID, null, null);
+    }
+
+    private void addRegionToConfigString(int regionID, int componentID, Set<ChatTabFilterOptions> chatTabFilterOptions, Set<ChatTabFilterOptionsOH> chatTabFilterOptionsOH) {
+        //todo: check if this should be simplified/fixed because you now added the sets
+        //Add the regionid + chat tab combination to the filtered regions ConfigString
+
+        final ChatTab chatTab = ChatTab.getEnumElement(componentID);
+        if (chatTab == null) {
+            //if componentID is not actually from a chattab, return
+            return;
+        }
+
+        //String to be used in chat message at the end. If !justCustom, this String will be set to something else below
+        String chatsAdded = "Custom";
+
+        //Get the set (converted from the String) and remove the regionID and chatTab combo in case it already exists
+        final Set<String> ReducedFilteredRegionsDataSet = getReducedFilteredRegionsData(regionID, chatTab);
+
+        //Create StringBuilder for the String that's to be added to the FilteredRegions Set<String>
+        final StringBuilder stringBuilderToAdd = new StringBuilder();
+        //Add regionid and chat tab type, results in e.g. 1234:pu;
+        stringBuilderToAdd.append(regionID).append(":").append(chatTab.getAbbreviation()).append(";");
+
+        if (chatTabFilterOptions == null) { //Aka if justCustom
+            //Add cu if just custom, resulting in e.g. 1234:pu;cu
+            stringBuilderToAdd.append(CUSTOM_FILTERED_REGION_ABBREVIATION);
+        } else { //if (!justCustom)
+            //Convert active custom set(s) for this chattab to a String and append
+
+            StringBuilder chatsAddedBuilder = new StringBuilder();
+            //Add the chat abbreviations, results in e.g. 1234:pu;pu/fc/cc/
+            for (ChatTabFilterOptions chatTabFilterOption : chatTabFilterOptions) {
+                stringBuilderToAdd.append(chatTabFilterOption.getFilteredRegionAbbreviation()).append("/");
+                chatsAddedBuilder.append(chatTabFilterOption.getAbbreviation()).append("/"); //Tbh can also just use String += since it will never loop over a lot of elements, but rightfully IntelliJ complaints about doing String concatenation in a loop, so fuck it, we use a StringBuilder
+            }
+
+            //Convert StringBuilder to String so I can use replace. Should have fixed this in another way but w.e
+            chatsAdded = chatsAddedBuilder.toString();
+
+            //Add the chat OH abbreviations, results in e.g. 1234:pu;pu/fc/cc/puoh/ccoh/
+            if (chatTabFilterOptionsOH != null) { //Aka if ChatTab = public, otherwise chatTabFilterOptionsOH would be null! Thus, no componentID check is needed!
+                for (ChatTabFilterOptionsOH chatTabFilterOptionOH : chatTabFilterOptionsOH) {
+                    stringBuilderToAdd.append(chatTabFilterOptionOH.getFilteredRegionAbbreviation()).append("/");
+                    chatsAdded = chatsAdded.replace(chatTabFilterOptionOH.getNonOHAbbreviation() + "/", chatTabFilterOptionOH.getAbbreviation() + "/"); //A slash is added, so it does not result in: "Public OH: Show Public OH/Friends/CC OH (should not be problematic here though unlike in MenuEntryAdded but enfin)
+                }
+            }
+
+            chatsAdded = chatsAdded.substring(0, chatsAdded.length() - 1); //Remove the trailing space
+            stringBuilderToAdd.deleteCharAt(stringBuilderToAdd.length() - 1); //Remove the trailing space so it looks nicer, resulting in e.g. 1234:pu;pu/fc/cc/puoh/ccoh
+        }
+
+        //Add to Set. Don't need to append or prepend a comma since we're adding it to the Set, which will later be toCSV'd
+        ReducedFilteredRegionsDataSet.add(stringBuilderToAdd.toString());
+
+        //Convert the Set toCSV -> set config value -> ConfigChanged procs
+        final String configString = Text.toCSV(ReducedFilteredRegionsDataSet);
+        configManager.setConfiguration(CONFIG_GROUP, filteredRegionsData, configString);
+        //This message cannot be procced while logged out, so don't need to check gamestate and/or set a flag
+        actuallySendMessage(getColoredPluginName() + "Region " + regionID + "has been added to the filtered regions string for the " + chatTab + " chat tab (" + chatsAdded + ").");
+    }
+
+    private Set<String> getReducedFilteredRegionsData(int regionID, ChatTab chatTab) {
+        //Return a Set<String> with the specific regionid + chattab combination removed from it
+        //To be used to convert back to String to then be set in config
+        //Separate method so e.g. adding a new region does not do:
+        // remove region from string -> set config -> ConfigChanged -> (procs all the crap it does) -> add new region -> set config -> ConfigChanged
+
+        //Converted filteredRegionData String to set so we can loop over and remove
+        final Set<String> filteredRegionsDataSet = new HashSet<>();
+        convertCommaSeparatedStringToSet(filteredRegionsData, filteredRegionsDataSet);
+
+        //Remove if string starts with "regionid:chatAbbreviation;"
+        //Sometimes I do actually use features introduced after Java 7. I should do that more often, since half this plugin could be replaced with Streams and Lambdas...
+        filteredRegionsDataSet.removeIf(string -> string.startsWith(regionID + ":" + chatTab.getAbbreviation() + ";"));
+        return filteredRegionsDataSet;
+    }
+
     private void removeRegionFromConfigString(int regionID, int componentID) {
         //Remove the regionid + chat tab combination from the filtered regions ConfigString
-        ChatTab chatTab = ChatTab.getEnumElement(componentID);
+
+        final ChatTab chatTab = ChatTab.getEnumElement(componentID);
         if (chatTab == null) {
-            //if componentID is not actually from a chattab, return false
+            //if componentID is not actually from a chattab, return
             return;
         }
 
         //Get the set with the removed region+chattab combo -> convert toCSV -> set config value -> ConfigChanged procs
-        String configString = Text.toCSV(getReducedFilteredRegionsData(regionID, chatTab));
+        final String configString = Text.toCSV(getReducedFilteredRegionsData(regionID, chatTab));
         configManager.setConfiguration(CONFIG_GROUP, filteredRegionsData, configString);
         //This message cannot be procced while logged out, so don't need to check gamestate and/or set a flag
         actuallySendMessage(getColoredPluginName() + "Region " + regionID + "has been removed from the filtered regions string for the " + chatTab + " chat tab.");
@@ -1606,22 +1685,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         clientThread.invokeLater(() -> {
             client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", message, "");
         });
-    }
-
-    private Set<String> getReducedFilteredRegionsData(int regionID, ChatTab chatTab) {
-        //Return a Set<String> with the specific regionid + chattab combination removed from it
-        //To be used to convert back to String to then be set in config
-        //Separate method so e.g. adding a new region does not do:
-        // remove region from string -> set config -> ConfigChanged -> (procs all the crap it does) -> add new region -> set config -> ConfigChanged
-
-        //Converted filteredRegionData String to set so we can loop over and remove
-        Set<String> filteredRegionsDataSet = new HashSet<>();
-        convertCommaSeparatedStringToSet(filteredRegionsData, filteredRegionsDataSet);
-
-        //Remove if string starts with "regionid:chatAbbreviation;"
-        //Sometimes I do actually use features introduced after Java 7. I should do that more often, since half this plugin could be replaced with Streams and Lambdas...
-        filteredRegionsDataSet.removeIf(string -> string.startsWith(regionID + ":" + chatTab.getAbbreviation() + ";"));
-        return filteredRegionsDataSet;
     }
 
     //Get the StringBuilder for the submenus.
@@ -2065,7 +2128,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
      */
     private void addCoXBankPlayers() {
         //Add people to the appropriate set in the cox bank area if they are in the FC
-        //Procs every gametick while in the cox bank regionId. Check varp so it only procs in the bank area.
+        //Procs every gametick while in the cox bank regionID. Check varp so it only procs in the bank area.
         //Cox bank people can technically not be in the FC yet when spawning or run up the CoX stairs with you so execute every gametick instead of onplayerspawned
         if (client.getVarpValue(VarPlayer.IN_RAID_PARTY) == -1) {
             return;
