@@ -335,6 +335,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         channelFilterEnabled = configManager.getConfiguration(CONFIG_GROUP, "channelFilterEnabled", boolean.class);
         clanFilterEnabled = configManager.getConfiguration(CONFIG_GROUP, "clanFilterEnabled", boolean.class);
         tradeFilterEnabled = configManager.getConfiguration(CONFIG_GROUP, "tradeFilterEnabled", boolean.class);
+        //todo: move this to rsprofile probs
     }
 
     @Subscribe
@@ -355,6 +356,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 break;
             case LOGIN_SCREEN:
                 previousRegionID = 0; //Reset cause people can log out, move on a different client and log back in
+                //Resetting wasInFilteredRegion is not necessary and should probs not be done here. It's used as a way to determine if the current custom filter state needs to be changed, not specifically if the region the user is in is filtered or not
+                //todo: wasInFilteredRegion and previousRegionID etc. might have to be reset when changing RSProfile though... Think about this.
                 channelStandardizedUsernames.clear();
                 clanMembersStandardizedUsernames.clear();
                 clanTotalStandardizedUsernames.clear();
