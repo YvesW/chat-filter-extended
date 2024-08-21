@@ -353,6 +353,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     @Subscribe
     public void onProfileChanged(ProfileChanged profileChanged) {
         setConfigFirstStart(); //todo: remove this if you swap to rsprofile and don't have any of those configkeys anymore
+        previousRegionID = 0; //ProfileChanged fires after ConfigChanged. Between config profiles the filtered regions may differ, so force a recheck by doing this
     }
 
     @Subscribe
