@@ -11,7 +11,7 @@ import java.util.Set;
 @Setter(AccessLevel.PACKAGE)
 public class FilteredRegion {
 
-    private final int regionId;
+    private final int regionID;
     private boolean publicChatCustomOnly; //Only activate custom, don't check sets
     private Set<ChatTabFilterOptionsOH> publicChatSetOH = new HashSet<>(); //Set is always initialized, but empty when it should not be used
     private Set<ChatTabFilterOptions> publicChatSet = new HashSet<>(); //Set is always initialized, but empty when it should not be used
@@ -24,7 +24,7 @@ public class FilteredRegion {
     private boolean tradeChatCustomOnly; //Only activate custom, don't check sets
     private Set<ChatTabFilterOptions> tradeChatSet = new HashSet<>(); //Set is always initialized, but empty when it should not be used
 
-    public FilteredRegion(int regionId) {
-        this.regionId = regionId;
+    public FilteredRegion(int regionID) {
+        this.regionID = regionID;
     }
 }
