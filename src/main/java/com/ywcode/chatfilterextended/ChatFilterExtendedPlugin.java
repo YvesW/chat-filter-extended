@@ -529,7 +529,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
         if (commandExecuted.getCommand().equals("test5")) {
             FilteredRegion test1 = new FilteredRegion(12345);
-            System.out.println(test1.getRegionId());
+            System.out.println(test1.getRegionID());
             System.out.println(test1.getClanChatSet());
             System.out.println(test1.isClanChatCustomOnly());
             test1.setClanChatSet(clanChatFilterOptions);
@@ -542,6 +542,25 @@ public class ChatFilterExtendedPlugin extends Plugin {
             convertStringToFilteredRegions(testString3);
 
             //todo: when disabling or switching from custom to set specific or set specific to custom -> probs do the following: convert string to hashset, loop through it and do startsWith "1234:pu", remove that entry from hashset. then at the end toCSV, amend the String, then set it with configmanager -> procs onConfigChanged
+        }
+        if (commandExecuted.getCommand().equals("test6")) {
+            for (Map.Entry<Integer, FilteredRegion> entry :  filteredRegions.entrySet()) {
+                System.out.println("Key = " + entry.getKey());
+                FilteredRegion region = entry.getValue();
+                System.out.println("getRegionID = " + region.getRegionID());
+                System.out.println("isPublicChatCustomOnly = " + region.isPublicChatCustomOnly());
+                System.out.println("getPublicChatSetOH = " + region.getPublicChatSetOH());
+                System.out.println("getPublicChatSet = " + region.getPublicChatSet());
+                System.out.println("isPrivateChatCustomOnly = " + region.isPrivateChatCustomOnly());
+                System.out.println("getPrivateChatSet = " + region.getPrivateChatSet());
+                System.out.println("isChannelChatCustomOnly = " + region.isChannelChatCustomOnly());
+                System.out.println("getChannelChatSet = " + region.getChannelChatSet());
+                System.out.println("isClanChatCustomOnly = " + region.isClanChatCustomOnly());
+                System.out.println("getClanChatSet = " + region.getClanChatSet());
+                System.out.println("isTradeChatCustomOnly = " + region.isTradeChatCustomOnly());
+                System.out.println("getTradeChatSet = " + region.getTradeChatSet());
+                System.out.println("======================================");
+            }
         }
     }
 
@@ -1119,7 +1138,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         final Set<ChatTabFilterOptions> chatSetEnumSet = EnumSet.noneOf(ChatTabFilterOptions.class); //declare here so you can use it later
 
         //Check if it's just custom or if it should be set to a specific set
-        if (chatSetString.contains(CUSTOM_FILTERED_REGION_ABBREVIATION + "/")) {
+        if (chatSetString.contains(CUSTOM_FILTERED_REGION_ABBREVIATION)) {
             justCustom = true;
             //chatSetEnumSet will remain empty if justCustom
         } else {
@@ -1642,9 +1661,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
         //Convert the Set toCSV -> set config value -> ConfigChanged procs
         final String configString = Text.toCSV(ReducedFilteredRegionsDataSet);
-        configManager.setConfiguration(CONFIG_GROUP, filteredRegionsData, configString);
+        configManager.setConfiguration(CONFIG_GROUP, "filteredRegionsData", configString);
         //This message cannot be procced while logged out, so don't need to check gamestate and/or set a flag
-        actuallySendMessage(getColoredPluginName() + "Region " + regionID + "has been added to the filtered regions string for the " + chatTab + " chat tab (" + chatsAdded + ").");
+        actuallySendMessage(getColoredPluginName() + "Region " + regionID + " has been added to the filtered regions string for the " + chatTab + " chat tab (" + chatsAdded + ").");
     }
 
     private Set<String> getReducedFilteredRegionsData(int regionID, ChatTab chatTab) {
@@ -1674,9 +1693,9 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
         //Get the set with the removed region+chattab combo -> convert toCSV -> set config value -> ConfigChanged procs
         final String configString = Text.toCSV(getReducedFilteredRegionsData(regionID, chatTab));
-        configManager.setConfiguration(CONFIG_GROUP, filteredRegionsData, configString);
+        configManager.setConfiguration(CONFIG_GROUP, "filteredRegionsData", configString);
         //This message cannot be procced while logged out, so don't need to check gamestate and/or set a flag
-        actuallySendMessage(getColoredPluginName() + "Region " + regionID + "has been removed from the filtered regions string for the " + chatTab + " chat tab.");
+        actuallySendMessage(getColoredPluginName() + "Region " + regionID + " has been removed from the filtered regions string for the " + chatTab + " chat tab.");
     }
 
     private void actuallySendMessage(String message) {
