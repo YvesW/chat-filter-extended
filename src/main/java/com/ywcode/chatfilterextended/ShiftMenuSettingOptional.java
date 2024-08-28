@@ -5,9 +5,10 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 @Getter
-public enum ShiftMenuSetting {
-    HOLD_SHIFT("Hold Shift"),
-    ALWAYS("Always");
+public enum ShiftMenuSettingOptional {
+    DISABLED("Disabled"),
+    HOLD_SHIFT(ShiftMenuSetting.HOLD_SHIFT.toString()),
+    ALWAYS(ShiftMenuSetting.ALWAYS.toString());
 
     private final String option;
 

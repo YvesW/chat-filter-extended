@@ -42,5 +42,12 @@ Add to readme info on showGuestTrades config option -> what it does (basically c
 
 add info regarding clearing raid party hashset manually which can be useful when you applied to a lot of parties, or a lot of ppl applied to yours etc
 
+add info regarding what's bound to rsprofile: if tabs are active, the set per tab, what to return chat to when turning off plugin, what to return chat to when exiting filteredregion. And what's config bound: everything else. Plus explain what an rsprofile is (basically to your osrs account, but also differs when going to leagues world, qsr, emir's arena world or w.e it's called , beta etc)
+
+add info regarding how the OH set works:  
+description = "Allowed chat senders when the custom filter is active (overhead text). Needs to also be active in the set above.<br>"  
++ "Thus enabling 'Friends' in the set above and 'Friends (OH)' in this set does not show your friends' messages in the chatbox,<br>"  
++ "but it does show it above their head. Hold control or shift to select multiple entries.",  
+
 Thanks to Annotated for helping me collect Vars/ScriptIds and for helping me extensively test the plugin!
 

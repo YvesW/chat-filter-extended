@@ -3,6 +3,8 @@ package com.ywcode.chatfilterextended;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.google.inject.Provides;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Actor;
@@ -52,6 +54,7 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.events.PartyChanged;
 import net.runelite.client.events.ProfileChanged;
+import net.runelite.client.events.RuneScapeProfileChanged;
 import net.runelite.client.party.PartyMember;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.party.events.UserJoin;
@@ -86,19 +89,16 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
     // ------------- Wall of config vars -------------
     // Vars are quite heavily cached so could probably just config.configKey(). However, the best practice behavior in plugins is to have a bunch of variables to store the results of the config methods, and check it in startUp/onConfigChanged. It feels redundant, but it's better than hitting the reflective calls every frame. --LlemonDuck. Additionally, the sets are actually getting processed.
-    private static final Set<ChatTabFilterOptions> publicChatFilterOptions = EnumSet.noneOf(ChatTabFilterOptions.class);
-    private static final Set<ChatTabFilterOptionsOH> publicChatFilterOptionsOH = EnumSet.noneOf(ChatTabFilterOptionsOH.class);
-    private static final Set<String> publicWhitelist = new HashSet<>();
-    private static final Set<ChatTabFilterOptions> privateChatFilterOptions = EnumSet.noneOf(ChatTabFilterOptions.class);
-    private static final Set<String> privateWhitelist = new HashSet<>();
     private static boolean forcePrivateOn;
-    private static final Set<ChatTabFilterOptions> channelChatFilterOptions = EnumSet.noneOf(ChatTabFilterOptions.class);
-    private static final Set<String> channelWhitelist = new HashSet<>();
-    private static final Set<ChatTabFilterOptions> clanChatFilterOptions = EnumSet.noneOf(ChatTabFilterOptions.class);
-    private static final Set<String> clanWhitelist = new HashSet<>();
-    private static final Set<ChatTabFilterOptions> tradeChatFilterOptions = EnumSet.noneOf(ChatTabFilterOptions.class);
-    private static final Set<String> tradeWhitelist = new HashSet<>();
     private static boolean showGuestTrades;
+    private static ShiftMenuSetting changeChatSetsShiftMenuSetting;
+    private static ShiftMenuSettingOptional clearRaidPartyShiftMenuSetting;
+    private static ShiftMenuSettingOptional autoEnableFilteredRegionShiftMenuSetting;
+    private static final Set<String> publicWhitelist = new HashSet<>();
+    private static final Set<String> privateWhitelist = new HashSet<>();
+    private static final Set<String> channelWhitelist = new HashSet<>();
+    private static final Set<String> clanWhitelist = new HashSet<>();
+    private static final Set<String> tradeWhitelist = new HashSet<>();
     private static boolean clearChannelSetHop;
     private static boolean clearClanSetHop;
     private static boolean clearGuestClanSetHop;
@@ -111,20 +111,25 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private static boolean fixChatTabAlert; //todo: implement!
     private static boolean preventLocalPlayerChatTabAlert; //todo: implement!
     private static String filteredRegionsData; //todo: implement!
-    private static ShiftMenuSetting changeChatSetsShiftMenuSetting;
-    private static ShiftMenuSetting clearRaidPartyShiftMenuSetting;
-    private static ShiftMenuSetting autoEnableFilteredRegionShiftMenuSetting;
 
-    //The config values below are only set through ConfigManager and are not part of ChatFilterExtendedConfig.java
+    //The config values below are only part of the RSProfile
+    //todo: add more RSProfile vars to this if you decide to add more configs to RSProfile
     private static boolean publicFilterEnabled; //i.e. if the user set the chat tab/stone to custom. So we can re-enable it on startup. Maybe swap this to RSProfile instead of config profile in the future?
     private static boolean privateFilterEnabled; //i.e. if the user set the chat tab/stone to custom. So we can re-enable it on startup. Maybe swap this to RSProfile instead of config profile in the future?
     private static boolean channelFilterEnabled; //i.e. if the user set the chat tab/stone to custom. So we can re-enable it on startup. Maybe swap this to RSProfile instead of config profile in the future?
     private static boolean clanFilterEnabled; //i.e. if the user set the chat tab/stone to custom. So we can re-enable it on startup. Maybe swap this to RSProfile instead of config profile in the future?
     private static boolean tradeFilterEnabled; //i.e. if the user set the chat tab/stone to custom. So we can re-enable it on startup. Maybe swap this to RSProfile instead of config profile in the future?
+    private static final Set<ChatTabFilterOptionsOH> publicChatFilterOptionsOH = EnumSet.noneOf(ChatTabFilterOptionsOH.class);
+    private static final Set<ChatTabFilterOptions> publicChatFilterOptions = EnumSet.noneOf(ChatTabFilterOptions.class);
+    private static final Set<ChatTabFilterOptions> privateChatFilterOptions = EnumSet.noneOf(ChatTabFilterOptions.class);
+    private static final Set<ChatTabFilterOptions> channelChatFilterOptions = EnumSet.noneOf(ChatTabFilterOptions.class);
+    private static final Set<ChatTabFilterOptions> clanChatFilterOptions = EnumSet.noneOf(ChatTabFilterOptions.class);
+    private static final Set<ChatTabFilterOptions> tradeChatFilterOptions = EnumSet.noneOf(ChatTabFilterOptions.class);
     // ------------- End of wall of config vars -------------
 
     //Variables
     //todo: probably sort these
+    private static boolean areRSProfileDefaultsSet; //This is required because setting the defaults using setRuneScapeProfileConfiguration procs onConfigChanged -> NPE. Thus, we need to know when the defaults have been set.
     private static boolean setChatsToPublicFlag; //Default value is false
     private static GameState previousPreviousGameState;
     private static GameState previousGameState;
@@ -151,6 +156,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     //Constants
     //todo: probably sort these
     private static final String CONFIG_GROUP = "ChatFilterExtended";
+    private static final String CHAT_COLOR_CONFIG_GROUP = "textrecolor";
     private static final List<Integer> CHATBOX_COMPONENT_IDS = ImmutableList.of(ComponentID.CHATBOX_TAB_PUBLIC, ComponentID.CHATBOX_TAB_PRIVATE, ComponentID.CHATBOX_TAB_CHANNEL, ComponentID.CHATBOX_TAB_CLAN, ComponentID.CHATBOX_TAB_TRADE);
     private static final Pattern NUMERIC_PATTERN = Pattern.compile("-?\\d+(\\.\\d+)?");
     private static final String CUSTOM_FILTERED_REGION_ABBREVIATION = "cu";
@@ -201,14 +207,18 @@ public class ChatFilterExtendedPlugin extends Plugin {
     @Inject
     private PartyService partyService;
 
+    @Inject
+    private Gson gson;
+
     @Override
     public void startUp() {
-        setConfigFirstStart();
+        setRSProfileConfigFirstStart();
         updateConfig();
         updateFilteredRegions();
         //PM Config keys that are not part of ChatFilterExtendedConfig are still empty on first startup ->
         // in case you readd those types of keys, prevent them being null by setting them before other code checks the
         // config keys. Do this both on startUp AND ProfileChanged!
+        //Idem for all RSProfile keys, but this needs to be done on startUp and RuneScapeProfileChanged
 
         clientThread.invokeLater(() -> {
             setChatsToPublic(); //Chats are only being set to public if the filter for that chatstone is active!
@@ -274,22 +284,23 @@ public class ChatFilterExtendedPlugin extends Plugin {
             });
         }
         //Clearing these probably doesn't matter that much; at least the EnumSets are limited based on the relatively small total number of enum elements, but clearing can't hurt.
-        publicChatFilterOptions.clear();
-        publicChatFilterOptionsOH.clear();
         publicWhitelist.clear();
-        privateChatFilterOptions.clear();
         privateWhitelist.clear();
-        channelChatFilterOptions.clear();
         channelWhitelist.clear();
-        clanChatFilterOptions.clear();
         clanWhitelist.clear();
-        tradeChatFilterOptions.clear();
         tradeWhitelist.clear();
+        publicChatFilterOptionsOH.clear();
+        publicChatFilterOptions.clear();
+        privateChatFilterOptions.clear();
+        channelChatFilterOptions.clear();
+        clanChatFilterOptions.clear();
+        tradeChatFilterOptions.clear();
     }
 
     @Subscribe
     public void onConfigChanged(ConfigChanged configChanged) {
         if (configChanged.getGroup().equals(CONFIG_GROUP)) {
+            //PM Also procs for configManager.setRSProfileConfiguration(CONFIG_GROUP, keyName, value)
             updateConfig();
             disableFilterWhenSetEmptied();
             if (configChanged.getKey().equals("forcePrivateOn")) {
@@ -311,19 +322,16 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void updateConfig() {
-        convertSetToEnumSet(config.publicChatFilterOptions(), publicChatFilterOptions); //This is a LinkedHashSet if the method to convert it is not used
-        convertSetToEnumSetOH(config.publicChatFilterOptionsOH(), publicChatFilterOptionsOH);
-        convertCommaSeparatedStringToSet(config.publicWhitelist(), publicWhitelist);
-        convertSetToEnumSet(config.privateChatFilterOptions(), privateChatFilterOptions);
-        convertCommaSeparatedStringToSet(config.privateWhitelist(), privateWhitelist);
         forcePrivateOn = config.forcePrivateOn();
-        convertSetToEnumSet(config.channelChatFilterOptions(), channelChatFilterOptions);
-        convertCommaSeparatedStringToSet(config.channelWhitelist(), channelWhitelist);
-        convertSetToEnumSet(config.clanChatFilterOptions(), clanChatFilterOptions);
-        convertCommaSeparatedStringToSet(config.clanWhitelist(), clanWhitelist);
-        convertSetToEnumSet(config.tradeChatFilterOptions(), tradeChatFilterOptions);
-        convertCommaSeparatedStringToSet(config.tradeWhitelist(), tradeWhitelist);
         showGuestTrades = config.showGuestTrades();
+        changeChatSetsShiftMenuSetting = config.changeChatSetsShiftMenuSetting();
+        clearRaidPartyShiftMenuSetting = config.clearRaidPartyShiftMenuSetting();
+        autoEnableFilteredRegionShiftMenuSetting = config.autoEnableFilteredRegionShiftMenuSetting();
+        convertCommaSeparatedStringToSet(config.publicWhitelist(), publicWhitelist);
+        convertCommaSeparatedStringToSet(config.privateWhitelist(), privateWhitelist);
+        convertCommaSeparatedStringToSet(config.channelWhitelist(), channelWhitelist);
+        convertCommaSeparatedStringToSet(config.clanWhitelist(), clanWhitelist);
+        convertCommaSeparatedStringToSet(config.tradeWhitelist(), tradeWhitelist);
         clearChannelSetHop = config.clearChannelSetHop();
         clearClanSetHop = config.clearClanSetHop();
         clearGuestClanSetHop = config.clearGuestClanSetHop();
@@ -336,24 +344,37 @@ public class ChatFilterExtendedPlugin extends Plugin {
         fixChatTabAlert = config.fixChatTabAlert();
         preventLocalPlayerChatTabAlert = config.preventLocalPlayerChatTabAlert();
         filteredRegionsData = config.filteredRegionsData();
-        changeChatSetsShiftMenuSetting = config.changeChatSetsShiftMenuSetting();
-        clearRaidPartyShiftMenuSetting = config.clearRaidPartyShiftMenuSetting();
-        autoEnableFilteredRegionShiftMenuSetting = config.autoEnableFilteredRegionShiftMenuSetting();
 
-        //The config values below are only set through ConfigManager and are not part of ChatFilterExtendedConfig.java
-        //PS Probs don't try to refactor this; did not go well (on plugin start) the last time I tried that...
-        publicFilterEnabled = configManager.getConfiguration(CONFIG_GROUP, "publicFilterEnabled", boolean.class);
-        privateFilterEnabled = configManager.getConfiguration(CONFIG_GROUP, "privateFilterEnabled", boolean.class);
-        channelFilterEnabled = configManager.getConfiguration(CONFIG_GROUP, "channelFilterEnabled", boolean.class);
-        clanFilterEnabled = configManager.getConfiguration(CONFIG_GROUP, "clanFilterEnabled", boolean.class);
-        tradeFilterEnabled = configManager.getConfiguration(CONFIG_GROUP, "tradeFilterEnabled", boolean.class);
-        //todo: move this to rsprofile probs
+        //The config values below are part of the RSProfile
+        if (areRSProfileDefaultsSet) {
+            //The RSProfile has been loaded, and defaults have been set
+            //PS Probs don't try to refactor this; did not go well (on plugin start) the last time I tried that...
+            publicFilterEnabled = configManager.getRSProfileConfiguration(CONFIG_GROUP, ChatTab.PUBLIC.getFilterEnabledKeyName(), boolean.class);
+            privateFilterEnabled = configManager.getRSProfileConfiguration(CONFIG_GROUP, ChatTab.PRIVATE.getFilterEnabledKeyName(), boolean.class);
+            channelFilterEnabled = configManager.getRSProfileConfiguration(CONFIG_GROUP, ChatTab.CHANNEL.getFilterEnabledKeyName(), boolean.class);
+            clanFilterEnabled = configManager.getRSProfileConfiguration(CONFIG_GROUP, ChatTab.CLAN.getFilterEnabledKeyName(), boolean.class);
+            tradeFilterEnabled = configManager.getRSProfileConfiguration(CONFIG_GROUP, ChatTab.TRADE.getFilterEnabledKeyName(), boolean.class);
+            convertSetToEnumSetOH(getChatSetOHFromRSProfile(), publicChatFilterOptionsOH);
+            convertSetToEnumSet(getChatSetFromRSProfile(ChatTab.PUBLIC.getChatFilterOptionsKeyName()), publicChatFilterOptions);
+            convertSetToEnumSet(getChatSetFromRSProfile(ChatTab.PRIVATE.getChatFilterOptionsKeyName()), privateChatFilterOptions);
+            convertSetToEnumSet(getChatSetFromRSProfile(ChatTab.CHANNEL.getChatFilterOptionsKeyName()), channelChatFilterOptions);
+            convertSetToEnumSet(getChatSetFromRSProfile(ChatTab.CLAN.getChatFilterOptionsKeyName()), clanChatFilterOptions);
+            convertSetToEnumSet(getChatSetFromRSProfile(ChatTab.TRADE.getChatFilterOptionsKeyName()), tradeChatFilterOptions);
+            //todo: add other rsprofile configs to this if you decide to add more rsprofile values
+        }
     }
 
     @Subscribe
     public void onProfileChanged(ProfileChanged profileChanged) {
-        setConfigFirstStart(); //todo: remove this if you swap to rsprofile and don't have any of those configkeys anymore
+        //todo: in case you add any config keys that are not in CFEConfig, do a setConfigFirstStart
         previousRegionID = 0; //ProfileChanged fires after ConfigChanged. Between config profiles the filtered regions may differ, so force a recheck by doing this
+    }
+
+    @Subscribe
+    public void onRuneScapeProfileChanged(RuneScapeProfileChanged runeScapeProfileChanged) {
+        areRSProfileDefaultsSet = false; //Defaults might have not been set yet, so reset to false
+        setRSProfileConfigFirstStart(); //Set defaults in case they don't exist yet. Also set areRSProfileDefaultsSet to true, which will be used in updateConfig()
+        updateConfig(); //Load updated RSProfile settings
     }
 
     @Subscribe
@@ -380,10 +401,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 clearRaidPartySet(); //Also clear the string so the plugin will process the party interface if needed + shouldRefreshChat = true
                 break;
             case HOPPING:
-                //Clear raid & RL party members while hopping because you generally don't care about them anymore after hopping to another world
                 if (clearRaidPartySetHop) {
                     clearRaidPartySet(); //Also clear the string so the plugin will process the party interface if needed
                 }
+                //Clear RL party members by default while hopping because you generally don't care about them anymore after hopping to another world (or they will be re-added then)
                 if (clearRLPartySetHop) {
                     runelitePartyStandardizedUsernames.clear();
                 }
@@ -521,7 +542,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
         if (commandExecuted.getCommand().equals("test3")) {
             System.out.println(publicFilterEnabled);
-            System.out.println(configManager.getConfiguration(CONFIG_GROUP, "publicFilterEnabled"));
+            System.out.println(configManager.getRSProfileConfiguration(CONFIG_GROUP, "publicFilterEnabled"));
         }
         if (commandExecuted.getCommand().equals("test4")) {
             System.out.println(runelitePartyStandardizedUsernames);
@@ -561,6 +582,21 @@ public class ChatFilterExtendedPlugin extends Plugin {
                 System.out.println("getTradeChatSet = " + region.getTradeChatSet());
                 System.out.println("======================================");
             }
+        }
+        if (commandExecuted.getCommand().equals("test7")) {
+            areRSProfileDefaultsSet = false;
+            configManager.unsetRSProfileConfiguration(CONFIG_GROUP, "publicFilterEnabled");
+            configManager.unsetRSProfileConfiguration(CONFIG_GROUP, "privateFilterEnabled");
+            configManager.unsetRSProfileConfiguration(CONFIG_GROUP, "channelFilterEnabled");
+            configManager.unsetRSProfileConfiguration(CONFIG_GROUP, "clanFilterEnabled");
+            configManager.unsetRSProfileConfiguration(CONFIG_GROUP, "tradeFilterEnabled");
+            configManager.unsetRSProfileConfiguration(CONFIG_GROUP, "publicChatFilterOptionsOH");
+            configManager.unsetRSProfileConfiguration(CONFIG_GROUP, "publicChatFilterOptions");
+            configManager.unsetRSProfileConfiguration(CONFIG_GROUP, "privateChatFilterOptions");
+            configManager.unsetRSProfileConfiguration(CONFIG_GROUP, "channelChatFilterOptions");
+            configManager.unsetRSProfileConfiguration(CONFIG_GROUP, "clanChatFilterOptions");
+            configManager.unsetRSProfileConfiguration(CONFIG_GROUP, "tradeChatFilterOptions");
+            System.out.println("rsprofile settings unset");
         }
     }
 
@@ -1010,9 +1046,58 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
-    //config.SetNameHere() returns a LinkedHashset, even if you set the default as e.g. return EnumSet.noneOf(EnumClassName.class)
-    //Thus, clear the already created final EnumSet and add all the elements to it
+    private void setRSProfileConfigFirstStart() {
+        //Config keys that are not part of ChatFilterExtendedConfig are still empty on first startup. Prevent them being null by setting them before other code checks the config keys.
+        //Alternatively add them to ChatFilterExtendedConfig but use hidden = true
+        //The same goes for RSProfile keys. Currently all config keys that used to not be in the Config itself, have been moved to RSProfile
+
+        if (configManager.getRSProfileKey() == null) {
+            //The RSProfile has not been loaded yet. This happens when starting the plugin before the first login.
+            //Alternatively you could probably also check if client.getAccountHash == -1
+            return;
+        }
+
+        //Set defaults in case they don't exist yet
+        //FilterEnabled booleans
+        for (ChatTab chatTab : ChatTab.values()) {
+            String keyName = chatTab.getFilterEnabledKeyName();
+            setRSProfileConfigDefault(keyName, false);
+        }
+
+        final Set<ChatTabFilterOptionsOH> publicChatFilterOptionsOHDefault = EnumSet.noneOf(ChatTabFilterOptionsOH.class); //Empty set since otherwise the default is only showing OH (overhead text) instead of also chatbox text.
+        final Set<ChatTabFilterOptions> publicChatFilterOptionsDefault = EnumSet.allOf(ChatTabFilterOptions.class);
+        publicChatFilterOptionsDefault.remove(ChatTabFilterOptions.PUBLIC);
+        final Set<ChatTabFilterOptions> privateChatFilterOptionsDefault = EnumSet.noneOf(ChatTabFilterOptions.class); //Empty set since forcePrivateOn is disabled by default anyway
+        final Set<ChatTabFilterOptions> channelChatFilterOptionsDefault = EnumSet.allOf(ChatTabFilterOptions.class);
+        channelChatFilterOptionsDefault.remove(ChatTabFilterOptions.PUBLIC);
+        final Set<ChatTabFilterOptions> clanChatFilterOptionsDefault = EnumSet.allOf(ChatTabFilterOptions.class);
+        clanChatFilterOptionsDefault.remove(ChatTabFilterOptions.PUBLIC);
+        final Set<ChatTabFilterOptions> tradeChatFilterOptionsDefault = EnumSet.of(ChatTabFilterOptions.FRIENDS, ChatTabFilterOptions.CC, ChatTabFilterOptions.GUEST_CC, ChatTabFilterOptions.WHITELIST);
+        //Public is randoms, FCs are often open, raid party applying is easy, RL party can be joined freely if you have the pass
+        //You have to add friends; cc & guest cc have guests disabled by default; custom whitelist has to be set manually
+
+        //Set defaults for the chat sets. Convert to JSON because trying to cast either [] or e.g. ["FRIENDS","FC","CC","GUEST_CC","RAID","PARTY","WHITELIST"] to Set.class will result in a ClassCastException
+        setRSProfileConfigDefault("publicChatFilterOptionsOH", gson.toJson(publicChatFilterOptionsOHDefault));
+        setRSProfileConfigDefault(ChatTab.PUBLIC.getChatFilterOptionsKeyName(), gson.toJson(publicChatFilterOptionsDefault));
+        setRSProfileConfigDefault(ChatTab.PRIVATE.getChatFilterOptionsKeyName(), gson.toJson(privateChatFilterOptionsDefault));
+        setRSProfileConfigDefault(ChatTab.CHANNEL.getChatFilterOptionsKeyName(), gson.toJson(channelChatFilterOptionsDefault));
+        setRSProfileConfigDefault(ChatTab.CLAN.getChatFilterOptionsKeyName(), gson.toJson(clanChatFilterOptionsDefault));
+        setRSProfileConfigDefault(ChatTab.TRADE.getChatFilterOptionsKeyName(), gson.toJson(tradeChatFilterOptionsDefault));
+        //todo: add other rsprofile configs to this if you decide to add more rsprofile values
+
+        areRSProfileDefaultsSet = true; //All the code above procs onConfigChanged -> runs updateConfig(). You don't want to run (part of) updateConfig() before all defaults have been set to prevent NPEs.
+    }
+
+    private void setRSProfileConfigDefault(String keyName, Object value) {
+        //Set the RSProfileConfiguration defaults if they don't exist yet
+        if (configManager.getRSProfileConfiguration(CONFIG_GROUP, keyName) == null) {
+            configManager.setRSProfileConfiguration(CONFIG_GROUP, keyName, value);
+        }
+    }
+
     private void convertSetToEnumSet(Set<ChatTabFilterOptions> configSet, Set<ChatTabFilterOptions> setToConvertTo) {
+        //config.SetNameHere() returns a LinkedHashset, even if you set the default as e.g. return EnumSet.noneOf(EnumClassName.class)
+        //Thus, clear the already created final EnumSet and add all the elements to it
         setToConvertTo.clear();
         setToConvertTo.addAll(configSet);
     }
@@ -1031,7 +1116,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     /*
-    Altenatively make set not final and then use this, but I dislike that the implementation of the set can change to another type of set if I'm not careful
+    Alternatively make set not final and then use this, but I dislike that the implementation of the set can change to another type of set if I'm not careful
     //copyOf tries to get the type of enum from the value, but it can't if the set is empty
     private EnumSet<ChatTabFilterOptions> getEnumSet(Set<ChatTabFilterOptions> set) {
         if (set.isEmpty()) {
@@ -1048,6 +1133,18 @@ public class ChatFilterExtendedPlugin extends Plugin {
         // -> replaceAll("\\R", "") -> remove all unicode linebreak sequences (see https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html). replaceAll is used instead of replace since replaceAll uses regex as input instead of just a regular string.
         // -> fromCSV: splits on commas, omits empty strings, trims results
         setToConvertTo.addAll(Text.fromCSV(Text.standardize(configString).replaceAll("\\R", "")));
+    }
+
+    private Set<ChatTabFilterOptionsOH> getChatSetOHFromRSProfile() {
+        //Get the publicChatFilterOptionsOH from the RSProfile. Use gson to get it from json. Without gson, you get a ClassCastException.
+        //Don't need to check if RSProfile is already loaded since this method is only called from locations with a loaded RSProfile
+        return gson.fromJson(configManager.getRSProfileConfiguration(CONFIG_GROUP, "publicChatFilterOptionsOH"), new TypeToken<Set<ChatTabFilterOptionsOH>>() {}.getType());
+    }
+
+    private Set<ChatTabFilterOptions> getChatSetFromRSProfile(String keyName) {
+        //Get the ChatFilterOptions from the RSProfile. Use gson to get it from json. Without gson, you get a ClassCastException.
+        //Don't need to check if RSProfile is already loaded since this method is only called from locations with a loaded RSProfile
+        return gson.fromJson(configManager.getRSProfileConfiguration(CONFIG_GROUP, keyName), new TypeToken<Set<ChatTabFilterOptions>>() {}.getType());
     }
 
     private void convertStringToFilteredRegions(String configString) {
@@ -1403,21 +1500,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
     }
 
-    private void setConfigFirstStart() {
-        //todo: if changing config stuff that's not in ChatFilterExtendedConfig (but only set by configmanager), change this as well
-        //Config keys that are not part of ChatFilterExtendedConfig are still empty on first startup. Prevent them being null by setting them before other code checks the config keys.
-        //Alternatively add them to ChatFilterExtendedConfig but use hidden = true
-        for (ChatTab chatTab : ChatTab.values()) {
-            String keyName = chatTab.getFilterEnabledKeyName();
-            if (configManager.getConfiguration(CONFIG_GROUP, keyName) == null) {
-                configManager.setConfiguration(CONFIG_GROUP, keyName, false);
-            }
-        }
-        //todo: move stuff in config but not cfeconfig to rsprofile probs. Check on startup and rsprofilechanged: if rsrpofile is null, if key is null => set defaults, get values and assign. Check first what happens if you don't do these checks (nulls?)
-        //todo: remove profilechanged probs then
-        //todo: add to readme that all values are rl config profile bound, except if a custom filter is enabled for a tab and the filter that you had when you entered a filteredregion is bound to rsprofile (basically to your osrs account, but also differs when going to leagues world, qsr, emir's arena etc)
-    }
-
     private void clearRaidPartySet() {
         //Clears the raid party sets. Also clears the string so the plugin will process the party interface if needed
         previousRaidPartyInterfaceText = "";
@@ -1456,10 +1538,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
     @SuppressWarnings("SameParameterValue")
     private String getColorWrappedString(String stringToWrap) {
         //Get the opaque color from chat color plugin or ingame color
-        Color color = MoreObjects.firstNonNull(configManager.getConfiguration("textrecolor", "opaqueFriendsChatChannelName", Color.class), JagexColors.CHAT_FC_NAME_OPAQUE_BACKGROUND);
+        Color color = MoreObjects.firstNonNull(configManager.getConfiguration(CHAT_COLOR_CONFIG_GROUP, "opaqueFriendsChatChannelName", Color.class), JagexColors.CHAT_FC_NAME_OPAQUE_BACKGROUND);
         if (client.isResized() && client.getVarbitValue(Varbits.TRANSPARENT_CHATBOX) == 1) {
             //Replace color if using transparent chatbox
-            color = MoreObjects.firstNonNull(configManager.getConfiguration("textrecolor", "transparentFriendsChatChannelName", Color.class), JagexColors.CHAT_FC_NAME_TRANSPARENT_BACKGROUND);
+            color = MoreObjects.firstNonNull(configManager.getConfiguration(CHAT_COLOR_CONFIG_GROUP, "transparentFriendsChatChannelName", Color.class), JagexColors.CHAT_FC_NAME_TRANSPARENT_BACKGROUND);
         }
         //Wrap string in color tags and return the value
         return ColorUtil.wrapWithColorTag(stringToWrap, color);
@@ -1477,7 +1559,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void setChatFilterConfig(int componentID, boolean enableFilter) {
-        //Set the RL config value for a chat based on the componentID. Boolean enableFilter: enable or disable a filter
+        //Set the RSProfile config value for a chat based on the componentID. Boolean enableFilter: enable or disable a filter
         //publicFilterEnabled = enableFilter is not necessary since ConfigManager does trigger updateConfig() if the config value actually gets changed from false to true or vice versa
         //Alternatively use a switch (componentID) statement like you did before.
         ChatTab chatTab = ChatTab.getEnumElement(componentID);
@@ -1486,7 +1568,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             return;
         }
 
-        configManager.setConfiguration(CONFIG_GROUP, chatTab.getFilterEnabledKeyName(), enableFilter);
+        configManager.setRSProfileConfiguration(CONFIG_GROUP, chatTab.getFilterEnabledKeyName(), enableFilter);
     }
 
     private void setChatsToPublic() {
@@ -1737,7 +1819,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             return;
         }
 
-        configManager.setConfiguration(CONFIG_GROUP, keyName, chatSet);
+        configManager.setRSProfileConfiguration(CONFIG_GROUP, keyName, gson.toJson(chatSet)); //Use gson because you get a ClassCastException otherwise when you try to getRSProfileConfiguration
         //Potentially add a chat message when changing the chatSet, but might get too spammy when adding/removing multiple values. One can already confirm it happened by just right-clicking on the chat tab and seeing "Show: Public/Friends/FC/CC" etc.
         if (keyName.equals("privateChatFilterOptions") && !forcePrivateOn) {
             //Notification when people screw with the private filter without forcePrivateOn so they don't complain about it not working properly.
@@ -1765,7 +1847,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //If the set does contain the value, it can't be added and the if statement is !false aka true, so it'll remove the value.
             publicChatFilterOptionsOH.remove(filterOption);
         }
-        configManager.setConfiguration(CONFIG_GROUP, "publicChatFilterOptionsOH", chatSet);
+        configManager.setRSProfileConfiguration(CONFIG_GROUP, "publicChatFilterOptionsOH", gson.toJson(chatSet));
     }
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted") //This is true, but I like keeping it like this for my own logic
@@ -2234,14 +2316,26 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private boolean shouldShowShiftMenuSetting(ShiftMenuSetting shiftMenuSetting) {
-        //Should the ClearRaidPartyMenu or ChangeChatSetsMenu be shown based on the advanced config setting?
+        //Should the ChangeChatSetsMenu be shown based on the config setting?
         switch (shiftMenuSetting) {
             case ALWAYS:
                 return true;
-            case DISABLED:
-                return false;
             case HOLD_SHIFT:
                 return shiftModifier();
+        }
+        //These menus are required for core functionality, so return true if unsure
+        return true;
+    }
+
+    private boolean shouldShowShiftMenuSetting(ShiftMenuSettingOptional shiftMenuSettingOptional) {
+        //Should some menus that are not required for core functionality (optional) be shown based on the config setting?
+        switch (shiftMenuSettingOptional) {
+            case ALWAYS:
+                return true;
+            case HOLD_SHIFT:
+                return shiftModifier();
+            case DISABLED:
+                return false;
         }
         return false;
     }
