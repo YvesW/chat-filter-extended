@@ -319,6 +319,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             }
             client.refreshChat(); //Refresh chat when the config changes (enabling/disabling filter, changing filter settings).
         }
+        //todo: probably add boolean button like client resizer (LinkBrowser thing) to reset trade chat related settings for configprofile and rsprofile? -> could be useful in case you fucked with it and want to reset it to semi-safe defaults? -> alternatively use a chat command, but this is less visible to the user
     }
 
     private void updateConfig() {
