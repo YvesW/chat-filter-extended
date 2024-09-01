@@ -599,6 +599,29 @@ public class ChatFilterExtendedPlugin extends Plugin {
             configManager.unsetRSProfileConfiguration(CONFIG_GROUP, "tradeChatFilterOptions");
             System.out.println("rsprofile settings unset");
         }
+        if (commandExecuted.getCommand().equalsIgnoreCase("test8")) {
+            String testString1 = gson.toJson(filteredRegions);
+            System.out.println(testString1);
+            final Map<Integer, FilteredRegion> filteredRegions2 = new HashMap<>();
+            filteredRegions2.putAll(gson.fromJson(testString1, new TypeToken<Map<Integer, FilteredRegion>>() {}.getType()));
+            for (Map.Entry<Integer, FilteredRegion> entry :  filteredRegions2.entrySet()) {
+                System.out.println("Key = " + entry.getKey());
+                FilteredRegion region = entry.getValue();
+                System.out.println("getRegionID = " + region.getRegionID());
+                System.out.println("isPublicChatCustomOnly = " + region.isPublicChatCustomOnly());
+                System.out.println("getPublicChatSetOH = " + region.getPublicChatSetOH());
+                System.out.println("getPublicChatSet = " + region.getPublicChatSet());
+                System.out.println("isPrivateChatCustomOnly = " + region.isPrivateChatCustomOnly());
+                System.out.println("getPrivateChatSet = " + region.getPrivateChatSet());
+                System.out.println("isChannelChatCustomOnly = " + region.isChannelChatCustomOnly());
+                System.out.println("getChannelChatSet = " + region.getChannelChatSet());
+                System.out.println("isClanChatCustomOnly = " + region.isClanChatCustomOnly());
+                System.out.println("getClanChatSet = " + region.getClanChatSet());
+                System.out.println("isTradeChatCustomOnly = " + region.isTradeChatCustomOnly());
+                System.out.println("getTradeChatSet = " + region.getTradeChatSet());
+                System.out.println("======================================");
+            }
+        }
     }
 
     //todo: Check how caching is implemented in the ChatFilterPlugin after you last worked on this plugin!

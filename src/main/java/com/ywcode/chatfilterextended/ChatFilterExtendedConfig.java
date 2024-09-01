@@ -84,7 +84,7 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "autoEnableFilteredRegionShiftMenuSetting",
 			name = "Show Auto-enable Custom menu option",
-			description = "When to show the Auto-enable Custom for current region menu option.<br>"
+			description = "When to show the Auto-enable Custom for current region menu option, assuming the custom filter is enabled for this chat.<br>"
 					+ "Disabled: never. Holding shift: when holding shift and right clicking on a chat tab/stone. Always: when right clicking on a chat tab/stone.",
 			position = 3,
 			section = generalSettings
@@ -207,7 +207,7 @@ public interface ChatFilterExtendedConfig extends Config
 	@ConfigItem(
 			keyName = "clearRaidPartyShiftMenuSetting",
 			name = "Show Clear Raid Party menu option",
-			description = "When to show the Clear Raid Party members menu option.<br>"
+			description = "When to show the Clear Raid Party members menu option, assuming the custom filter is enabled for this chat.<br>"
 					+ "Disabled: never. Holding shift: when holding shift and right clicking on a chat tab/stone. Always: when right clicking on a chat tab/stone.",
 			position = 4,
 			section = clearChatSetsSettings
