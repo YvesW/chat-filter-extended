@@ -708,7 +708,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         }
 
         MenuEntry chatFilterEntry = null; //Used below to show a Change Sets Menu when the set is completely empty, if it should show something (based on shift-click settings etc.).
-        int mainMenuIdx = -1; //Index for main menu to be used below with client.createMenuEntry(mainMenuIdx--)
+        int mainMenuIdx = -1; //Index for main menu to be used below with client.getMenu().createMenuEntry(mainMenuIdx--)
 
         //Determine if the chatstone (e.g. private) should be filtered based on the componentID and the config set
         //shouldFilterChatType already has a ComponentID check build in that checks if it's a chatstone or not + checks if the filter option is enabled or not (if set is empty or not)
@@ -744,8 +744,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //At this point the name/option is e.g. "<col>Public:</col> Show Friends/FC/CC OH"
 
             //Option is completed at this point. Create the main MenuEntry and set its params
-            //client.createMenuEntry deprecation does not matter I think, since e.g. GroundItemsPlugin, InventoryTagsPlugin, NPCIndicators, MES etc still uses it to create the parent/main MenuEntry
-            chatFilterEntry = client.createMenuEntry(mainMenuIdx--)
+            chatFilterEntry = client.getMenu().createMenuEntry(mainMenuIdx--)
                     .setType(MenuAction.RUNELITE)
                     .setParam1(menuEntryAddedParam1)
                     .onClick(e -> enableChatFilter(menuEntryAddedParam1))
@@ -753,7 +752,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
             //If the ClearRaidPartyMenu should be shown, based on the advanced setting and shift state & only add if that chat is currently filtered
             if (shouldShowShiftMenuSetting(clearRaidPartyShiftMenuSetting) && isChatFiltered(menuEntryAddedParam1)) { //If you also want to display this when the custom filter is not enabled but the show custom option is shown for the tab, remove " && isChatFiltered(menuEntryAddedParam1)"
-                client.createMenuEntry(mainMenuIdx--)
+                client.getMenu().createMenuEntry(mainMenuIdx--)
                         .setType(MenuAction.RUNELITE)
                         .setParam1(menuEntryAddedParam1)
                         .onClick(this::clearRaidPartySetManually)
@@ -763,7 +762,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //If the autoEnableFilteredRegion should be shown, based on the advanced setting and shift state & only add if that chat is currently filtered
             if (shouldShowShiftMenuSetting(autoEnableFilteredRegionShiftMenuSetting) && isChatFiltered(menuEntryAddedParam1)) { //If you also want to display this when the custom filter is not enabled but the show custom option is shown for the tab, remove " && isChatFiltered(menuEntryAddedParam1)"
                 int regionID = currentRegionID; //Maybe not necessary but currentRegionID can change while moving, while regionID will not
-                final MenuEntry autoEnableFilteredRegionEntry = client.createMenuEntry(mainMenuIdx--)
+                final MenuEntry autoEnableFilteredRegionEntry = client.getMenu().createMenuEntry(mainMenuIdx--)
                         .setType(MenuAction.RUNELITE)
                         .setParam1(menuEntryAddedParam1)
                         .setOption("Auto-enable custom (region " + regionID + ")");
@@ -796,7 +795,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //If the chat set is fully empty, add a parent menuentry!
             if (chatFilterEntry == null) { //aka if (!shouldFilterChatType(menuEntryAddedParam1))
                 //Create parent menu
-                chatFilterEntry = client.createMenuEntry(mainMenuIdx--)
+                chatFilterEntry = client.getMenu().createMenuEntry(mainMenuIdx--)
                         .setType(MenuAction.RUNELITE)
                         .setParam1(menuEntryAddedParam1)
                         .setOption("Change Chat Sets");
