@@ -301,9 +301,10 @@ public class ChatFilterExtendedPlugin extends Plugin {
     public void onConfigChanged(ConfigChanged configChanged) {
         if (configChanged.getGroup().equals(CONFIG_GROUP)) {
             //PM Also procs for configManager.setRSProfileConfiguration(CONFIG_GROUP, keyName, value)
+            String changedKey = configChanged.getKey();
             updateConfig();
             disableFilterWhenSetEmptied();
-            if (configChanged.getKey().equals("forcePrivateOn")) {
+            if (changedKey.equals("forcePrivateOn")) {
                 if (forcePrivateOn) {
                     //Set friends to on when forePrivateOn is enabled and chat is custom filtered
                     setChatsToPublic();
@@ -313,7 +314,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
                     redrawChatButtons();
                 }
             }
-            if (configChanged.getKey().equals("filteredRegionsData")) {
+            if (changedKey.equals("filteredRegionsData")) {
                 //Only update it when this value changes because maybe some people have an insane amount of regions?
                 updateFilteredRegions();
             }
@@ -1172,7 +1173,6 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void convertStringToFilteredRegions(String configString) {
-        //todo: check if you can improve this code
         //Convert the (config) string to FilteredRegions
 
         //Clear the old filteredRegions map before adding the new regions
@@ -1223,19 +1223,15 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void setFilteredRegionAttributes(String filteredRegionData, FilteredRegion filteredRegion) {
-        //todo: check if you can improve this code
-        //todo: check if you can inline this code at the end so regionIDString and regionIDInt don't have to be defined here again etc + can remove some other things and comments then
         //Sets the attributes for the specific FilteredRegion based on the FilteredRegion string data in the hashset
-        String testString1 = "1234:pu;puoh/ccoh/pu/fc/cc";
-        String testString2 = "1234:pu;puoh/ccoh/pu/fc/cc,5678:ch;fr/fc/cc/wh";
-        String testString3 = "1234:pu;puoh/ccoh/pu/fc/cc,5678:ch;fr/fc/cc/wh,1337:pr;cu/;,1234:tr;cc/gu"; //todo: remove
+        //Can be inlined, which would remove the need for e.g. colonIdx, regionIDString, and regionIDInt to be defined here again
 
         final int colonIdx = filteredRegionData.indexOf(':');
         final int semicolonIdx = filteredRegionData.indexOf(';');
 
         //colonIdx is already -1 at this point since it was checked before this method was called
         if (semicolonIdx == -1) {
-            //return if it does not contain a semicolon
+            //return if it does not contain a semicolon -> replace with continue if inlining
             return;
         }
 
@@ -1246,6 +1242,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
         if (chatTab == null) {
             //We're not using java 18, so you have to null check before switch and can't use case null:
+            //Replace with continue probs if inlining
             return;
         }
 
@@ -1264,7 +1261,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //chatSetEnumSet will remain empty if justCustom
         } else {
             //Not just custom
-            //I should use split or google commons splitter like Text.fromCSV but I can also do lazy jank like this
+            //I should use split, or guava splitter like Text.fromCSV, but I can also do lazy jank like this
             convertCommaSeparatedStringToSet(chatSetString.replace("/", ","), chatSetStringHashSet);
 
             //Convert HashSet<String> to EnumSet
@@ -1283,7 +1280,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             if (chatSetEnumSet.isEmpty()) {
                 //Remove an invalid FilteredRegion from the config
                 removeRegionFromConfigString(regionIDInt, chatTab.getComponentID());
-                //This proc onConfigChanged -> procs convertStringToFilteredRegions -> clears filteredRegions
+                //This procs onConfigChanged -> procs convertStringToFilteredRegions -> clears filteredRegions
                 return;
             }
         }
@@ -1714,8 +1711,15 @@ public class ChatFilterExtendedPlugin extends Plugin {
     }
 
     private void addRegionToConfigString(int regionID, int componentID, Set<ChatTabFilterOptions> chatTabFilterOptions, Set<ChatTabFilterOptionsOH> chatTabFilterOptionsOH) {
-        //todo: check if this should be simplified/fixed because you now added the sets
         //Add the regionid + chat tab combination to the filtered regions ConfigString
+        //The current implementation uses less space in the config, which was my goal in case people added a ton of regions, but just doing the following would be so much easier:
+        // Set filtered region for this ChatTab to the defaults (false, clear Set) using a switch statement -> code would also be used for the remove MenuEntry
+        // Set the correct option for the filtered region using a switch statement, i.e. just custom or the set for this ChatTab
+        // gson.toJson(filteredRegions); -> setConfiguration
+        // When loading, you can just do:
+        // filteredRegions.clear();
+        // filteredRegions.putAll(gson.fromJson(configManager.getConfiguration(CONFIG_GROUP, keyName), new TypeToken<Map<Integer, FilteredRegion>>() {}.getType()));
+        // You could use @SerializedName with Gson to produce shorter custom field names. Abbreviating the values and skipping default values might be harder though.
 
         final ChatTab chatTab = ChatTab.getEnumElement(componentID);
         if (chatTab == null) {
@@ -1740,7 +1744,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
         } else { //if (!justCustom)
             //Convert active custom set(s) for this chattab to a String and append
 
-            StringBuilder chatsAddedBuilder = new StringBuilder();
+            StringBuilder chatsAddedBuilder = new StringBuilder(); //Purely used for the ingame chat message, so using .replace() later on is correct
             //Add the chat abbreviations, results in e.g. 1234:pu;pu/fc/cc/
             for (ChatTabFilterOptions chatTabFilterOption : chatTabFilterOptions) {
                 stringBuilderToAdd.append(chatTabFilterOption.getFilteredRegionAbbreviation()).append("/");
