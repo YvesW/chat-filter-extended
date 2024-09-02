@@ -11,7 +11,7 @@ import java.util.Set;
 @Setter(AccessLevel.PACKAGE)
 public class FilteredRegion {
 
-    private final int regionID;
+    //private final int regionID; //Removed regionID because I'm always getting it via the regionID, thus storing it in a map that has the regionIDs as keys
     private boolean publicChatCustomOnly; //Only activate custom, don't check sets
     private Set<ChatTabFilterOptionsOH> publicChatSetOH = EnumSet.noneOf(ChatTabFilterOptionsOH.class); //Set is always initialized, but empty when it should not be used
     private Set<ChatTabFilterOptions> publicChatSet = EnumSet.noneOf(ChatTabFilterOptions.class); //Set is always initialized, but empty when it should not be used
@@ -24,7 +24,6 @@ public class FilteredRegion {
     private boolean tradeChatCustomOnly; //Only activate custom, don't check sets
     private Set<ChatTabFilterOptions> tradeChatSet = EnumSet.noneOf(ChatTabFilterOptions.class); //Set is always initialized, but empty when it should not be used
 
-    public FilteredRegion(int regionID) {
-        this.regionID = regionID;
+    public FilteredRegion() {
     }
 }

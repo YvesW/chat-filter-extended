@@ -551,8 +551,8 @@ public class ChatFilterExtendedPlugin extends Plugin {
             //raidPartyStandardizedUsernames.clear(); shouldRefreshChat = true;
         }
         if (commandExecuted.getCommand().equals("test5")) {
-            FilteredRegion test1 = new FilteredRegion(12345);
-            System.out.println(test1.getRegionID());
+            FilteredRegion test1 = new FilteredRegion();
+            //System.out.println(test1.getRegionID());
             System.out.println(test1.getClanChatSet());
             System.out.println(test1.isClanChatCustomOnly());
             test1.setClanChatSet(clanChatFilterOptions);
@@ -570,7 +570,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             for (Map.Entry<Integer, FilteredRegion> entry :  filteredRegions.entrySet()) {
                 System.out.println("Key = " + entry.getKey());
                 FilteredRegion region = entry.getValue();
-                System.out.println("getRegionID = " + region.getRegionID());
+                //System.out.println("getRegionID = " + region.getRegionID());
                 System.out.println("isPublicChatCustomOnly = " + region.isPublicChatCustomOnly());
                 System.out.println("getPublicChatSetOH = " + region.getPublicChatSetOH());
                 System.out.println("getPublicChatSet = " + region.getPublicChatSet());
@@ -608,7 +608,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
             for (Map.Entry<Integer, FilteredRegion> entry :  filteredRegions2.entrySet()) {
                 System.out.println("Key = " + entry.getKey());
                 FilteredRegion region = entry.getValue();
-                System.out.println("getRegionID = " + region.getRegionID());
+                //System.out.println("getRegionID = " + region.getRegionID());
                 System.out.println("isPublicChatCustomOnly = " + region.isPublicChatCustomOnly());
                 System.out.println("getPublicChatSetOH = " + region.getPublicChatSetOH());
                 System.out.println("getPublicChatSet = " + region.getPublicChatSet());
@@ -1204,7 +1204,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
 
             //if FilteredRegion does not exist yet, create a new one
             if (filteredRegion == null) {
-                filteredRegion = new FilteredRegion(regionIDInt);
+                filteredRegion = new FilteredRegion();
             }
 
             //Set the attributes for the region and put it on the map
