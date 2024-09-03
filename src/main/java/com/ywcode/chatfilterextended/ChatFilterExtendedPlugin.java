@@ -1168,6 +1168,7 @@ public class ChatFilterExtendedPlugin extends Plugin {
     private Set<ChatTabFilterOptions> getChatSetFromRSProfile(String keyName) {
         //Get the ChatFilterOptions from the RSProfile. Use gson to get it from json. Without gson, you get a ClassCastException.
         //Don't need to check if RSProfile is already loaded since this method is only called from locations with a loaded RSProfile
+        //PM In newer versions of Gson .getType() can very likely be removed.
         return gson.fromJson(configManager.getRSProfileConfiguration(CONFIG_GROUP, keyName), new TypeToken<Set<ChatTabFilterOptions>>() {}.getType());
     }
 
