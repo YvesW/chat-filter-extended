@@ -310,7 +310,7 @@ public interface ChatFilterExtendedConfig extends Config
 			description = "String that contains the data for the regions in which you enabled automatic custom filtering.<br>"
 					+ "It's recommended to use the menu options to modify this string (shift + right click a chat tab/stone by default).<br>"
 					+ "Do NOT modify this string manually. It's only exposed to easily copy and paste it between profiles,<br>"
-					+ "or to remove ALL the regions in which you enabled automatic custom filtering.",
+					+ "or to remove ALL the regions in which you enabled automatic custom filtering (aka FilteredRegions).",
 			position = 2,
 			section = advancedSettings
 	)

@@ -1,10 +1,11 @@
 package com.ywcode.chatfilterextended;
 
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
-@Getter
+@Getter(AccessLevel.PACKAGE)
 public enum ShiftMenuSetting {
     HOLD_SHIFT("Hold Shift"),
     ALWAYS("Always");
